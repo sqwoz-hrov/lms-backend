@@ -40,9 +40,10 @@ export default tseslint.config(
         'error',
         {
           printWidth: 120,
+          useTabs: true,
           proseWrap: 'never',
           arrowParens: 'avoid',
-          trailingComma: 'none',
+          trailingComma: 'all',
         },
       ],
     },
