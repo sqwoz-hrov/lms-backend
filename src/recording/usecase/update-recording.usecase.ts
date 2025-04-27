@@ -4,21 +4,21 @@ import { Recording } from '../recording.entity';
 
 @Injectable()
 export class UpdateRecordingUseCase {
-  constructor(private readonly recordingRepository: RecordingRepository) {}
+	constructor(private readonly recordingRepository: RecordingRepository) {}
 
-  async execute(id: number, recordingData: Partial<Recording>): Promise<Recording | null> {
-    // First check if the recording exists
-    const existingRecording = await this.recordingRepository.findById(id);
+	async execute(id: number, recordingData: Partial<Recording>): Promise<Recording | null> {
+		// First check if the recording exists
+		const existingRecording = await this.recordingRepository.findById(id);
 
-    if (!existingRecording) {
-      throw new Error(`Recording with ID ${id} not found`);
-    }
+		if (!existingRecording) {
+			throw new Error(`Recording with ID ${id} not found`);
+		}
 
-    // You can add additional validation logic here
-    if (recordingData.name === '') {
-      throw new Error('Recording name cannot be empty');
-    }
+		// You can add additional validation logic here
+		if (recordingData.name === '') {
+			throw new Error('Recording name cannot be empty');
+		}
 
-    return this.recordingRepository.update(id, recordingData);
-  }
+		return this.recordingRepository.update(id, recordingData);
+	}
 }

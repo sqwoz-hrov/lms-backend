@@ -5,14 +5,14 @@ import { Recording } from '../recording.entity';
 @Injectable()
 // TODO: use actual file upload
 export class CreateRecordingUseCase {
-  constructor(private readonly recordingRepository: RecordingRepository) {}
+	constructor(private readonly recordingRepository: RecordingRepository) {}
 
-  async execute(recordingData: { name: string; eventTypeId: number; url: string }): Promise<Recording> {
-    // You can add validation logic here
-    if (!recordingData.name || !recordingData.url) {
-      throw new Error('Recording name and URL are required');
-    }
+	async execute(recordingData: { name: string; eventTypeId: number; url: string }): Promise<Recording> {
+		// You can add validation logic here
+		if (!recordingData.name || !recordingData.url) {
+			throw new Error('Recording name and URL are required');
+		}
 
-    return this.recordingRepository.create(recordingData);
-  }
+		return this.recordingRepository.create(recordingData);
+	}
 }
