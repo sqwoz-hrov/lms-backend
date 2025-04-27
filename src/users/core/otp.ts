@@ -15,6 +15,7 @@ export class OTP {
 		const isOk = OTP.validate(digits);
 
 		if (isOk) {
+			this.digits = digits;
 			return this;
 		}
 

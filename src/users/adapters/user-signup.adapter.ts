@@ -1,8 +1,9 @@
+import { Inject } from '@nestjs/common';
 import { User } from '../user.entity';
 import { UserRepository } from '../user.repository';
 
 export class UserSignupAdapter {
-	constructor(private readonly userRepository: UserRepository) {}
+	constructor(@Inject(UserRepository) private readonly userRepository: UserRepository) {}
 
 	private isSignUpComplete(user: User) {
 		return !!user.telegram_id;

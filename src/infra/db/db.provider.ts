@@ -1,19 +1,20 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Kysely, Dialect } from 'kysely';
-import { dbConfig } from '../../configs/db.config';
+import { dbConfig } from '../../config';
+import { DIALECT_FACTORY_KEY } from '../../infra/db/db.const';
 
 @Injectable()
 export class DatabaseProvider {
 	private readonly database: Kysely<unknown>;
 
 	constructor(
-		@Inject(dbConfig.KEY) private readonly config: ConfigType<typeof dbConfig>,
-		@Inject()
+		@Inject(dbConfig.KEY) config: ConfigType<typeof dbConfig>,
+		@Inject(DIALECT_FACTORY_KEY)
 		private readonly dialectFactory: (config: {
 			host: string;
 			port: number;
-			username: string;
+			user: string;
 			password: string;
 			database: string;
 		}) => Dialect,

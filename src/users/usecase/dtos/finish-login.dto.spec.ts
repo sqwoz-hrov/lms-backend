@@ -1,3 +1,3 @@
 describe('FinishLoginDto', () => {
-    it.skip('handles correcly');
+	it.skip('handles correcly');
 });

@@ -1,6 +1,6 @@
 import { ConfigType } from '@nestjs/config';
 import { PostgresDialect } from 'kysely';
-import { dbConfig } from '../../configs/db.config';
+import { dbConfig } from '../../config';
 import { Pool } from 'pg';
 
 export const postgresDialectFactory = (config: ConfigType<typeof dbConfig>) => {

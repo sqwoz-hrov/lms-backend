@@ -4,7 +4,7 @@ import { Redis } from 'ioredis';
 
 import { IOTPStorage } from '../ports/otp-storage.port';
 import { OTP } from '../core/otp';
-import { otpConfig } from '../../configs/otp.config';
+import { otpConfig } from '../../config';
 
 import { REDIS_CONNECTION_KEY } from '../../infra/redis.const';
 
@@ -16,7 +16,7 @@ export class OTPRedisStorage implements IOTPStorage {
 	) {}
 
 	async setOtp({ userId, otp }: { userId: string; otp: OTP }): Promise<boolean> {
-		const isOk = await this.redis.set(userId, otp.asString, 'EX', this.config.otpTtlSeconds, 'NX');
+		const isOk = await this.redis.set(userId, otp.asString, 'EX', this.config.otpTtlSeconds);
 		return !!isOk;
 	}
 

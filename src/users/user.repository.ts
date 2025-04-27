@@ -1,11 +1,12 @@
 import { Kysely } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { User, UserAggregation } from './user.entity';
+import { Inject } from '@nestjs/common';
 
 export class UserRepository {
 	private readonly connection: Kysely<UserAggregation>;
 
-	constructor(private readonly dbProvider: DatabaseProvider) {
+	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
 		this.connection = dbProvider.getDatabase<UserAggregation>();
 	}
 
@@ -27,5 +28,17 @@ export class UserRepository {
 
 	public async update(user: User): Promise<void> {
 		await this.connection.updateTable('user').set(user).where('id', '=', user.id).execute();
+	}
+
+	public async save(user: Omit<User, 'telegram_id' | 'id'>): Promise<User | undefined> {
+		const res = await this.connection
+			.insertInto('user')
+			.values({
+				...user,
+			})
+			.returningAll()
+			.execute();
+
+		return !!res && res.length > 0 ? res.at(0) : undefined;
 	}
 }

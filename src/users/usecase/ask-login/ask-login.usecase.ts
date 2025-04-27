@@ -11,7 +11,7 @@ export class AskForLoginUsecase implements UsecaseInterface {
 	constructor(
 		private readonly repo: UserRepository,
 		private readonly otpService: OTPService,
-		@Inject(TelegramAdapter.name) private readonly otpSender: IOTPSender<'telegram'>,
+		@Inject(TelegramAdapter) private readonly otpSender: IOTPSender<'telegram'>,
 	) {}
 
 	private isSignupFinished(user: User | undefined): user is User & { telegram_id: number } {

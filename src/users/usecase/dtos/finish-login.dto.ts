@@ -1,15 +1,20 @@
-import { IsEmail, IsString, IsNotEmpty } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
-
-import { OTP } from '../../core/otp';
+import { IsEmail, IsString, IsNumber, IsNotEmpty } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class FinishLoginDto {
+	@ApiProperty({ example: 'user@example.com', description: 'User email address' })
 	@IsEmail()
 	email: string;
 
-	@Transform(({ value }) => new OTP(value))
+	@ApiProperty({ example: 123456, description: 'One-time password code' })
+	@IsNumber()
+	@IsNotEmpty()
+	otpCode: number;
+}
+
+export class FinishLoginResponseDto {
+	@ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', description: 'JWT access token' })
 	@IsString()
 	@IsNotEmpty()
-	@Type(() => String)
-	otpCode: OTP;
+	token: string;
 }

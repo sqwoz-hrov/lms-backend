@@ -39,6 +39,8 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('role', sql`user_role`, (col) => col.notNull())
     .addColumn('name', 'varchar(64)', (col) => col.notNull())
     .addColumn('email', 'varchar(64)', (col) => col.notNull().unique())
+    .addColumn('telegram_id', 'integer')
+    .addColumn('telegram_username', 'varchar(64)', (col) => col.notNull().unique())
     .execute();
 
   // Create subject table

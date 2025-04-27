@@ -1,11 +1,48 @@
-// SIGNUP
-// We save mf to a database, signup state incomplete
-// Guy starts the bot
-// If his signup is not complete
-// We check his handle. If handle is present in our DB,
-// remember his tg id. Signup complete, send him a message like "we know you now"
+import { Injectable, Inject, LoggerService } from '@nestjs/common';
 
-// SIGNIN
-// Prerequisite: guy signup'd
-// We send to chat with his ID an OTP password. If no such guy or signup not complete, send 404
-// If he enters coorectly, let him in. If not, re-send OTP
+import { UsecaseInterface } from '../../../common/interface';
+import { UserRepository } from '../../user.repository';
+import { User, UserRole } from '../../user.entity';
+import { LOGGER_INSTANCE } from '../../../infra/constants';
+
+@Injectable()
+export class SignupUsecase implements UsecaseInterface {
+	constructor(
+		private readonly repo: UserRepository,
+		@Inject(LOGGER_INSTANCE) private readonly logger: LoggerService,
+	) {}
+
+	public async execute({
+		role,
+		name,
+		email,
+		telegram_username,
+	}: {
+		role: UserRole;
+		name: string;
+		email: string;
+		telegram_username: string;
+	}): Promise<Omit<User, 'telegram_id'> | undefined> {
+		try {
+			this.logger.log(`Saving user ${email}...`);
+			const saveRes = await this.repo.save({
+				role,
+				name,
+				email,
+				telegram_username,
+			});
+			return saveRes
+				? {
+						name: saveRes.name,
+						id: saveRes.id,
+						email: saveRes.email,
+						role: saveRes.role,
+						telegram_username: saveRes.telegram_username,
+					}
+				: undefined;
+		} catch (error) {
+			this.logger.error(error);
+			return undefined;
+		}
+	}
+}

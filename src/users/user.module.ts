@@ -1,16 +1,32 @@
-// SIGNUP
-// We save mf to a database, signup state incomplete
-// Guy starts the bot
-// If his signup is not complete
-// We check his handle. If handle is present in our DB,
-// remember his tg id. Signup complete, send him a message like "we know you now"
+import { forwardRef, Module } from '@nestjs/common';
+import { AskForLoginController } from './usecase/ask-login/ask-login.controller';
+import { FinishLoginController } from './usecase/finish-login/finish-login.controller';
+import { OTPRedisStorage } from './adapters/otp-storage.adapter';
+import { UserSignupAdapter } from './adapters/user-signup.adapter';
+import { OTPService } from './core/otp.service';
+import { AskForLoginUsecase } from './usecase/ask-login/ask-login.usecase';
+import { FinishLoginUsecase } from './usecase/finish-login/finish-login.usecase';
+import { SignupUsecase } from './usecase/signup/signup.usecase';
+import { UserRepository } from './user.repository';
+import { JwtService } from './core/jwt.service';
 
-// SIGNIN
-// Prerequisite: guy signup'd
-// We send to chat with his ID an OTP password. If no such guy or signup not complete, send 404
-// Save OTP to temporary storage
+import { TelegramModule } from '../telegram/telegram.module';
+import { InfraModule } from '../infra/infra.module';
+import { SignupController } from './usecase/signup/signup.controller';
 
-// Confirm OTP
-// If he enters coorectly, let him in. If not, re-send OTP
-
-// test case: no sql injection possible
+@Module({
+	imports: [InfraModule, forwardRef(() => TelegramModule)],
+	controllers: [AskForLoginController, FinishLoginController, SignupController],
+	providers: [
+		OTPRedisStorage,
+		UserSignupAdapter,
+		OTPService,
+		JwtService,
+		AskForLoginUsecase,
+		FinishLoginUsecase,
+		SignupUsecase,
+		UserRepository,
+	],
+	exports: [UserSignupAdapter],
+})
+export class UserModule {}

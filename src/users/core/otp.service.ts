@@ -1,26 +1,25 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { promisify } from 'node:util';
 
 import { OTP } from './otp';
 
 import { IOTPStorage } from '../ports/otp-storage.port';
 import { OTPRedisStorage } from '../adapters/otp-storage.adapter';
 
-const randomBytesAsync = promisify(randomBytes);
-
 @Injectable()
 export class OTPService {
-	constructor(@Inject(OTPRedisStorage.name) private readonly otpStorage: IOTPStorage) {}
+	constructor(@Inject(OTPRedisStorage) private readonly otpStorage: IOTPStorage) {}
 
-	private async generateOtp() {
-		const buf = await randomBytesAsync(3);
-		const digitsString = parseInt(buf.toString('hex'), 10).toString().substr(0, 6);
+	private generateOtp() {
+		const bytes = randomBytes(4);
+		const value = bytes.readUInt32BE(0) % 1000000;
+		const digitsString = value.toString().padStart(6, '0');
+		console.log('Generated OTP:', digitsString);
 		return new OTP(digitsString);
 	}
 
 	async createOtp(userId: string) {
-		const newOtp = await this.generateOtp();
+		const newOtp = this.generateOtp();
 		await this.otpStorage.setOtp({ userId, otp: newOtp });
 		return newOtp;
 	}
