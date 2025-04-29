@@ -18,10 +18,10 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
   },
-  "exclude": [
-    ".config"
-  ],
   "include": [
     "src/**/*.ts",
+    "test/**/*.ts",
+    ".config/**/*.ts",
+    "migrations/**/*.ts",
   ],
 }

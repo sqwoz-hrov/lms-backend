@@ -7,9 +7,8 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   {
     ignores: [
-      '.config',
-      'migrations',
-      'eslint.config.mjs'
+      'eslint.config.mjs',
+      '.mocharc.cjs'
     ],
   },
   eslint.configs.recommended,

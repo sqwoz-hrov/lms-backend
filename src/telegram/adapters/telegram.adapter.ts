@@ -20,8 +20,14 @@ export class TelegramAdapter implements IOTPSender<'telegram'> {
 		chatId: string | number,
 		text: string,
 		options?: TelegramBot.SendMessageOptions,
-	): Promise<TelegramBot.Message> {
-		return this.bot.sendMessage(chatId, text, options);
+	): Promise<boolean> {
+		try {
+			await this.bot.sendMessage(chatId, text, options);
+			return true;
+		} catch (error) {
+			this.logger.error(`Error while sending message to Telegram, ${error}`);
+			return false;
+		}
 	}
 
 	public async sendOTP(to: { telegram_id: number }, otp: OTP): Promise<boolean> {

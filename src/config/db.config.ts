@@ -7,4 +7,5 @@ export const dbConfig = registerAs('database', () => ({
 	user: get('POSTGRES_USER').required().asString(),
 	password: get('POSTGRES_PASSWORD').required().asString(),
 	database: get('POSTGRES_DB').required().asString(),
+	path: get('SQLITE_PATH').default('./db.sqlite').asString(),
 }));

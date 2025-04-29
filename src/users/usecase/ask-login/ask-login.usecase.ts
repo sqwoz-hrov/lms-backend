@@ -4,14 +4,14 @@ import { UserRepository } from '../../user.repository';
 import { User } from '../../user.entity';
 import { IOTPSender } from '../../ports/otp-sender.port';
 import { OTPService } from '../../core/otp.service';
-import { TelegramAdapter } from '../../../telegram/adapters/telegram.adapter';
+import { TELEGRAM_ADAPTER } from '../../../telegram/constants';
 
 @Injectable()
 export class AskForLoginUsecase implements UsecaseInterface {
 	constructor(
 		private readonly repo: UserRepository,
 		private readonly otpService: OTPService,
-		@Inject(TelegramAdapter) private readonly otpSender: IOTPSender<'telegram'>,
+		@Inject(TELEGRAM_ADAPTER) private readonly otpSender: IOTPSender<'telegram'>,
 	) {}
 
 	private isSignupFinished(user: User | undefined): user is User & { telegram_id: number } {

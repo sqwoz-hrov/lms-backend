@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { UserSignupAdapter } from '../../users/adapters/user-signup.adapter';
+import { TELEGRAM_ADAPTER } from '../constants';
 import { TelegramAdapter } from '../adapters/telegram.adapter';
 
 @Injectable()
 export class TelegramWebhookUsecase {
 	constructor(
 		private readonly userSignupAdapter: UserSignupAdapter,
+		@Inject(TELEGRAM_ADAPTER)
 		private readonly telegramAdapter: TelegramAdapter,
 	) {}
 

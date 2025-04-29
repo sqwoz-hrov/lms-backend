@@ -2,15 +2,15 @@ import { Kysely, sql } from 'kysely';
 
 /**
  * Creates a properly functioning UUID v7 function in PostgreSQL
- * 
+ *
  * @param db {Kysely<any>}
  */
 export async function up(db: Kysely<any>): Promise<void> {
-  // Create extension for UUID generation
-  await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`.execute(db);
-  
-  // Create custom UUID v7 function
-  await sql`
+	// Create extension for UUID generation
+	await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`.execute(db);
+
+	// Create custom UUID v7 function
+	await sql`
 	CREATE OR REPLACE FUNCTION uuid_generate_v7() RETURNS uuid
 	AS $$
 	  -- Replace the first 48 bits of a uuidv4 with the current
@@ -30,9 +30,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 /**
  * Removes the UUID v7 function
- * 
+ *
  * @param db {Kysely<any>}
  */
 export async function down(db: Kysely<any>): Promise<void> {
-  await sql`DROP FUNCTION IF EXISTS uuid_generate_v7()`.execute(db);
+	await sql`DROP FUNCTION IF EXISTS uuid_generate_v7()`.execute(db);
 }

@@ -17,6 +17,7 @@ export class DatabaseProvider {
 			user: string;
 			password: string;
 			database: string;
+			path: string;
 		}) => Dialect,
 	) {
 		this.database = new Kysely<unknown>({

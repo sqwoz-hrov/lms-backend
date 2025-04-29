@@ -1,0 +1,1 @@
+export const TELEGRAM_ADAPTER = Symbol('TELEGRAM_ADAPTER');

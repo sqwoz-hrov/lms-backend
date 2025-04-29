@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AskForLoginController } from './usecase/ask-login/ask-login.controller';
 import { FinishLoginController } from './usecase/finish-login/finish-login.controller';
 import { OTPRedisStorage } from './adapters/otp-storage.adapter';
@@ -10,12 +10,9 @@ import { SignupUsecase } from './usecase/signup/signup.usecase';
 import { UserRepository } from './user.repository';
 import { JwtService } from './core/jwt.service';
 
-import { TelegramModule } from '../telegram/telegram.module';
-import { InfraModule } from '../infra/infra.module';
 import { SignupController } from './usecase/signup/signup.controller';
 
 @Module({
-	imports: [InfraModule, forwardRef(() => TelegramModule)],
 	controllers: [AskForLoginController, FinishLoginController, SignupController],
 	providers: [
 		OTPRedisStorage,
