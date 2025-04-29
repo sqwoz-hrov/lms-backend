@@ -1,10 +1,11 @@
 import { TestHttpClient } from '../../../test/test.http-client';
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
-import { UserRole } from '../user.entity';
-import { AskLoginResponseDto } from '../usecase/dtos/ask-login.dto';
 import { UserFactory } from '../../../test/test.user.factory';
+
 import { FinishLoginResponseDto } from '../usecase/dtos/finish-login.dto';
+import { AskLoginResponseDto } from '../usecase/dtos/ask-login.dto';
 import { UserResponseDto } from '../usecase/dtos/signup.dto';
+import { UserRole } from '../user.entity';
 
 export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 	private readonly jwtFactory: UserFactory = new UserFactory();

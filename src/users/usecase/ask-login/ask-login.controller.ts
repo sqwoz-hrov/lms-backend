@@ -25,6 +25,6 @@ export class AskForLoginController {
 			throw new NotFoundException('Пользователя с такой почтой не нашлось :( Проверьте почту или напишите нам');
 		}
 
-		return;
+		return {};
 	}
 }

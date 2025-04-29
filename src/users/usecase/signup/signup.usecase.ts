@@ -1,16 +1,14 @@
-import { Injectable, Inject, LoggerService } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { UsecaseInterface } from '../../../common/interface';
-import { UserRepository } from '../../user.repository';
 import { User, UserRole } from '../../user.entity';
-import { LOGGER_INSTANCE } from '../../../infra/constants';
+import { UserRepository } from '../../user.repository';
 
 @Injectable()
 export class SignupUsecase implements UsecaseInterface {
-	constructor(
-		private readonly repo: UserRepository,
-		@Inject(LOGGER_INSTANCE) private readonly logger: LoggerService,
-	) {}
+	private readonly logger = new Logger(SignupUsecase.name);
+
+	constructor(private readonly repo: UserRepository) {}
 
 	public async execute({
 		role,

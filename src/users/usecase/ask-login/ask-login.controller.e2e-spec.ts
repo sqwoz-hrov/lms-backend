@@ -1,19 +1,16 @@
-import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { RedisContainer, StartedRedisContainer } from '@testcontainers/redis';
+import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { StartedRedisContainer } from '@testcontainers/redis';
 import { expect } from 'chai';
 
 import { UserModule } from '../../user.module';
 import { TelegramModule } from '../../../telegram/telegram.module';
-import { runMigrations } from '../../../../test/test.run-migrations';
-import { ConfigModule, ConfigType } from '@nestjs/config';
-import { dbConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig } from '../../../config';
 import { UsersTestRepository } from '../../test-utils/test.repo';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
 import { TestHttpClient } from '../../../../test/test.http-client';
-import { InfraModule } from '../../../infra/infra.module';
+import { setupTestApplication } from '../../../../test/test.app-setup';
+import { createTestUser } from '../../../../test/fixtures/create-test-user.fixture';
 
 describe('[E2E] AskLogin usecase', () => {
 	let app: INestApplication;
@@ -23,57 +20,20 @@ describe('[E2E] AskLogin usecase', () => {
 	let userTestSdk: UsersTestSdk;
 
 	before(async () => {
-		const testModule = await Test.createTestingModule({
-			imports: [
-				InfraModule,
-				ConfigModule.forRoot({
-					load: [dbConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig],
-					isGlobal: true,
-					envFilePath: '.env.test',
-				}),
-				UserModule,
-				TelegramModule.forRoot({
-					useTelegramAPI: false,
-				}),
-			],
-		}).compile();
-
-		app = testModule.createNestApplication();
-
-		const _dbConfig = app.get<ConfigType<typeof dbConfig>>(dbConfig.KEY);
-		const _redisConfig = app.get<ConfigType<typeof redisConfig>>(redisConfig.KEY);
-
+		({ app, postgresqlContainer, redisContainer } = await setupTestApplication({
+			imports: [UserModule, TelegramModule.forRoot({ useTelegramAPI: false })],
+		}));
 		const kysely = app.get(DatabaseProvider);
-
-		postgresqlContainer = await new PostgreSqlContainer()
-			.withHostname(_dbConfig.host)
-			.withExposedPorts(_dbConfig.port)
-			.withDatabase(_dbConfig.database)
-			.withUsername(_dbConfig.user)
-			.withPassword(_dbConfig.password)
-			.start();
-
-		redisContainer = await new RedisContainer()
-			.withHostname(_redisConfig.redisHost)
-			// 6379
-			.withExposedPorts(_redisConfig.redisPort)
-			.withUser(_redisConfig.redisUsername)
-			.withPassword(_redisConfig.redisPassword || '')
-			.start();
-
 		utilRepository = new UsersTestRepository(kysely);
-
-		await runMigrations({ useReal: true, connectionInfo: _dbConfig });
+		await app.init();
+		await app.listen(3000);
 
 		userTestSdk = new UsersTestSdk(
 			new TestHttpClient({
 				port: 3000,
-				host: '127.0.0.1',
+				host: 'http://127.0.0.1',
 			}),
 		);
-
-		await app.init();
-		await app.listen(3000);
 	});
 
 	afterEach(async () => {
@@ -94,7 +54,8 @@ describe('[E2E] AskLogin usecase', () => {
 				role: 'user',
 				name: 'testuser',
 				telegram_username: 'testuser',
-				email: 'chelik@sosnja.com',
+				telegram_id: 123456789,
+				email: 'john@doe.com',
 			})
 			.execute();
 		const user = insertRes.at(0);
@@ -114,7 +75,7 @@ describe('[E2E] AskLogin usecase', () => {
 			},
 		});
 
-		expect(res.status).to.equal(200);
+		expect(res.status).to.equal(202);
 		expect(res.body).to.deep.equal({});
 	});
 
@@ -126,7 +87,8 @@ describe('[E2E] AskLogin usecase', () => {
 				role: 'user',
 				name: 'testuser',
 				telegram_username: 'testuser',
-				email: 'chelik@sosnja.com',
+				telegram_id: 123456789,
+				email: 'john@doe.com',
 			})
 			.execute();
 
@@ -143,11 +105,56 @@ describe('[E2E] AskLogin usecase', () => {
 			userMeta: {
 				userId: user.id,
 				isWrongJwt: true,
-				isAuth: false,
+				isAuth: true,
 			},
 		});
 
-		expect(res.status).to.equal(200);
+		expect(res.status).to.equal(202);
 		expect(res.body).to.deep.equal({});
+	});
+
+	it('Correct JWT token works', async () => {
+		const user = await createTestUser(utilRepository);
+		const res = await userTestSdk.askLogin({
+			params: {
+				email: user.email,
+			},
+			userMeta: {
+				userId: user.id,
+				isWrongJwt: false,
+				isAuth: true,
+			},
+		});
+		expect(res.status).to.equal(202);
+	});
+
+	it('Non-existing user returns 404', async () => {
+		const user = await createTestUser(utilRepository);
+		const res = await userTestSdk.askLogin({
+			params: {
+				email: 'non-existent@email.com',
+			},
+			userMeta: {
+				userId: user.id,
+				isWrongJwt: false,
+				isAuth: false,
+			},
+		});
+		expect(res.status).to.equal(404);
+	});
+
+	it('User with unfinished registration returns 404', async () => {
+		const user = await createTestUser(utilRepository, { telegram_id: undefined });
+		const res = await userTestSdk.askLogin({
+			params: {
+				email: user.email,
+			},
+			userMeta: {
+				userId: user.id,
+				isWrongJwt: false,
+				isAuth: false,
+			},
+		});
+		expect(res.status).to.equal(404);
 	});
 });

@@ -1,9 +1,8 @@
-import { Injectable, Inject, LoggerService } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { verify, sign } from 'jsonwebtoken';
+import { sign, verify } from 'jsonwebtoken';
 
 import { jwtConfig } from '../../config';
-import { LOGGER_INSTANCE } from '../../infra/constants';
 
 interface JwtPayload {
 	[key: string]: any;
@@ -18,10 +17,9 @@ interface JwtPayload {
 
 @Injectable()
 export class JwtService {
-	constructor(
-		@Inject(jwtConfig.KEY) private readonly config: ConfigType<typeof jwtConfig>,
-		@Inject(LOGGER_INSTANCE) private readonly logger: LoggerService,
-	) {}
+	private readonly logger = new Logger(JwtService.name);
+
+	constructor(@Inject(jwtConfig.KEY) private readonly config: ConfigType<typeof jwtConfig>) {}
 
 	private getExpiry(): `${number}s` {
 		return `${this.config.expiresInSeconds}s`;

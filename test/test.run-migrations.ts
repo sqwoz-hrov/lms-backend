@@ -16,6 +16,9 @@ export const runMigrations = async (
 	connectParams:
 		| { useReal: false; connectionInfo: { path: string } }
 		| { useReal: true; connectionInfo: ConfigType<typeof dbConfig> },
+	params: {
+		logs?: boolean;
+	} = {},
 ) => {
 	const db = connectParams.useReal
 		? new Kysely<unknown>({
@@ -43,13 +46,16 @@ export const runMigrations = async (
 
 	const { error, results } = await migrator.migrateToLatest();
 
-	results?.forEach(it => {
-		if (it.status === 'Success') {
-			console.log(`migration "${it.migrationName}" was executed successfully`);
-		} else if (it.status === 'Error') {
-			console.error(`failed to execute migration "${it.migrationName}"`);
-		}
-	});
+	const { logs } = params;
+	if (logs) {
+		results?.forEach(it => {
+			if (it.status === 'Success') {
+				console.log(`migration "${it.migrationName}" was executed successfully`);
+			} else if (it.status === 'Error') {
+				console.error(`failed to execute migration "${it.migrationName}"`);
+			}
+		});
+	}
 
 	if (error) {
 		console.error('failed to migrate');

@@ -1,15 +1,15 @@
-import { LoggerService } from '@nestjs/common';
+import { ConsoleLogger } from '@nestjs/common';
 
-export class SilentLogger implements LoggerService {
+export class SilentLogger extends ConsoleLogger {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	public log(_message: string, _context?: string): void {}
-
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	public error(_message: string, _context?: string): void {}
+	public override log(_message: string, _context?: string): void {}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	public warn(_message: string, _context?: string): void {}
+	public override error(_message: string, _context?: string): void {}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	public debug(_message: string, _context?: string): void {}
+	public override warn(_message: string, _context?: string): void {}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	public override debug(_message: string, _context?: string): void {}
 }

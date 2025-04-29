@@ -29,7 +29,7 @@ export class TestHttpClient {
 		wrongJwt: boolean | undefined;
 		method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 	}) {
-		const result = await fetch(`${this.config.host}:${this.config.port}/${path}`, {
+		const result = await fetch(`${this.config.host}:${this.config.port}${path}`, {
 			method,
 			...(body ? { body: JSON.stringify(body) } : {}),
 			headers: {

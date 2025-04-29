@@ -1,8 +1,7 @@
-import { Injectable, Inject, OnModuleInit, LoggerService } from '@nestjs/common';
-import { otpBotConfig } from '../../config';
-import * as TelegramBot from 'node-telegram-bot-api';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { LOGGER_INSTANCE } from '../../infra/constants';
+import * as TelegramBot from 'node-telegram-bot-api';
+import { otpBotConfig } from '../../config';
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
@@ -11,8 +10,7 @@ export class TelegramService implements OnModuleInit {
 	constructor(
 		@Inject(otpBotConfig.KEY)
 		private readonly config: ConfigType<typeof otpBotConfig>,
-		@Inject(LOGGER_INSTANCE)
-		private readonly logger: LoggerService,
+		private readonly logger: Logger,
 	) {
 		this._bot = new TelegramBot(this.config.botToken);
 	}

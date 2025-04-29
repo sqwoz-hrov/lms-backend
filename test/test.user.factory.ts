@@ -3,7 +3,6 @@ import { v7 } from 'uuid';
 
 import { JwtService } from '../src/users/core/jwt.service';
 import { jwtConfig } from '../src/config';
-import { SilentLogger } from './test.silent-logger';
 
 export class UserFactory {
 	constructor(
@@ -14,8 +13,7 @@ export class UserFactory {
 	) {}
 
 	public getToken(userId: string = v7()) {
-		const silentLogger = new SilentLogger();
-		const token = new JwtService(this.config, silentLogger).generate({ userId });
+		const token = new JwtService(this.config).generate({ userId });
 		return { token, userId };
 	}
 }

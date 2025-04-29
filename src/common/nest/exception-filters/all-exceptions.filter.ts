@@ -1,4 +1,12 @@
-import { ExceptionFilter, Catch, ArgumentsHost, BadRequestException, Logger, HttpStatus } from '@nestjs/common';
+import {
+	ArgumentsHost,
+	BadRequestException,
+	Catch,
+	ExceptionFilter,
+	HttpException,
+	HttpStatus,
+	Logger,
+} from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
 @Catch()
@@ -27,7 +35,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 			{
 				description: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage),
 			},
-			exception instanceof BadRequestException ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR,
+			exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR,
 		);
 	}
 }

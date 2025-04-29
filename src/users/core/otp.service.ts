@@ -12,8 +12,8 @@ export class OTPService {
 
 	private generateOtp() {
 		const bytes = randomBytes(4);
-		const value = bytes.readUInt32BE(0) % 1000000;
-		const digitsString = value.toString().padStart(6, '0');
+		const value = (bytes.readUInt32BE(0) % 900000) + 100000;
+		const digitsString = value.toString();
 		console.log('Generated OTP:', digitsString);
 		return new OTP(digitsString);
 	}
