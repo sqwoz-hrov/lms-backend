@@ -59,6 +59,7 @@ describe('JwtService', () => {
 		const result = await jwtService.verify(expiredToken);
 		expect(result).to.deep.equal({ success: false });
 	});
+
 	it('Wrong sign alg token should not verify', async () => {
 		const userId = v7();
 
@@ -71,6 +72,7 @@ describe('JwtService', () => {
 		const result = await jwtService.verify(expiredToken);
 		expect(result).to.deep.equal({ success: false });
 	});
+
 	it('Fake signature should not verify', async () => {
 		const userId = v7();
 		const fakeSignatureToken = rubbishJwtService.generate({

@@ -11,7 +11,7 @@ export class DatabaseProvider {
 	constructor(
 		@Inject(dbConfig.KEY) config: ConfigType<typeof dbConfig>,
 		@Inject(DIALECT_FACTORY_KEY)
-		private readonly dialectFactory: (config: {
+		dialectFactory: (config: {
 			host: string;
 			port: number;
 			user: string;

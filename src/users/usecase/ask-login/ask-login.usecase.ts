@@ -15,15 +15,7 @@ export class AskForLoginUsecase implements UsecaseInterface {
 	) {}
 
 	private isSignupFinished(user: User | undefined): user is User & { telegram_id: number } {
-		if (!user) {
-			return false;
-		}
-
-		if (user.telegram_id) {
-			return true;
-		}
-
-		return false;
+		return user?.telegram_id !== undefined;
 	}
 
 	public async execute({ emailOrLogin }: { emailOrLogin: string }): Promise<{ success: boolean }> {
