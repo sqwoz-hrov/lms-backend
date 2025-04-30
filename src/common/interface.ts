@@ -1,3 +1,3 @@
 export interface UsecaseInterface {
-  execute(...args: any[]): Promise<any>;
+	execute(args: Record<string, unknown>): Promise<any>;
 }
