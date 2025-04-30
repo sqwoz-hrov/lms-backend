@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { sign, verify } from 'jsonwebtoken';
+import { z } from 'zod';
 
 import { jwtConfig } from '../../config';
 
@@ -14,6 +15,14 @@ interface JwtPayload {
 	iat?: number | undefined;
 	jti?: string | undefined;
 }
+
+const payloadSchema = z
+	.object({
+		userId: z.string(),
+		exp: z.number(),
+		iat: z.number(),
+	})
+	.strict();
 
 @Injectable()
 export class JwtService {
@@ -49,15 +58,17 @@ export class JwtService {
 	): Promise<{ success: false } | { success: true; data: { expires: number; userId: string } }> {
 		try {
 			const res = await this._verify(token, this.config.secret);
-			if (!res) {
+			const resultValidation = payloadSchema.safeParse(res?.payload);
+
+			if (!res || resultValidation.success === false) {
 				return { success: false };
 			}
 
-			if (!('userId' in res && res.userId && typeof res.userId === 'string') || !('exp' in res && res.exp)) {
+			if (res.payload.exp < Date.now() / 1000) {
 				return { success: false };
 			}
 
-			return { success: true, data: { expires: res.exp, userId: res.userId } };
+			return { success: true, data: { expires: res.payload.exp as number, userId: res.payload.userId as string } };
 		} catch (error) {
 			this.logger.error(`Verifying JWT error: ${error}`);
 			return { success: false };
@@ -67,6 +78,7 @@ export class JwtService {
 	generate({ userId }: { userId: string }) {
 		const token = sign({ userId }, this.config.secret, {
 			expiresIn: this.getExpiry(),
+			algorithm: 'HS512',
 		});
 
 		return token;

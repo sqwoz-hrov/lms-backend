@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
 import { OTP } from './otp';
@@ -8,13 +8,20 @@ import { OTPRedisStorage } from '../adapters/otp-storage.adapter';
 
 @Injectable()
 export class OTPService {
+	private readonly logger = new Logger(OTPService.name);
+
 	constructor(@Inject(OTPRedisStorage) private readonly otpStorage: IOTPStorage) {}
+
+	private maskOtp(otpString: string): string {
+		const maskedOtp = otpString.replace(/./g, '*');
+		return maskedOtp;
+	}
 
 	private generateOtp() {
 		const bytes = randomBytes(4);
 		const value = (bytes.readUInt32BE(0) % 900000) + 100000;
 		const digitsString = value.toString();
-		console.log('Generated OTP:', digitsString);
+		this.logger.log('Generated OTP:', this.maskOtp(digitsString));
 		return new OTP(digitsString);
 	}
 

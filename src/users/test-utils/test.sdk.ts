@@ -6,11 +6,18 @@ import { FinishLoginResponseDto } from '../usecase/dtos/finish-login.dto';
 import { AskLoginResponseDto } from '../usecase/dtos/ask-login.dto';
 import { UserResponseDto } from '../usecase/dtos/signup.dto';
 import { UserRole } from '../user.entity';
+import { ConfigType } from '@nestjs/config';
+import { jwtConfig } from '../../config';
 
 export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
-	private readonly jwtFactory: UserFactory = new UserFactory();
+	private readonly jwtFactory: UserFactory;
 
-	constructor(private readonly testClient: TestHttpClient) {}
+	constructor(
+		private readonly testClient: TestHttpClient,
+		jwtOptions: ConfigType<typeof jwtConfig>,
+	) {
+		this.jwtFactory = new UserFactory(jwtOptions);
+	}
 
 	public async askLogin({
 		params,

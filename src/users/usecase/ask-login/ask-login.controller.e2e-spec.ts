@@ -2,7 +2,9 @@ import { INestApplication } from '@nestjs/common';
 import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { StartedRedisContainer } from '@testcontainers/redis';
 import { expect } from 'chai';
+import { ConfigType } from '@nestjs/config';
 
+import { jwtConfig } from '../../../config';
 import { UserModule } from '../../user.module';
 import { TelegramModule } from '../../../telegram/telegram.module';
 import { UsersTestRepository } from '../../test-utils/test.repo';
@@ -33,6 +35,7 @@ describe('[E2E] AskLogin usecase', () => {
 				port: 3000,
 				host: 'http://127.0.0.1',
 			}),
+			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
 		);
 	});
 
