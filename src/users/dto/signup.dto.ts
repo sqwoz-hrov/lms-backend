@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { IsEmail, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
-import { UserRole } from '../../user.entity';
+import { UserRole } from '../user.entity';
 
 const UserRoles: UserRole[] = ['admin', 'user'];
 

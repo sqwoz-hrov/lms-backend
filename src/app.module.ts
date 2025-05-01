@@ -1,19 +1,23 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
-import { dbConfig, jwtConfig, otpBotConfig, otpConfig } from './config';
-import { UserModule } from './users/user.module';
-import { TelegramModule } from './telegram/telegram.module';
+import { dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig } from './config';
 import { InfraModule } from './infra/infra.module';
+import { MarkdownContentModule } from './markdown-content/markdown-content.module';
+import { TaskModule } from './tasks/task.module';
+import { TelegramModule } from './telegram/telegram.module';
+import { UserModule } from './users/user.module';
 
 @Module({
 	imports: [
 		ConfigModule.forRoot({
-			load: [dbConfig, jwtConfig, otpBotConfig, otpConfig],
+			load: [dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig],
 			isGlobal: true,
 		}),
 		InfraModule,
-		TelegramModule,
+		MarkdownContentModule.forRoot({ useRealImageStorage: false }),
+		TelegramModule.forRoot({ useTelegramAPI: true }),
+		TaskModule,
 		UserModule,
 	],
 	controllers: [],

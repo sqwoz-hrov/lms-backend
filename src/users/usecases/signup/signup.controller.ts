@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { SignupUsecase } from './signup.usecase';
 
-import { CreateUserDto, UserResponseDto } from '../dtos/signup.dto';
+import { CreateUserDto, UserResponseDto } from '../../dto/signup.dto';
 
 import { Route } from '../../../common/nest/decorators/route.decorator';
 
@@ -25,7 +25,7 @@ export class SignupController {
 	async signup(@Body() signupDto: CreateUserDto): Promise<UserResponseDto> {
 		const newUser = await this.userSignupUseCase.execute(signupDto);
 		if (!newUser) {
-			throw new InternalServerErrorException('User not created');
+			throw new InternalServerErrorException('Пользователь не создан');
 		}
 
 		return newUser;

@@ -10,6 +10,12 @@ export class UserRepository {
 		this.connection = dbProvider.getDatabase<UserAggregation>();
 	}
 
+	public async findById(id: string) {
+		const user = await this.connection.selectFrom('user').selectAll().where('id', '=', id).executeTakeFirst();
+
+		return user;
+	}
+
 	public async findByTelegramUsername(telegramUsername: string): Promise<User | undefined> {
 		const user = await this.connection
 			.selectFrom('user')
@@ -37,8 +43,8 @@ export class UserRepository {
 				...user,
 			})
 			.returningAll()
-			.execute();
+			.executeTakeFirst();
 
-		return !!res && res.length > 0 ? res.at(0) : undefined;
+		return res;
 	}
 }

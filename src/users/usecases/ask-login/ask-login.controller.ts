@@ -1,7 +1,7 @@
 import { Controller, Body, Post, NotFoundException, HttpCode, HttpStatus } from '@nestjs/common';
 
 import { AskForLoginUsecase } from './ask-login.usecase';
-import { AskLoginDto, AskLoginResponseDto } from '../dtos/ask-login.dto';
+import { AskLoginDto, AskLoginResponseDto } from '../../dto/ask-login.dto';
 
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { ApiTags } from '@nestjs/swagger';

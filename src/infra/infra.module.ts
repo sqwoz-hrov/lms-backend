@@ -8,6 +8,7 @@ import { postgresDialectFactory } from './db/db.postgres.factory';
 import { DatabaseProvider } from './db/db.provider';
 import { GracefulShutdownService } from './graceful-shutdown.service';
 import { REDIS_CONNECTION_KEY } from './redis.const';
+import { JwtService } from './services/jwt.service';
 
 @Global()
 @Module({
@@ -20,6 +21,7 @@ import { REDIS_CONNECTION_KEY } from './redis.const';
 				return postgresDialectFactory;
 			},
 		},
+		DatabaseProvider,
 		{
 			provide: REDIS_CONNECTION_KEY,
 			useFactory: (config: ConfigType<typeof redisConfig>) =>
@@ -32,9 +34,9 @@ import { REDIS_CONNECTION_KEY } from './redis.const';
 				}),
 			inject: [redisConfig.KEY],
 		},
-		DatabaseProvider,
+		JwtService,
 		GracefulShutdownService,
 	],
-	exports: [DatabaseProvider, REDIS_CONNECTION_KEY],
+	exports: [DatabaseProvider, JwtService, REDIS_CONNECTION_KEY],
 })
 export class InfraModule {}

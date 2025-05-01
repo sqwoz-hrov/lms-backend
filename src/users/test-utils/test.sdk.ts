@@ -2,9 +2,9 @@ import { TestHttpClient } from '../../../test/test.http-client';
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { UserFactory } from '../../../test/test.user.factory';
 
-import { FinishLoginResponseDto } from '../usecase/dtos/finish-login.dto';
-import { AskLoginResponseDto } from '../usecase/dtos/ask-login.dto';
-import { UserResponseDto } from '../usecase/dtos/signup.dto';
+import { FinishLoginResponseDto } from '../dto/finish-login.dto';
+import { AskLoginResponseDto } from '../dto/ask-login.dto';
+import { UserResponseDto } from '../dto/signup.dto';
 import { UserRole } from '../user.entity';
 import { ConfigType } from '@nestjs/config';
 import { jwtConfig } from '../../config';

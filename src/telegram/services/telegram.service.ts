@@ -6,11 +6,11 @@ import { otpBotConfig } from '../../config';
 @Injectable()
 export class TelegramService implements OnModuleInit {
 	private readonly _bot: TelegramBot;
+	private readonly logger = new Logger(TelegramService.name);
 
 	constructor(
 		@Inject(otpBotConfig.KEY)
 		private readonly config: ConfigType<typeof otpBotConfig>,
-		private readonly logger: Logger,
 	) {
 		this._bot = new TelegramBot(this.config.botToken);
 	}

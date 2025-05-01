@@ -1,7 +1,7 @@
 import { Controller, Body, Post, NotFoundException, HttpCode, HttpStatus } from '@nestjs/common';
 
 import { FinishLoginUsecase } from './finish-login.usecase';
-import { FinishLoginDto, FinishLoginResponseDto } from '../dtos/finish-login.dto';
+import { FinishLoginDto, FinishLoginResponseDto } from '../../dto/finish-login.dto';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { ApiTags } from '@nestjs/swagger';
 import { OTP } from '../../core/otp';

@@ -5,7 +5,7 @@ import { UsecaseInterface } from '../../../common/interface';
 import { OTPService } from '../../core/otp.service';
 import { OTP } from '../../core/otp';
 import { UserRepository } from '../../user.repository';
-import { JwtService } from '../../core/jwt.service';
+import { JwtService } from '../../../infra/services/jwt.service';
 
 @Injectable()
 export class FinishLoginUsecase implements UsecaseInterface {
