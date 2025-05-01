@@ -4,7 +4,7 @@ export class FakeImageStorageAdapter implements IImageStorageAdapter {
 	private imageCounter = 0;
 	private uploadedImages = new Map();
 
-	constructor(private readonly imageStorageUrl) {}
+	constructor(public readonly imageStorageUrl) {}
 
 	uploadImage(image_url): Promise<string> {
 		if (this.uploadedImages.has(image_url)) return Promise.resolve(this.uploadedImages.get(image_url));

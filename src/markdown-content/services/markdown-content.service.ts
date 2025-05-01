@@ -24,14 +24,14 @@ export class MarkdownContentService {
 		return markdownContent;
 	}
 
-	async getMarkdownContent(id: string): Promise<string> {
+	async getMarkdownContent(id: string): Promise<MarkDownContent> {
 		const markdownContent = await this.markdownContentRepository.findById(id);
 
 		if (!markdownContent) {
 			throw new Error('Markdown content not found');
 		}
 
-		return markdownContent.content_text;
+		return markdownContent;
 	}
 
 	async updateMarkdownContent(id: string, content: string): Promise<void> {

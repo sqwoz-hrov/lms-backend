@@ -1,4 +1,4 @@
-import { ApiProperty, OmitType, PickType } from '@nestjs/swagger';
+import { ApiProperty, IntersectionType, OmitType, PartialType, PickType } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 import { TaskStatus } from '../task.entity';
 
@@ -58,7 +58,7 @@ export class BaseTaskDto {
 
 export class CreateTaskDto extends OmitType(BaseTaskDto, ['id', 'created_at']) {}
 
-export class UpdateTaskDto extends BaseTaskDto {}
+export class UpdateTaskDto extends IntersectionType(PartialType(BaseTaskDto), PickType(BaseTaskDto, ['id'])) {}
 
 export class DeleteTaskDto extends PickType(BaseTaskDto, ['id']) {}
 

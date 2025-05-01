@@ -17,14 +17,15 @@ import {
 	createTestAdmin,
 	createEmail,
 	createName,
-	randomWord,
 } from '../../../../test/fixtures/create-test-user.fixture';
+import { randomWord } from '../../../../test/fixtures/common.fixture';
 
 describe('[E2E] Signup usecase', () => {
 	let app: INestApplication;
-	let utilRepository: UsersTestRepository;
 	let postgresqlContainer: StartedPostgreSqlContainer;
 	let redisContainer: StartedRedisContainer;
+
+	let utilRepository: UsersTestRepository;
 	let userTestSdk: UsersTestSdk;
 
 	before(async () => {

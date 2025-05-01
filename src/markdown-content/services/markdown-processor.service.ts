@@ -7,10 +7,10 @@ import { IMAGE_STORAGE_ADAPTER } from '../constants';
 @Injectable()
 export class MarkdownProcessorService {
 	constructor(
-		@Inject(imageStorageConfig.KEY)
-		private readonly config: ConfigType<typeof imageStorageConfig>,
 		@Inject(IMAGE_STORAGE_ADAPTER)
 		private readonly imageStorageAdapter: IImageStorageAdapter,
+		@Inject(imageStorageConfig.KEY)
+		private readonly config: ConfigType<typeof imageStorageConfig>,
 	) {}
 
 	private extractInlineImageMatches(markdown: string): { url: string; fullMatch: string }[] {

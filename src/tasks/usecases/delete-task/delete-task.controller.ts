@@ -16,7 +16,7 @@ export class DeleteTaskController {
 		responseType: TaskResponseDto,
 	})
 	@Delete()
-	@HttpCode(HttpStatus.ACCEPTED)
+	@HttpCode(HttpStatus.OK)
 	async create(@Body() dto: DeleteTaskDto): Promise<TaskResponseDto> {
 		const task = await this.deleteTaskUsecase.execute(dto);
 

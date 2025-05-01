@@ -40,7 +40,7 @@ export class CreateTaskUsecase implements UsecaseInterface {
 
 		const mentor = await this.userRepository.findById(mentor_user_id);
 
-		if (!mentor) {
+		if (!mentor || mentor.role !== 'admin') {
 			return undefined;
 		}
 

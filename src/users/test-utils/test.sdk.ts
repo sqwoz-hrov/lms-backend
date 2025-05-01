@@ -2,10 +2,9 @@ import { TestHttpClient } from '../../../test/test.http-client';
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { UserFactory } from '../../../test/test.user.factory';
 
-import { FinishLoginResponseDto } from '../dto/finish-login.dto';
-import { AskLoginResponseDto } from '../dto/ask-login.dto';
-import { UserResponseDto } from '../dto/signup.dto';
-import { UserRole } from '../user.entity';
+import { FinishLoginDto, FinishLoginResponseDto } from '../dto/finish-login.dto';
+import { AskLoginDto, AskLoginResponseDto } from '../dto/ask-login.dto';
+import { CreateUserDto, UserResponseDto } from '../dto/signup.dto';
 import { ConfigType } from '@nestjs/config';
 import { jwtConfig } from '../../config';
 
@@ -19,16 +18,7 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 		this.jwtFactory = new UserFactory(jwtOptions);
 	}
 
-	public async askLogin({
-		params,
-		userMeta,
-	}: {
-		params: {
-			email: string;
-		};
-		userMeta: UserMeta;
-	}) {
-		const { email } = params;
+	public async askLogin({ params, userMeta }: { params: AskLoginDto; userMeta: UserMeta }) {
 		const user = this.jwtFactory.getToken(userMeta.userId);
 		const jwt = userMeta.isAuth ? user.token : undefined;
 
@@ -37,23 +27,11 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 			method: 'POST',
 			wrongJwt: userMeta.isWrongJwt,
 			jwt,
-			body: {
-				email,
-			},
+			body: params,
 		});
 	}
 
-	public async finishLogin({
-		params,
-		userMeta,
-	}: {
-		params: {
-			email: string;
-			otpCode: number;
-		};
-		userMeta: UserMeta;
-	}) {
-		const { email, otpCode } = params;
+	public async finishLogin({ params, userMeta }: { params: FinishLoginDto; userMeta: UserMeta }) {
 		const user = this.jwtFactory.getToken(userMeta.userId);
 		const jwt = userMeta.isAuth ? user.token : undefined;
 
@@ -62,26 +40,11 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 			method: 'POST',
 			wrongJwt: userMeta.isWrongJwt,
 			jwt,
-			body: {
-				email,
-				otpCode,
-			},
+			body: params,
 		});
 	}
 
-	public async signUp({
-		params,
-		userMeta,
-	}: {
-		params: {
-			role: UserRole;
-			name: string;
-			email: string;
-			telegram_username: string;
-		};
-		userMeta: UserMeta;
-	}) {
-		const { role, name, email, telegram_username } = params;
+	public async signUp({ params, userMeta }: { params: CreateUserDto; userMeta: UserMeta }) {
 		const user = this.jwtFactory.getToken(userMeta.userId);
 		const jwt = userMeta.isAuth ? user.token : undefined;
 
@@ -90,12 +53,7 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 			method: 'POST',
 			wrongJwt: userMeta.isWrongJwt,
 			jwt,
-			body: {
-				role,
-				name,
-				email,
-				telegram_username,
-			},
+			body: params,
 		});
 	}
 }

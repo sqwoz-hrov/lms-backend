@@ -22,7 +22,7 @@ export class GetTaskInfoUsecase implements UsecaseInterface {
 
 		return {
 			...task,
-			markdown_content: markdownContent ?? '',
+			markdown_content: markdownContent.content_text ?? '',
 		};
 	}
 }

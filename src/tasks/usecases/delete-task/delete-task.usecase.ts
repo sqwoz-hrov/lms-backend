@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface';
 import { MarkdownContentService } from '../../../markdown-content/services/markdown-content.service';
 import { TaskResponseDto } from '../../dto/task.dto';
@@ -5,6 +6,7 @@ import { TaskRepository } from '../../task.repository';
 
 export class DeleteTaskUsecase implements UsecaseInterface {
 	constructor(
+		@Inject(TaskRepository)
 		private readonly repository: TaskRepository,
 		private readonly markdownContentService: MarkdownContentService,
 	) {}

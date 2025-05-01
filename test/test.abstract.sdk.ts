@@ -1,7 +1,4 @@
-type AbstractSDKMethod = (args: {
-	params: Record<string, unknown>;
-	userMeta: UserMeta;
-}) => Promise<{ status: number; body: any }>;
+type AbstractSDKMethod = (args: { params: any; userMeta: UserMeta }) => Promise<{ status: number; body: any }>;
 
 export type UserMeta = {
 	userId: string;

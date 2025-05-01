@@ -15,7 +15,7 @@ export class AskForLoginUsecase implements UsecaseInterface {
 	) {}
 
 	private isSignupFinished(user: User | undefined): user is User & { telegram_id: number } {
-		return user?.telegram_id !== undefined;
+		return user?.telegram_id != undefined; // non-strict cuz of the kysely bug
 	}
 
 	public async execute({ emailOrLogin }: { emailOrLogin: string }): Promise<{ success: boolean }> {

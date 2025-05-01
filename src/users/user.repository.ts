@@ -11,7 +11,7 @@ export class UserRepository {
 	}
 
 	public async findById(id: string) {
-		const user = await this.connection.selectFrom('user').selectAll().where('id', '=', id).executeTakeFirst();
+		const user = await this.connection.selectFrom('user').selectAll().where('id', '=', id).executeTakeFirstOrThrow();
 
 		return user;
 	}

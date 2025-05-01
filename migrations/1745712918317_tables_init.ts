@@ -23,7 +23,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable('markdown_content')
 		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
-		.addColumn('content', 'text', col => col.notNull())
+		.addColumn('content_text', 'text', col => col.notNull())
 		.execute();
 
 	// Create user table

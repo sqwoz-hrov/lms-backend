@@ -15,13 +15,13 @@ export class TaskRepository {
 			.insertInto('task')
 			.values({ ...data })
 			.returningAll()
-			.executeTakeFirst();
+			.executeTakeFirstOrThrow();
 
 		return res;
 	}
 
 	async findById(id: string) {
-		return await this.connection.selectFrom('task').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection.selectFrom('task').selectAll().where('id', '=', id).executeTakeFirstOrThrow();
 	}
 
 	async find(filter: Partial<Task> = {}) {
@@ -38,11 +38,11 @@ export class TaskRepository {
 			.set(updates)
 			.where('id', '=', id)
 			.returningAll()
-			.executeTakeFirst();
+			.executeTakeFirstOrThrow();
 		return res;
 	}
 
 	async delete(id: string) {
-		return this.connection.deleteFrom('task').where('id', '=', id).returningAll().executeTakeFirst();
+		return this.connection.deleteFrom('task').where('id', '=', id).returningAll().executeTakeFirstOrThrow();
 	}
 }
