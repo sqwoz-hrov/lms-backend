@@ -1,0 +1,8 @@
+ignores: [
+    "@eslint/eslintrc",
+    "@nestjs/schematics",
+    "source-map-support",
+    "ts-loader",
+    "tsconfig-paths",
+]
+skip-missing: true
