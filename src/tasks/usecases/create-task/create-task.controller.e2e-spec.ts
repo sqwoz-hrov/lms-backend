@@ -10,12 +10,12 @@ import { TaskModule } from '../../task.module';
 import { TasksTestRepository } from '../../test-utils/test.repo';
 import { TasksTestSdk } from '../../test-utils/test.sdk';
 import { expect } from 'chai';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/create-test-user.fixture';
+import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
 import { UsersTestRepository } from '../../../users/test-utils/test.repo';
 import { UserModule } from '../../../users/user.module';
 import { TelegramModule } from '../../../telegram/telegram.module';
 import { MarkdownContentModule } from '../../../markdown-content/markdown-content.module';
-import { createTestTaskDto } from '../../../../test/fixtures/create-test-task.fixture';
+import { createTestTaskDto } from '../../../../test/fixtures/task.fixture';
 
 describe('[E2E] Ceate task usecase', () => {
 	let app: INestApplication;
@@ -111,15 +111,15 @@ describe('[E2E] Ceate task usecase', () => {
 	});
 
 	it('Admin can create task', async () => {
-		const student = await createTestUser(userUtilRepository);
-		const mentor = await createTestAdmin(userUtilRepository);
+		const user = await createTestUser(userUtilRepository);
+		const admin = await createTestAdmin(userUtilRepository);
 
-		const task = createTestTaskDto(student.id, mentor.id);
+		const task = createTestTaskDto(user.id, admin.id);
 
 		const res = await taskTestSdk.createTask({
 			params: task,
 			userMeta: {
-				userId: mentor.id,
+				userId: admin.id,
 				isAuth: true,
 				isWrongJwt: false,
 			},
@@ -130,5 +130,22 @@ describe('[E2E] Ceate task usecase', () => {
 		expect(res.body.student_user_id).to.equal(task.student_user_id);
 		expect(res.body.mentor_user_id).to.equal(task.mentor_user_id);
 		expect(res.body.status).to.equal(task.status);
+	});
+
+	it('User can not create task', async () => {
+		const user = await createTestUser(userUtilRepository);
+
+		const task = createTestTaskDto(user.id, user.id);
+
+		const res = await taskTestSdk.createTask({
+			params: task,
+			userMeta: {
+				userId: user.id,
+				isAuth: true,
+				isWrongJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 });

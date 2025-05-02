@@ -17,7 +17,7 @@ import {
 	createTestAdmin,
 	createEmail,
 	createName,
-} from '../../../../test/fixtures/create-test-user.fixture';
+} from '../../../../test/fixtures/user.fixture';
 import { randomWord } from '../../../../test/fixtures/common.fixture';
 
 describe('[E2E] Signup usecase', () => {
@@ -171,5 +171,32 @@ describe('[E2E] Signup usecase', () => {
 		expect(res.body.role).to.equal(user.role);
 		expect(res.body.telegram_username).to.equal(user.telegram_username);
 		expect(res.body.name).to.equal(user.name);
+	});
+
+	it('Returns 400 when trying to sign up with duplicate email', async () => {
+		const requestAuthor = await createTestAdmin(utilRepository);
+
+		const duplicateEmail = createEmail();
+		await createTestUser(utilRepository, {
+			email: duplicateEmail,
+		});
+
+		const user2 = {
+			role: 'user',
+			name: createName(),
+			email: duplicateEmail,
+			telegram_username: randomWord(),
+		} as const;
+
+		const secondRes = await userTestSdk.signUp({
+			params: user2,
+			userMeta: {
+				userId: requestAuthor.id,
+				isWrongJwt: false,
+				isAuth: true,
+			},
+		});
+
+		expect(secondRes.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 });

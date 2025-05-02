@@ -2,25 +2,23 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { StartedRedisContainer } from '@testcontainers/redis';
+import { expect } from 'chai';
+import { createTestTask } from '../../../../test/fixtures/task.fixture';
+import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
 import { setupTestApplication } from '../../../../test/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
+import { MarkdownContentModule } from '../../../markdown-content/markdown-content.module';
+import { TelegramModule } from '../../../telegram/telegram.module';
+import { UsersTestRepository } from '../../../users/test-utils/test.repo';
+import { UserModule } from '../../../users/user.module';
 import { TaskModule } from '../../task.module';
 import { TasksTestRepository } from '../../test-utils/test.repo';
 import { TasksTestSdk } from '../../test-utils/test.sdk';
-import { expect } from 'chai';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
-import { UsersTestRepository } from '../../../users/test-utils/test.repo';
-import { UserModule } from '../../../users/user.module';
-import { TelegramModule } from '../../../telegram/telegram.module';
-import { MarkdownContentModule } from '../../../markdown-content/markdown-content.module';
-import { randomWord } from '../../../../test/fixtures/common.fixture';
-import { UpdateTaskDto } from '../../dto/update-task.dto';
 import { MarkDownContentTestRepository } from '../../../markdown-content/test-utils/test.repo';
-import { createTestTask } from '../../../../test/fixtures/task.fixture';
 
-describe('[E2E] Edit task usecase', () => {
+describe('[E2E] Get task usecase', () => {
 	let app: INestApplication;
 	let postgresqlContainer: StartedPostgreSqlContainer;
 	let redisContainer: StartedRedisContainer;
@@ -73,14 +71,10 @@ describe('[E2E] Edit task usecase', () => {
 
 		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
 
-		const editDto: UpdateTaskDto = {
-			id: task.id,
-			summary: randomWord(),
-			status: 'in_progress',
-		};
-
-		const res = await taskTestSdk.editTask({
-			params: editDto,
+		const res = await taskTestSdk.getTaskInfo({
+			params: {
+				id: task.id,
+			},
 			userMeta: {
 				userId: admin.id,
 				isAuth: false,
@@ -96,14 +90,10 @@ describe('[E2E] Edit task usecase', () => {
 
 		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
 
-		const editDto: UpdateTaskDto = {
-			id: task.id,
-			summary: randomWord(),
-			status: 'in_progress',
-		};
-
-		const res = await taskTestSdk.editTask({
-			params: editDto,
+		const res = await taskTestSdk.getTaskInfo({
+			params: {
+				id: task.id,
+			},
 			userMeta: {
 				userId: admin.id,
 				isAuth: false,
@@ -114,65 +104,25 @@ describe('[E2E] Edit task usecase', () => {
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('Non-admin gets 401', async () => {
-		const user = await createTestUser(userUtilRepository);
-
-		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
-
-		const editDto: UpdateTaskDto = {
-			id: task.id,
-			summary: randomWord(),
-			status: 'in_progress',
-		};
-
-		const res = await taskTestSdk.editTask({
-			params: editDto,
-			userMeta: {
-				userId: user.id,
-				isAuth: true,
-				isWrongJwt: false,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
-	});
-
-	it('Fake JWT gets 401', async () => {
+	it('Admin can access task authored by him and assigned to him', async () => {
 		const admin = await createTestAdmin(userUtilRepository);
-		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
 
-		const editDto: UpdateTaskDto = {
-			id: task.id,
-			summary: randomWord(),
-			status: 'in_progress',
-		};
-
-		const res = await taskTestSdk.editTask({
-			params: editDto,
-			userMeta: {
-				userId: admin.id,
-				isAuth: true,
-				isWrongJwt: true,
+		const task = await createTestTask(
+			userUtilRepository,
+			markdownContentUtilRepository,
+			taskUtilRepository,
+			{},
+			{},
+			{
+				mentor_user_id: admin.id,
+				student_user_id: admin.id,
 			},
-		});
+		);
 
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
-	});
-
-	it('Admin can edit a task', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
-		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
-
-		const newSummary = randomWord();
-
-		const editDto: UpdateTaskDto = {
-			id: task.id,
-			summary: newSummary,
-			status: 'in_progress',
-		};
-
-		const res = await taskTestSdk.editTask({
-			params: editDto,
+		const res = await taskTestSdk.getTaskInfo({
+			params: {
+				id: task.id,
+			},
 			userMeta: {
 				userId: admin.id,
 				isAuth: true,
@@ -181,7 +131,97 @@ describe('[E2E] Edit task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
-		expect(res.body.summary).to.equal(newSummary);
-		expect(res.body.status).to.equal(editDto.status);
+	});
+
+	it('Admin can access task authored by him but assigned to someone else', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+
+		const task = await createTestTask(
+			userUtilRepository,
+			markdownContentUtilRepository,
+			taskUtilRepository,
+			{},
+			{},
+			{
+				mentor_user_id: admin.id,
+			},
+		);
+
+		const res = await taskTestSdk.getTaskInfo({
+			params: {
+				id: task.id,
+			},
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.OK);
+	});
+
+	it('Admin can access task authored by someone else and assigned to someone else', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+
+		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
+
+		const res = await taskTestSdk.getTaskInfo({
+			params: {
+				id: task.id,
+			},
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.OK);
+	});
+
+	it('User can access task assigned to him', async () => {
+		const user = await createTestUser(userUtilRepository);
+
+		const task = await createTestTask(
+			userUtilRepository,
+			markdownContentUtilRepository,
+			taskUtilRepository,
+			{},
+			{},
+			{ student_user_id: user.id },
+		);
+
+		const res = await taskTestSdk.getTaskInfo({
+			params: {
+				id: task.id,
+			},
+			userMeta: {
+				userId: user.id,
+				isAuth: true,
+				isWrongJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.OK);
+	});
+
+	it('User can not access task assigned to someone else', async () => {
+		const user = await createTestUser(userUtilRepository);
+
+		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
+
+		const res = await taskTestSdk.getTaskInfo({
+			params: {
+				id: task.id,
+			},
+			userMeta: {
+				userId: user.id,
+				isAuth: true,
+				isWrongJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 });

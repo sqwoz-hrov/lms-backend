@@ -12,7 +12,7 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { setupTestApplication } from '../../../../test/test.app-setup';
-import { createTestUser } from '../../../../test/fixtures/create-test-user.fixture';
+import { createTestUser } from '../../../../test/fixtures/user.fixture';
 
 describe('[E2E] AskLogin usecase', () => {
 	let app: INestApplication;

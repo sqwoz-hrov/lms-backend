@@ -1,7 +1,7 @@
 import { Inject } from '@nestjs/common';
-import { UsecaseInterface } from '../../../common/interface';
+import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { MarkdownContentService } from '../../../markdown-content/services/markdown-content.service';
-import { TaskResponseDto } from '../../dto/task.dto';
+import { TaskResponseDto } from '../../dto/base-task.dto';
 import { TaskRepository } from '../../task.repository';
 
 export class DeleteTaskUsecase implements UsecaseInterface {

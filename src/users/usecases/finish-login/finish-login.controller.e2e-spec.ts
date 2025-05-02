@@ -12,7 +12,7 @@ import { TestHttpClient } from '../../../../test/test.http-client';
 import { setupTestApplication } from '../../../../test/test.app-setup';
 import Redis from 'ioredis';
 import { REDIS_CONNECTION_KEY } from '../../../infra/redis.const';
-import { createTestUser } from '../../../../test/fixtures/create-test-user.fixture';
+import { createTestUser } from '../../../../test/fixtures/user.fixture';
 
 describe('[E2E] FinishLogin usecase', () => {
 	let app: INestApplication;

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { UsecaseInterface } from '../../../common/interface';
+import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 
 import { OTPService } from '../../core/otp.service';
 import { OTP } from '../../core/otp';

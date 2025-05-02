@@ -5,12 +5,14 @@ import { RequestLoggerInterceptor } from '../interceptors/request-logger.interce
 
 export const Route = ({
 	summary,
-	responseType,
 	description,
+	responseType,
+	isArray,
 }: {
 	summary: string;
 	description?: string;
 	responseType?: Type<unknown>;
+	isArray?: boolean;
 }) =>
 	applyDecorators(
 		UseFilters(AllExceptionsFilter),
@@ -21,5 +23,6 @@ export const Route = ({
 			status: 'default',
 			description: 'Тело ответа',
 			type: responseType,
+			isArray: isArray ?? false,
 		}),
 	);

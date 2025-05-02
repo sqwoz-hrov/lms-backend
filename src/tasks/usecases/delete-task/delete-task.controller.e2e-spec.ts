@@ -10,12 +10,12 @@ import { TaskModule } from '../../task.module';
 import { TasksTestRepository } from '../../test-utils/test.repo';
 import { TasksTestSdk } from '../../test-utils/test.sdk';
 import { expect } from 'chai';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/create-test-user.fixture';
+import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
 import { UsersTestRepository } from '../../../users/test-utils/test.repo';
 import { UserModule } from '../../../users/user.module';
 import { TelegramModule } from '../../../telegram/telegram.module';
 import { MarkdownContentModule } from '../../../markdown-content/markdown-content.module';
-import { createTestTask } from '../../../../test/fixtures/create-test-task.fixture';
+import { createTestTask } from '../../../../test/fixtures/task.fixture';
 import { MarkDownContentTestRepository } from '../../../markdown-content/test-utils/test.repo';
 
 describe('[E2E] Delete task usecase', () => {

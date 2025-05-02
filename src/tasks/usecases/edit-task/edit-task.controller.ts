@@ -1,9 +1,10 @@
 import { Body, Controller, HttpCode, HttpStatus, Put, InternalServerErrorException } from '@nestjs/common';
 import { EditTaskUsecase } from './edit-task.usecase';
-import { UpdateTaskDto, TaskResponseDto } from '../../dto/task.dto';
+import { TaskResponseDto } from '../../dto/base-task.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
+import { UpdateTaskDto } from '../../dto/update-task.dto';
 
 @ApiTags('Tasks')
 @Controller('tasks')

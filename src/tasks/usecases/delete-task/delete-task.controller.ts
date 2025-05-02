@@ -2,8 +2,9 @@ import { Body, Controller, Delete, HttpCode, HttpStatus, InternalServerErrorExce
 import { ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
-import { DeleteTaskDto, TaskResponseDto } from '../../dto/task.dto';
+import { TaskResponseDto } from '../../dto/base-task.dto';
 import { DeleteTaskUsecase } from './delete-task.usecase';
+import { DeleteTaskDto } from '../../dto/delete-task.dto';
 
 @ApiTags('Tasks')
 @Controller('tasks')

@@ -56,6 +56,8 @@ export class RoleGuard implements CanActivate {
 			throw new UnauthorizedException();
 		}
 
+		request['user'] = user;
+
 		const allowedRoles = this.reflector.getAllAndOverride<string[]>('roles', [
 			context.getHandler(),
 			context.getClass(),

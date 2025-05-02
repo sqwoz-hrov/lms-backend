@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { UsecaseInterface } from '../../../common/interface';
+import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserRepository } from '../../user.repository';
 import { User } from '../../user.entity';
 import { IOTPSender } from '../../ports/otp-sender.port';

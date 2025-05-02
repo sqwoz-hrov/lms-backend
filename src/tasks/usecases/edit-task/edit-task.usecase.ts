@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TaskRepository } from '../../task.repository';
 import { MarkdownContentService } from '../../../markdown-content/services/markdown-content.service';
-import { TaskResponseDto, UpdateTaskDto } from '../../dto/task.dto';
-import { UsecaseInterface } from '../../../common/interface';
+import { TaskResponseDto } from '../../dto/base-task.dto';
+import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { MarkDownContent } from '../../../markdown-content/markdown-content.entity';
+import { UpdateTaskDto } from '../../dto/update-task.dto';
 
 @Injectable()
 export class EditTaskUsecase implements UsecaseInterface {
