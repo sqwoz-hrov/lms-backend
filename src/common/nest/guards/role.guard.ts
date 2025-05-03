@@ -2,7 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from
 import { Request } from 'express';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 
-import { JwtService } from '../../../users/core/jwt.service';
+import { JwtService } from '../../../infra/services/jwt.service';
 import { UserAggregation } from '../../../users/user.entity';
 import { Reflector } from '@nestjs/core';
 
@@ -55,6 +55,8 @@ export class RoleGuard implements CanActivate {
 		if (!user) {
 			throw new UnauthorizedException();
 		}
+
+		request['user'] = user;
 
 		const allowedRoles = this.reflector.getAllAndOverride<string[]>('roles', [
 			context.getHandler(),

@@ -16,11 +16,14 @@ export async function up(db: Kysely<any>): Promise<void> {
 	// Create material type enum
 	await db.schema.createType('material_type').asEnum(['video', 'article', 'book', 'course', 'other']).execute();
 
+	// Create task status enum
+	await db.schema.createType('task_status').asEnum(['backlog', 'todo', 'in_progress', 'in_review', 'done']).execute();
+
 	// Create markdown_content table
 	await db.schema
 		.createTable('markdown_content')
 		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
-		.addColumn('content', 'text', col => col.notNull())
+		.addColumn('content_text', 'text', col => col.notNull())
 		.execute();
 
 	// Create user table
@@ -55,6 +58,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('deadline', 'timestamp', col => col.notNull())
 		.addColumn('created_at', 'timestamp', col => col.notNull().defaultTo(sql`now()`))
 		.addColumn('priority', 'integer', col => col.notNull())
+		.addColumn('status', sql`task_status`, col => col.notNull())
 		.execute();
 
 	// Create hr_connection table

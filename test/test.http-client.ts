@@ -24,7 +24,7 @@ export class TestHttpClient {
 		method,
 	}: {
 		path: string;
-		body: unknown;
+		body?: unknown;
 		jwt: string | undefined;
 		wrongJwt: boolean | undefined;
 		method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

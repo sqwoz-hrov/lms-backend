@@ -1,0 +1,1 @@
+export const IMAGE_STORAGE_ADAPTER = Symbol('IMAGE_STORAGE_ADAPTER');

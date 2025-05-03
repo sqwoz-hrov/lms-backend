@@ -4,18 +4,28 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { RedisContainer } from '@testcontainers/redis';
 import { InfraModule } from '../src/infra/infra.module';
 import { ConfigModule, ConfigType } from '@nestjs/config';
-import { dbConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig } from '../src/config';
+import { dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig } from '../src/config';
 import { runMigrations } from './test.run-migrations';
 import { SilentLogger } from './test.silent-logger';
 
-export const setupTestApplication = async ({ imports }: { imports: (DynamicModule | Type<any>)[] }) => {
+export const setupTestApplication = async ({
+	imports,
+	useSilentLogger,
+}: {
+	imports: (DynamicModule | Type<any>)[];
+	useSilentLogger?: boolean;
+}) => {
 	process.env.REDIS_USERNAME = '';
+
+	if (useSilentLogger === undefined) {
+		useSilentLogger = true;
+	}
 
 	const testModule = await Test.createTestingModule({
 		imports: [
 			InfraModule,
 			ConfigModule.forRoot({
-				load: [dbConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig],
+				load: [dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig],
 				isGlobal: true,
 				envFilePath: '.env.test',
 			}),
@@ -24,7 +34,8 @@ export const setupTestApplication = async ({ imports }: { imports: (DynamicModul
 	}).compile();
 
 	const app = testModule.createNestApplication();
-	app.useLogger(new SilentLogger());
+
+	if (useSilentLogger) app.useLogger(new SilentLogger());
 
 	const _dbConfig = app.get<ConfigType<typeof dbConfig>>(dbConfig.KEY);
 	const _redisConfig = app.get<ConfigType<typeof redisConfig>>(redisConfig.KEY);
