@@ -7,6 +7,7 @@ import { MarkdownContentModule } from './markdown-content/markdown-content.modul
 import { TaskModule } from './tasks/task.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { UserModule } from './users/user.module';
+import { JournalRecordModule } from './journal-record/journal-record.module';
 
 @Module({
 	imports: [
@@ -15,9 +16,10 @@ import { UserModule } from './users/user.module';
 			isGlobal: true,
 		}),
 		InfraModule,
+		JournalRecordModule,
 		MarkdownContentModule.forRoot({ useRealImageStorage: false }),
-		TelegramModule.forRoot({ useTelegramAPI: true }),
 		TaskModule,
+		TelegramModule.forRoot({ useTelegramAPI: true }),
 		UserModule,
 	],
 	controllers: [],

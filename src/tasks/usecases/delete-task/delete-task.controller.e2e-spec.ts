@@ -83,23 +83,6 @@ describe('[E2E] Delete task usecase', () => {
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('Non-admin gets 401', async () => {
-		const user = await createTestUser(userUtilRepository);
-
-		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
-
-		const res = await taskTestSdk.deleteTask({
-			params: { id: task.id },
-			userMeta: {
-				userId: user.id,
-				isAuth: true,
-				isWrongJwt: false,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
-	});
-
 	it('Fake JWT gets 401', async () => {
 		const admin = await createTestAdmin(userUtilRepository);
 
@@ -111,6 +94,23 @@ describe('[E2E] Delete task usecase', () => {
 				userId: admin.id,
 				isAuth: true,
 				isWrongJwt: true,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
+	});
+
+	it('Non-admin gets 401', async () => {
+		const user = await createTestUser(userUtilRepository);
+
+		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
+
+		const res = await taskTestSdk.deleteTask({
+			params: { id: task.id },
+			userMeta: {
+				userId: user.id,
+				isAuth: true,
+				isWrongJwt: false,
 			},
 		});
 

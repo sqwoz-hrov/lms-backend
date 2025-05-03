@@ -34,7 +34,7 @@ export class MarkdownContentService {
 		return markdownContent;
 	}
 
-	async updateMarkdownContent(id: string, content: string): Promise<void> {
+	async updateMarkdownContent(id: string, content: string): Promise<MarkDownContent> {
 		const markdownContent = await this.markdownContentRepository.findById(id);
 
 		if (!markdownContent) {
@@ -43,7 +43,7 @@ export class MarkdownContentService {
 
 		const processedContent = await this.markdownProcessor.processMarkdown(content);
 
-		await this.markdownContentRepository.update(id, {
+		return await this.markdownContentRepository.update(id, {
 			content_text: processedContent,
 		});
 	}

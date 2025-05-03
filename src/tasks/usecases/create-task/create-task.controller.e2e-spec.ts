@@ -62,7 +62,7 @@ describe('[E2E] Ceate task usecase', () => {
 		await redisContainer.stop();
 	});
 
-	it('Unauthed gets 401', async () => {
+	it('Unauthenticated gets 401', async () => {
 		const author = await createTestAdmin(userUtilRepository);
 		const task = createTestTaskDto(author.id);
 
@@ -71,22 +71,6 @@ describe('[E2E] Ceate task usecase', () => {
 			userMeta: {
 				userId: author.id,
 				isAuth: false,
-				isWrongJwt: false,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
-	});
-
-	it('Non-admin gets 401', async () => {
-		const user = await createTestUser(userUtilRepository);
-		const task = createTestTaskDto(user.id);
-
-		const res = await taskTestSdk.createTask({
-			params: task,
-			userMeta: {
-				userId: user.id,
-				isAuth: true,
 				isWrongJwt: false,
 			},
 		});
@@ -104,6 +88,22 @@ describe('[E2E] Ceate task usecase', () => {
 				userId: author.id,
 				isAuth: true,
 				isWrongJwt: true,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
+	});
+
+	it('Non-admin gets 401', async () => {
+		const user = await createTestUser(userUtilRepository);
+		const task = createTestTaskDto(user.id);
+
+		const res = await taskTestSdk.createTask({
+			params: task,
+			userMeta: {
+				userId: user.id,
+				isAuth: true,
+				isWrongJwt: false,
 			},
 		});
 
@@ -130,22 +130,5 @@ describe('[E2E] Ceate task usecase', () => {
 		expect(res.body.student_user_id).to.equal(task.student_user_id);
 		expect(res.body.mentor_user_id).to.equal(task.mentor_user_id);
 		expect(res.body.status).to.equal(task.status);
-	});
-
-	it('User can not create task', async () => {
-		const user = await createTestUser(userUtilRepository);
-
-		const task = createTestTaskDto(user.id, user.id);
-
-		const res = await taskTestSdk.createTask({
-			params: task,
-			userMeta: {
-				userId: user.id,
-				isAuth: true,
-				isWrongJwt: false,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 });
