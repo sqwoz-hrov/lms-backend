@@ -25,8 +25,13 @@ export class MarkdownContentRespository {
 		return markdownContent;
 	}
 
-	public async update(id: string, markdownContent: MarkDownContentUpdate): Promise<void> {
-		await this.connection.updateTable('markdown_content').set(markdownContent).where('id', '=', id).execute();
+	public async update(id: string, markdownContent: MarkDownContentUpdate): Promise<MarkDownContent> {
+		return this.connection
+			.updateTable('markdown_content')
+			.set(markdownContent)
+			.where('id', '=', id)
+			.returningAll()
+			.executeTakeFirstOrThrow();
 	}
 
 	public async save(markdownContent: NewMarkDownContent): Promise<MarkDownContent | undefined> {

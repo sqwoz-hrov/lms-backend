@@ -12,12 +12,7 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { setupTestApplication } from '../../../../test/test.app-setup';
-import {
-	createTestUser,
-	createTestAdmin,
-	createEmail,
-	createName,
-} from '../../../../test/fixtures/user.fixture';
+import { createTestUser, createTestAdmin, createEmail, createName } from '../../../../test/fixtures/user.fixture';
 import { randomWord } from '../../../../test/fixtures/common.fixture';
 
 describe('[E2E] Signup usecase', () => {
@@ -57,7 +52,7 @@ describe('[E2E] Signup usecase', () => {
 		await redisContainer.stop();
 	});
 
-	it('Unauthed gets 401', async () => {
+	it('Unauthenticated gets 401', async () => {
 		const requestAuthor = await createTestUser(utilRepository);
 		const user = await createTestUser(utilRepository);
 
@@ -78,27 +73,6 @@ describe('[E2E] Signup usecase', () => {
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('Non-admin gets 401', async () => {
-		const requestAuthor = await createTestUser(utilRepository);
-		const user = await createTestUser(utilRepository);
-
-		const res = await userTestSdk.signUp({
-			params: {
-				email: user.email,
-				role: user.role,
-				telegram_username: user.telegram_username,
-				name: user.name,
-			},
-			userMeta: {
-				userId: requestAuthor.id,
-				isWrongJwt: false,
-				isAuth: true,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
-	});
-
 	it('Fake jwt get 401', async () => {
 		const requestAuthor = await createTestAdmin(utilRepository);
 		const user = await createTestUser(utilRepository);
@@ -113,6 +87,27 @@ describe('[E2E] Signup usecase', () => {
 			userMeta: {
 				userId: requestAuthor.id,
 				isWrongJwt: true,
+				isAuth: true,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
+	});
+
+	it('Non-admin gets 401', async () => {
+		const requestAuthor = await createTestUser(utilRepository);
+		const user = await createTestUser(utilRepository);
+
+		const res = await userTestSdk.signUp({
+			params: {
+				email: user.email,
+				role: user.role,
+				telegram_username: user.telegram_username,
+				name: user.name,
+			},
+			userMeta: {
+				userId: requestAuthor.id,
+				isWrongJwt: false,
 				isAuth: true,
 			},
 		});

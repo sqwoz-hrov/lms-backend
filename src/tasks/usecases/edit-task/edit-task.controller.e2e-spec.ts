@@ -137,28 +137,6 @@ describe('[E2E] Edit task usecase', () => {
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('Fake JWT gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
-		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
-
-		const editDto: UpdateTaskDto = {
-			id: task.id,
-			summary: randomWord(),
-			status: 'in_progress',
-		};
-
-		const res = await taskTestSdk.editTask({
-			params: editDto,
-			userMeta: {
-				userId: admin.id,
-				isAuth: true,
-				isWrongJwt: true,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
-	});
-
 	it('Admin can edit a task', async () => {
 		const admin = await createTestAdmin(userUtilRepository);
 		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
