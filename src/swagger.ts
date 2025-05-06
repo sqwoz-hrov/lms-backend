@@ -6,12 +6,7 @@ export const createSwagger = (nestApplication: INestApplication) => {
 		.setTitle('Sqwoz Hrov LMS')
 		.setDescription(`Документация API ЛМС Sqwoz Hrov`)
 		.setVersion('1.0')
-		.addSecurity('signature', {
-			type: 'apiKey',
-			name: 'lms pises',
-			in: 'header',
-			description: 'Signature for request',
-		})
+		.addBearerAuth()
 		.build();
 
 	const document = SwaggerModule.createDocument(nestApplication, config);

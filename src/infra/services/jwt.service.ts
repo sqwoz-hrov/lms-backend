@@ -2,7 +2,6 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { sign, verify } from 'jsonwebtoken';
 import { z } from 'zod';
-
 import { jwtConfig } from '../../config';
 
 interface JwtPayload {

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { UserSignupAdapter } from '../../users/adapters/user-signup.adapter';
+import { UserSignupAdapter } from '../../user/adapters/user-signup.adapter';
 import { TELEGRAM_ADAPTER } from '../constants';
 import { TelegramAdapter } from '../adapters/telegram.adapter';
 

@@ -26,6 +26,15 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('content_text', 'text', col => col.notNull())
 		.execute();
 
+	// Create video table
+	await db.schema
+		.createTable('video')
+		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
+		.addColumn('youtube_link', 'varchar(128)', col => col.notNull())
+		.addColumn('s3_object_id', 'varchar(128)', col => col.notNull())
+		.addColumn('contentType', 'varchar(64)')
+		.execute();
+
 	// Create user table
 	await db.schema
 		.createTable('user')
@@ -112,8 +121,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('subject_id', 'uuid', col => col.notNull().references('subject.id').onDelete('cascade'))
 		.addColumn('name', 'varchar(64)', col => col.notNull())
 		.addColumn('type', sql`material_type`, col => col.notNull())
-		.addColumn('content_link', 'varchar(2048)')
+		.addColumn('video_id', 'uuid', col => col.references('video.id').onDelete('set null'))
 		.addColumn('markdown_content_id', 'uuid', col => col.references('markdown_content.id').onDelete('set null'))
+		.addColumn('is_archived', 'boolean', col => col.notNull().defaultTo(false))
 		.execute();
 
 	// Create interview_recording table

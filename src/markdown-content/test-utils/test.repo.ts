@@ -1,5 +1,4 @@
 import { Kysely } from 'kysely';
-
 import { DatabaseProvider } from '../../infra/db/db.provider';
 import { MarkDownContentAggregation } from '../markdown-content.entity';
 

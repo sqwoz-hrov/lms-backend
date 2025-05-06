@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { JournalRecordRepository } from '../../journal-record.repository';
 import { MarkdownContentService } from '../../../markdown-content/services/markdown-content.service';
-import { UserRepository } from '../../../users/user.repository';
+import { UserRepository } from '../../../user/user.repository';
 import { CreateJournalRecordDto } from '../../dto/create-journal-record.dto';
 import { BaseJournalRecordDto } from '../../dto/base-journal-record.dto';
 

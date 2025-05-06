@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
 import { TelegramService } from '../../telegram/services/telegram.service';
-import { OTP } from '../../users/core/otp';
-import { IOTPSender } from '../../users/ports/otp-sender.port';
+import { OTP } from '../../user/core/otp';
+import { IOTPSender } from '../../user/ports/otp-sender.port';
 
 @Injectable()
 export class TelegramAdapter implements IOTPSender<'telegram'> {

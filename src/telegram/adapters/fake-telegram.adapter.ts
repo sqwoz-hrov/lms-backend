@@ -1,4 +1,4 @@
-import { IOTPSender } from '../../users/ports/otp-sender.port';
+import { IOTPSender } from '../../user/ports/otp-sender.port';
 
 export class FakeTelegramAdapter implements IOTPSender<'telegram'> {
 	public sendMessage(): Promise<boolean> {

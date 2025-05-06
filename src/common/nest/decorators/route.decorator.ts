@@ -1,5 +1,5 @@
 import { Type, UseFilters, UseInterceptors, applyDecorators } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AllExceptionsFilter } from '../exception-filters/all-exceptions.filter';
 import { RequestLoggerInterceptor } from '../interceptors/request-logger.interceptor';
 
@@ -17,8 +17,8 @@ export const Route = ({
 	applyDecorators(
 		UseFilters(AllExceptionsFilter),
 		UseInterceptors(RequestLoggerInterceptor),
+		ApiBearerAuth(),
 		ApiOperation({ summary, description }),
-		ApiSecurity('signature'),
 		ApiResponse({
 			status: 'default',
 			description: 'Тело ответа',
