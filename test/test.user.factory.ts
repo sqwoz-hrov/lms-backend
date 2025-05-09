@@ -1,6 +1,5 @@
 import { ConfigType } from '@nestjs/config';
 import { v7 } from 'uuid';
-
 import { JwtService } from '../src/infra/services/jwt.service';
 import { jwtConfig } from '../src/config';
 

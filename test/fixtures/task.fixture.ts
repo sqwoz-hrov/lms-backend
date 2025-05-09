@@ -1,13 +1,13 @@
 import { randomWord } from './common.fixture';
-import { TasksTestRepository } from '../../src/tasks/test-utils/test.repo';
-import { Task } from '../../src/tasks/task.entity';
+import { TasksTestRepository } from '../../src/task/test-utils/test.repo';
+import { Task } from '../../src/task/task.entity';
 import { MarkDownContentTestRepository } from '../../src/markdown-content/test-utils/test.repo';
 import { MarkDownContent } from '../../src/markdown-content/markdown-content.entity';
 import { createTestMarkdownContent } from './markdown-content.fixture';
-import { UsersTestRepository } from '../../src/users/test-utils/test.repo';
+import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
 import { createTestAdmin, createTestUser } from './user.fixture';
-import { User } from '../../src/users/user.entity';
-import { CreateTaskDto } from '../../src/tasks/dto/create-task.dto';
+import { User } from '../../src/user/user.entity';
+import { CreateTaskDto } from '../../src/task/dto/create-task.dto';
 
 export const createTestTaskDto = (studentId: string, mentorId: string = studentId): CreateTaskDto => {
 	return {

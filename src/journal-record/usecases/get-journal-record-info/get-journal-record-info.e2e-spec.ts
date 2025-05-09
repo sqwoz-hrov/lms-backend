@@ -12,8 +12,8 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { MarkdownContentModule } from '../../../markdown-content/markdown-content.module';
 import { MarkDownContentTestRepository } from '../../../markdown-content/test-utils/test.repo';
 import { TelegramModule } from '../../../telegram/telegram.module';
-import { UsersTestRepository } from '../../../users/test-utils/test.repo';
-import { UserModule } from '../../../users/user.module';
+import { UsersTestRepository } from '../../../user/test-utils/test.repo';
+import { UserModule } from '../../../user/user.module';
 import { JournalRecordModule } from '../../journal-record.module';
 import { JournalRecordsTestRepository } from '../../test-utils/test.repo';
 import { JournalRecordsTestSdk } from '../../test-utils/test.sdk';
@@ -33,7 +33,7 @@ describe('[E2E] Get journal record info usecase', () => {
 		({ app, postgresqlContainer, redisContainer } = await setupTestApplication({
 			imports: [
 				JournalRecordModule,
-				MarkdownContentModule.forRoot({ useRealImageStorage: false }),
+				MarkdownContentModule,
 				UserModule,
 				TelegramModule.forRoot({ useTelegramAPI: false }),
 			],

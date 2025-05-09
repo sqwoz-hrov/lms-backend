@@ -4,7 +4,6 @@ import { promises as fs } from 'fs';
 import { Kysely, Migrator, PostgresDialect, FileMigrationProvider, SqliteDialect } from 'kysely';
 import { ConfigType } from '@nestjs/config';
 import Database from 'better-sqlite3';
-
 import { dbConfig } from '../src/config';
 
 // what we need

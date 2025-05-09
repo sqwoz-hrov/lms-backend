@@ -7,6 +7,9 @@ import { ConfigModule, ConfigType } from '@nestjs/config';
 import { dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig } from '../src/config';
 import { runMigrations } from './test.run-migrations';
 import { SilentLogger } from './test.silent-logger';
+import { s3Config } from '../src/config/s3.config';
+import { youtubeConfig } from '../src/config/youtube.config';
+import { ImageModule } from '../src/image/image.module';
 
 export const setupTestApplication = async ({
 	imports,
@@ -25,10 +28,11 @@ export const setupTestApplication = async ({
 		imports: [
 			InfraModule,
 			ConfigModule.forRoot({
-				load: [dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig],
+				load: [dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig, s3Config, youtubeConfig],
 				isGlobal: true,
 				envFilePath: '.env.test',
 			}),
+			ImageModule.forRoot({ useRealStorageAdapters: false }),
 			...imports,
 		],
 	}).compile();
@@ -51,7 +55,6 @@ export const setupTestApplication = async ({
 	const redisContainer = await new RedisContainer()
 		.withHostname(_redisConfig.redisHost)
 		.withExposedPorts({ container: _redisConfig.redisPort, host: _redisConfig.redisPort })
-		.withUser('') // It doesn't actually support username
 		.withPassword(_redisConfig.redisPassword)
 		.start();
 

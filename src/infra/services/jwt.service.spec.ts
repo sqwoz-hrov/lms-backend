@@ -1,7 +1,6 @@
 import { expect } from 'chai';
 import { sign } from 'jsonwebtoken';
 import { v7 } from 'uuid';
-
 import { JwtService } from './jwt.service';
 
 const secret = 'secret';

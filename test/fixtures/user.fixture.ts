@@ -1,5 +1,5 @@
-import { UsersTestRepository } from '../../src/users/test-utils/test.repo';
-import { User } from '../../src/users/user.entity';
+import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
+import { User } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
 
 export const createName = () => {

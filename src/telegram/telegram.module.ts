@@ -5,7 +5,7 @@ import { TelegramService } from '../telegram/services/telegram.service';
 import { TelegramAdapter } from '../telegram/adapters/telegram.adapter';
 import { FakeTelegramAdapter } from './adapters/fake-telegram.adapter';
 import { TELEGRAM_ADAPTER } from './constants';
-import { UserModule } from '../users/user.module';
+import { UserModule } from '../user/user.module';
 
 @Module({})
 export class TelegramModule {

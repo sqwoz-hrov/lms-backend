@@ -1,0 +1,1 @@
+export const VIDEO_STORAGE_SERVICE = Symbol('VIDEO_STORAGE_SERVICE');

@@ -1,4 +1,4 @@
-import { Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Kysely } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import {
@@ -8,6 +8,7 @@ import {
 	JournalRecordAggregation,
 } from './journal-record.entity';
 
+@Injectable()
 export class JournalRecordRepository {
 	private readonly connection: Kysely<JournalRecordAggregation>;
 

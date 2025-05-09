@@ -1,9 +1,8 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
-
 import { JwtService } from '../../../infra/services/jwt.service';
-import { UserAggregation } from '../../../users/user.entity';
+import { UserAggregation } from '../../../user/user.entity';
 import { Reflector } from '@nestjs/core';
 
 @Injectable()

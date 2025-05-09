@@ -1,14 +1,12 @@
-import { ConfigType } from '@nestjs/config';
-import { IImageStorageAdapter } from '../ports/image-storage.adapter';
-import { imageStorageConfig } from '../../config';
 import { Inject, Injectable } from '@nestjs/common';
-import { IMAGE_STORAGE_ADAPTER } from '../constants';
+import { ConfigType } from '@nestjs/config';
+import { imageStorageConfig } from '../../config';
+import { ImageStorageService } from '../../image/services/image-storage.service';
 
 @Injectable()
 export class MarkdownProcessorService {
 	constructor(
-		@Inject(IMAGE_STORAGE_ADAPTER)
-		private readonly imageStorageAdapter: IImageStorageAdapter,
+		private readonly imageStorageService: ImageStorageService,
 		@Inject(imageStorageConfig.KEY)
 		private readonly config: ConfigType<typeof imageStorageConfig>,
 	) {}
@@ -45,7 +43,7 @@ export class MarkdownProcessorService {
 	async processMarkdown(markdown: string): Promise<string> {
 		// Process inline image URLs
 		const inlineMatches = this.extractInlineImageMatches(markdown);
-		const inlineUploadResults = await Promise.all(inlineMatches.map(m => this.imageStorageAdapter.uploadImage(m.url)));
+		const inlineUploadResults = await Promise.all(inlineMatches.map(m => this.imageStorageService.uploadImage(m.url)));
 		inlineMatches.forEach((match, index) => {
 			const updatedImage = match.fullMatch.replace(match.url, inlineUploadResults[index]);
 			markdown = markdown.replace(match.fullMatch, updatedImage);
@@ -54,7 +52,7 @@ export class MarkdownProcessorService {
 		// Process reference-style image definitions
 		const referenceMatches = this.extractReferenceDefinitionMatches(markdown);
 		const referenceUploadResults = await Promise.all(
-			referenceMatches.map(m => this.imageStorageAdapter.uploadImage(m.url)),
+			referenceMatches.map(m => this.imageStorageService.uploadImage(m.url)),
 		);
 		referenceMatches.forEach((match, index) => {
 			const updatedDefinition = match.definition.replace(match.url, referenceUploadResults[index]);

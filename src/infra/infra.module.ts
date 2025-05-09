@@ -1,7 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Redis } from 'ioredis';
-
 import { redisConfig } from '../config/redis.config';
 import { DIALECT_FACTORY_KEY } from './db/db.const';
 import { postgresDialectFactory } from './db/db.postgres.factory';

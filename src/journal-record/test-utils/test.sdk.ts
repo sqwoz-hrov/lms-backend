@@ -1,10 +1,8 @@
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
 import { UserFactory } from '../../../test/test.user.factory';
-
 import { ConfigType } from '@nestjs/config';
 import { jwtConfig } from '../../config';
-
 import { BaseJournalRecordDto } from '../dto/base-journal-record.dto';
 import { CreateJournalRecordDto } from '../dto/create-journal-record.dto';
 import { UpdateJournalRecordDto } from '../dto/update-journal-record.dto';

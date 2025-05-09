@@ -1,5 +1,4 @@
 import { Kysely } from 'kysely';
-
 import { DatabaseProvider } from '../../infra/db/db.provider';
 import { JournalRecordAggregation } from '../journal-record.entity';
 
