@@ -13,6 +13,7 @@ import { TaskModule } from './task/task.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { UserModule } from './user/user.module';
 import { VideoModule } from './video/video.module';
+import { HrConnectionModule } from './hr-connection/hr-connection.module';
 
 @Module({
 	imports: [
@@ -20,6 +21,7 @@ import { VideoModule } from './video/video.module';
 			load: [dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig, s3Config, youtubeConfig],
 			isGlobal: true,
 		}),
+		HrConnectionModule,
 		ImageModule.forRoot({ useRealStorageAdapters: true }),
 		VideoModule.forRoot({ useRealStorageAdapters: true }),
 		InfraModule,
