@@ -10,8 +10,8 @@ export class UserRepository {
 		this.connection = dbProvider.getDatabase<UserAggregation>();
 	}
 
-	public async findById(id: string) {
-		const user = await this.connection.selectFrom('user').selectAll().where('id', '=', id).executeTakeFirstOrThrow();
+	public async findById(id: string): Promise<User | undefined> {
+		const user = await this.connection.selectFrom('user').selectAll().where('id', '=', id).executeTakeFirst();
 
 		return user;
 	}
