@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID, IsString, IsEnum, IsDate } from 'class-validator';
+import { IsUUID, IsString, IsEnum, IsDate, IsOptional } from 'class-validator';
 import { InterviewType } from '../interview.entity';
 
 export class BaseInterviewDto {
@@ -18,6 +18,11 @@ export class BaseInterviewDto {
 	@ApiProperty({ enum: ['screening', 'technical_interview', 'final', 'other'] })
 	@IsEnum(['screening', 'technical_interview', 'final', 'other'])
 	type: InterviewType;
+
+	@ApiProperty()
+	@IsUUID()
+	@IsOptional()
+	video_id: string | undefined;
 
 	@ApiProperty()
 	@IsDate()
