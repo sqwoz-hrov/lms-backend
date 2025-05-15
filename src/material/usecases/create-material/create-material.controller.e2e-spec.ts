@@ -1,45 +1,32 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { StartedRedisContainer } from '@testcontainers/redis';
-import { setupTestApplication } from '../../../../test/test.app-setup';
+import { expect } from 'chai';
+import { createTestMaterialDto } from '../../../../test/fixtures/material.fixture';
+import { createTestSubject } from '../../../../test/fixtures/subject.fixture';
+import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import { ISharedContext } from '../../../../test/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
-import { MaterialModule } from '../../material.module';
+import { SubjectsTestRepository } from '../../../subject/test-utils/test.repo';
+import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { MaterialsTestRepository } from '../../test-utils/test.repo';
 import { MaterialsTestSdk } from '../../test-utils/test.sdk';
-import { expect } from 'chai';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
-import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { UserModule } from '../../../user/user.module';
-import { MarkdownContentModule } from '../../../markdown-content/markdown-content.module';
-import { createTestMaterialDto } from '../../../../test/fixtures/material.fixture';
-import { TelegramModule } from '../../../telegram/telegram.module';
-import { createTestSubject } from '../../../../test/fixtures/subject.fixture';
-import { SubjectsTestRepository } from '../../../subject/test-utils/test.repo';
 
 describe('[E2E] Create material usecase', () => {
 	let app: INestApplication;
-	let postgresqlContainer: StartedPostgreSqlContainer;
-	let redisContainer: StartedRedisContainer;
 
 	let userUtilRepository: UsersTestRepository;
 	let materialUtilRepository: MaterialsTestRepository;
 	let subjectUtilRepository: SubjectsTestRepository;
 	let materialTestSdk: MaterialsTestSdk;
 
-	before(async () => {
-		({ app, postgresqlContainer, redisContainer } = await setupTestApplication({
-			imports: [MarkdownContentModule, MaterialModule, UserModule, TelegramModule.forRoot({ useTelegramAPI: false })],
-		}));
+	before(function (this: ISharedContext) {
+		app = this.app;
 		const kysely = app.get(DatabaseProvider);
 		userUtilRepository = new UsersTestRepository(kysely);
 		materialUtilRepository = new MaterialsTestRepository(kysely);
 		subjectUtilRepository = new SubjectsTestRepository(kysely);
-
-		await app.init();
-		await app.listen(3000);
 
 		materialTestSdk = new MaterialsTestSdk(
 			new TestHttpClient({
@@ -54,12 +41,6 @@ describe('[E2E] Create material usecase', () => {
 		await userUtilRepository.clearAll();
 		await materialUtilRepository.clearAll();
 		await subjectUtilRepository.clearAll();
-	});
-
-	after(async () => {
-		await app.close();
-		await postgresqlContainer.stop();
-		await redisContainer.stop();
 	});
 
 	it('Unauthenticated gets 401', async () => {

@@ -1,51 +1,32 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { StartedRedisContainer } from '@testcontainers/redis';
 import { expect } from 'chai';
+import { v7 } from 'uuid';
 import { createTestJournalRecord } from '../../../../test/fixtures/journal-record.fixture';
 import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
-import { setupTestApplication } from '../../../../test/test.app-setup';
+import { ISharedContext } from '../../../../test/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
-import { MarkdownContentModule } from '../../../markdown-content/markdown-content.module';
 import { MarkDownContentTestRepository } from '../../../markdown-content/test-utils/test.repo';
-import { TelegramModule } from '../../../telegram/telegram.module';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { UserModule } from '../../../user/user.module';
-import { JournalRecordModule } from '../../journal-record.module';
 import { JournalRecordsTestRepository } from '../../test-utils/test.repo';
 import { JournalRecordsTestSdk } from '../../test-utils/test.sdk';
-import { v7 } from 'uuid';
 
 describe('[E2E] Get journal record info usecase', () => {
 	let app: INestApplication;
-	let postgresqlContainer: StartedPostgreSqlContainer;
-	let redisContainer: StartedRedisContainer;
 
 	let userUtilRepository: UsersTestRepository;
 	let markdownContentRepository: MarkDownContentTestRepository;
 	let journalRecordUtilRepository: JournalRecordsTestRepository;
 	let journalTestSdk: JournalRecordsTestSdk;
 
-	before(async () => {
-		({ app, postgresqlContainer, redisContainer } = await setupTestApplication({
-			imports: [
-				JournalRecordModule,
-				MarkdownContentModule,
-				UserModule,
-				TelegramModule.forRoot({ useTelegramAPI: false }),
-			],
-		}));
-
+	before(function (this: ISharedContext) {
+		app = this.app;
 		const kysely = app.get(DatabaseProvider);
 		userUtilRepository = new UsersTestRepository(kysely);
 		markdownContentRepository = new MarkDownContentTestRepository(kysely);
 		journalRecordUtilRepository = new JournalRecordsTestRepository(kysely);
-
-		await app.init();
-		await app.listen(3000);
 
 		journalTestSdk = new JournalRecordsTestSdk(
 			new TestHttpClient({
@@ -60,12 +41,6 @@ describe('[E2E] Get journal record info usecase', () => {
 		await userUtilRepository.clearAll();
 		await markdownContentRepository.clearAll();
 		await journalRecordUtilRepository.clearAll();
-	});
-
-	after(async () => {
-		await app.close();
-		await postgresqlContainer.stop();
-		await redisContainer.stop();
 	});
 
 	it('Unauthenticated request gets 401', async () => {

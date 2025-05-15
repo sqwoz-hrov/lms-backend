@@ -1,36 +1,25 @@
-import { INestApplication, HttpStatus } from '@nestjs/common';
-import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { StartedRedisContainer } from '@testcontainers/redis';
-import { expect } from 'chai';
+import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { jwtConfig } from '../../../config';
-import { UserModule } from '../../user.module';
-import { TelegramModule } from '../../../telegram/telegram.module';
-import { UsersTestRepository } from '../../test-utils/test.repo';
-import { DatabaseProvider } from '../../../infra/db/db.provider';
-import { UsersTestSdk } from '../../test-utils/test.sdk';
-import { TestHttpClient } from '../../../../test/test.http-client';
-import { setupTestApplication } from '../../../../test/test.app-setup';
-import { createTestUser, createTestAdmin, createEmail, createName } from '../../../../test/fixtures/user.fixture';
+import { expect } from 'chai';
 import { randomWord } from '../../../../test/fixtures/common.fixture';
+import { createEmail, createName, createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import { TestHttpClient } from '../../../../test/test.http-client';
+import { ISharedContext } from '../../../../test/test.app-setup';
+import { jwtConfig } from '../../../config';
+import { DatabaseProvider } from '../../../infra/db/db.provider';
+import { UsersTestRepository } from '../../test-utils/test.repo';
+import { UsersTestSdk } from '../../test-utils/test.sdk';
 
 describe('[E2E] Signup usecase', () => {
 	let app: INestApplication;
-	let postgresqlContainer: StartedPostgreSqlContainer;
-	let redisContainer: StartedRedisContainer;
 
 	let utilRepository: UsersTestRepository;
 	let userTestSdk: UsersTestSdk;
 
-	before(async () => {
-		({ app, postgresqlContainer, redisContainer } = await setupTestApplication({
-			imports: [UserModule, TelegramModule.forRoot({ useTelegramAPI: false })],
-		}));
+	before(function (this: ISharedContext) {
+		app = this.app;
 		const kysely = app.get(DatabaseProvider);
 		utilRepository = new UsersTestRepository(kysely);
-
-		await app.init();
-		await app.listen(3000);
 
 		userTestSdk = new UsersTestSdk(
 			new TestHttpClient({
@@ -43,12 +32,6 @@ describe('[E2E] Signup usecase', () => {
 
 	afterEach(async () => {
 		await utilRepository.clearAll();
-	});
-
-	after(async () => {
-		await app.close();
-		await postgresqlContainer.stop();
-		await redisContainer.stop();
 	});
 
 	it('Unauthenticated gets 401', async () => {
