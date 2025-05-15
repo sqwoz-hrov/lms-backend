@@ -25,5 +25,6 @@ import { GetHrConnectionsUsecase } from './usecases/get-hr-connections/get-hr-co
 		GetHrConnectionsUsecase,
 		HrConnectionRepository,
 	],
+	exports: [HrConnectionRepository],
 })
 export class HrConnectionModule {}

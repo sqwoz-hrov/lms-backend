@@ -19,6 +19,7 @@ import { SubjectModule } from '../src/subject/subject.module';
 import { TaskModule } from '../src/task/task.module';
 import { TelegramModule } from '../src/telegram/telegram.module';
 import { UserModule } from '../src/user/user.module';
+import { InterviewModule } from '../src/interview/interview.module';
 
 export interface ISharedContext extends Mocha.Context {
 	app: INestApplication;
@@ -29,6 +30,7 @@ export interface ISharedContext extends Mocha.Context {
 
 export const mochaHooks = {
 	async beforeAll(this: ISharedContext) {
+		console.time('whole');
 		process.env.REDIS_USERNAME = '';
 
 		const testModule = await Test.createTestingModule({
@@ -49,8 +51,8 @@ export const mochaHooks = {
 				}),
 				HrConnectionModule,
 				ImageModule.forRoot({ useRealStorageAdapters: false }),
-				VideoModule.forRoot({ useRealStorageAdapters: false }),
 				InfraModule,
+				InterviewModule,
 				JournalRecordModule,
 				MarkdownContentModule,
 				MaterialModule,
@@ -58,6 +60,7 @@ export const mochaHooks = {
 				TaskModule,
 				TelegramModule.forRoot({ useTelegramAPI: false }),
 				UserModule,
+				VideoModule.forRoot({ useRealStorageAdapters: false }),
 			],
 		}).compile();
 
@@ -67,7 +70,7 @@ export const mochaHooks = {
 		const _dbConfig = app.get<ConfigType<typeof dbConfig>>(dbConfig.KEY);
 		const _redisConfig = app.get<ConfigType<typeof redisConfig>>(redisConfig.KEY);
 
-		const postgresqlContainer = await new PostgreSqlContainer()
+		const postgresqlContainerPromise = new PostgreSqlContainer()
 			.withHostname(_dbConfig.host)
 			.withExposedPorts({ container: _dbConfig.port, host: _dbConfig.port })
 			.withDatabase(_dbConfig.database)
@@ -75,11 +78,16 @@ export const mochaHooks = {
 			.withPassword(_dbConfig.password)
 			.start();
 
-		const redisContainer = await new RedisContainer()
+		const redisContainerPromise = new RedisContainer()
 			.withHostname(_redisConfig.redisHost)
 			.withExposedPorts({ container: _redisConfig.redisPort, host: _redisConfig.redisPort })
 			.withPassword(_redisConfig.redisPassword)
 			.start();
+
+		const [postgresqlContainer, redisContainer] = await Promise.all([
+			postgresqlContainerPromise,
+			redisContainerPromise,
+		]);
 
 		await runMigrations({ useReal: true, connectionInfo: _dbConfig });
 
@@ -97,6 +105,7 @@ export const mochaHooks = {
 		this.postgresqlContainer = postgresqlContainer;
 		this.redisContainer = redisContainer;
 		this.shutdown = shutdown;
+		console.timeEnd('whole');
 	},
 
 	async afterAll(this: ISharedContext) {
