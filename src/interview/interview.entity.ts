@@ -7,6 +7,7 @@ export interface InterviewTable {
 	hr_connection_id: string;
 	name: string;
 	type: InterviewType;
+	video_id: string | undefined;
 	created_at: Generated<Date>;
 }
 

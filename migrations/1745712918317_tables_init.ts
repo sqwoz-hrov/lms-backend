@@ -110,6 +110,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('hr_connection_id', 'uuid', col => col.notNull().references('hr_connection.id').onDelete('cascade'))
 		.addColumn('name', 'varchar(64)', col => col.notNull())
 		.addColumn('type', sql`interview_type`, col => col.notNull())
+		.addColumn('video_id', 'uuid', col => col.references('video.id').onDelete('set null'))
 		.addColumn('created_at', 'timestamp', col => col.notNull().defaultTo(sql`now()`))
 		.execute();
 
@@ -126,73 +127,14 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('is_archived', 'boolean', col => col.notNull().defaultTo(false))
 		.execute();
 
-	// Create interview_recording table
-	await db.schema
-		.createTable('interview_recording')
-		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
-		.addColumn('student_user_id', 'uuid', col => col.notNull().references('user.id').onDelete('cascade'))
-		.addColumn('contact_stage_id', 'uuid', col => col.notNull().references('hr_connection.id').onDelete('cascade'))
-		.addColumn('video_id', 'uuid', col => col.references('video.id').onDelete('set null'))
-		.addColumn('backup_link', 'varchar(256)')
-		.addColumn('created_at', 'timestamp', col => col.notNull().defaultTo(sql`now()`))
-		.addColumn('name', 'varchar(64)', col => col.notNull())
-		.execute();
-
 	// Create feedback table
 	await db.schema
 		.createTable('feedback')
 		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
-		.addColumn('interview_recording_id', 'uuid', col =>
-			col.notNull().references('interview_recording.id').onDelete('cascade'),
-		)
+		.addColumn('interview_id', 'uuid', col => col.notNull().references('interview.id').onDelete('cascade'))
 		.addColumn('markdown_content_id', 'uuid', col =>
 			col.notNull().references('markdown_content.id').onDelete('cascade'),
 		)
-		.execute();
-
-	// Create indexes
-	await db.schema.createIndex('user_email_idx').on('user').column('email').execute();
-
-	await db.schema.createIndex('task_student_user_id_idx').on('task').column('student_user_id').execute();
-
-	await db.schema.createIndex('task_mentor_user_id_idx').on('task').column('mentor_user_id').execute();
-
-	await db.schema
-		.createIndex('hr_connection_student_user_id_idx')
-		.on('hr_connection')
-		.column('student_user_id')
-		.execute();
-
-	await db.schema.createIndex('call_student_user_id_idx').on('call').column('student_user_id').execute();
-
-	await db.schema
-		.createIndex('journal_record_student_user_id_idx')
-		.on('journal_record')
-		.column('student_user_id')
-		.execute();
-
-	await db.schema.createIndex('interview_hr_connection_id_idx').on('interview').column('hr_connection_id').execute();
-
-	await db.schema.createIndex('material_subject_id_idx').on('material').column('subject_id').execute();
-
-	await db.schema.createIndex('material_student_user_id_idx').on('material').column('student_user_id').execute();
-
-	await db.schema
-		.createIndex('interview_recording_student_user_id_idx')
-		.on('interview_recording')
-		.column('student_user_id')
-		.execute();
-
-	await db.schema
-		.createIndex('interview_recording_contact_stage_id_idx')
-		.on('interview_recording')
-		.column('contact_stage_id')
-		.execute();
-
-	await db.schema
-		.createIndex('feedback_interview_recording_id_idx')
-		.on('feedback')
-		.column('interview_recording_id')
 		.execute();
 }
 
