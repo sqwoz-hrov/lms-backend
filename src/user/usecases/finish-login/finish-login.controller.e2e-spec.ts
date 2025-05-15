@@ -1,35 +1,28 @@
 import { INestApplication } from '@nestjs/common';
-import { expect } from 'chai';
 import { ConfigType } from '@nestjs/config';
-import { jwtConfig } from '../../../config';
-import { UserModule } from '../../user.module';
-import { TelegramModule } from '../../../telegram/telegram.module';
-import { UsersTestRepository } from '../../test-utils/test.repo';
-import { DatabaseProvider } from '../../../infra/db/db.provider';
-import { UsersTestSdk } from '../../test-utils/test.sdk';
-import { TestHttpClient } from '../../../../test/test.http-client';
-import { setupTestApplication } from '../../../../test/test.app-setup';
+import { expect } from 'chai';
 import Redis from 'ioredis';
-import { REDIS_CONNECTION_KEY } from '../../../infra/redis.const';
 import { createTestUser } from '../../../../test/fixtures/user.fixture';
+import { TestHttpClient } from '../../../../test/test.http-client';
+import { ISharedContext } from '../../../../test/test.app-setup';
+import { jwtConfig } from '../../../config';
+import { DatabaseProvider } from '../../../infra/db/db.provider';
+import { REDIS_CONNECTION_KEY } from '../../../infra/redis.const';
+import { UsersTestRepository } from '../../test-utils/test.repo';
+import { UsersTestSdk } from '../../test-utils/test.sdk';
 
 describe('[E2E] FinishLogin usecase', () => {
 	let app: INestApplication;
 	let utilRepository: UsersTestRepository;
 	let userTestSdk: UsersTestSdk;
 	let redisConnection: Redis;
-	let shutdown: () => Promise<void>;
 
-	before(async () => {
-		({ app, shutdown } = await setupTestApplication({
-			imports: [UserModule, TelegramModule.forRoot({ useTelegramAPI: false })],
-		}));
+	before(function (this: ISharedContext) {
+		app = this.app;
+
 		const kysely = app.get(DatabaseProvider);
 		utilRepository = new UsersTestRepository(kysely);
 		redisConnection = app.get<Redis>(REDIS_CONNECTION_KEY);
-
-		await app.init();
-		await app.listen(3000);
 
 		userTestSdk = new UsersTestSdk(
 			new TestHttpClient({
@@ -42,10 +35,6 @@ describe('[E2E] FinishLogin usecase', () => {
 
 	afterEach(async () => {
 		await utilRepository.clearAll();
-	});
-
-	after(async () => {
-		await shutdown();
 	});
 
 	it('No JWT token works just fine', async () => {

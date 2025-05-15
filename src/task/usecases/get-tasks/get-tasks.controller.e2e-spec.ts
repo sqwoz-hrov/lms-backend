@@ -1,28 +1,20 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { StartedRedisContainer } from '@testcontainers/redis';
 import { expect } from 'chai';
 import { createTestTask } from '../../../../test/fixtures/task.fixture';
 import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
-import { setupTestApplication } from '../../../../test/test.app-setup';
+import { ISharedContext } from '../../../../test/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
-import { MarkdownContentModule } from '../../../markdown-content/markdown-content.module';
-import { TelegramModule } from '../../../telegram/telegram.module';
+import { MarkDownContentTestRepository } from '../../../markdown-content/test-utils/test.repo';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { UserModule } from '../../../user/user.module';
-import { TaskModule } from '../../task.module';
+import { User } from '../../../user/user.entity';
 import { TasksTestRepository } from '../../test-utils/test.repo';
 import { TasksTestSdk } from '../../test-utils/test.sdk';
-import { MarkDownContentTestRepository } from '../../../markdown-content/test-utils/test.repo';
-import { User } from '../../../user/user.entity';
 
 describe('[E2E] Get tasks usecase', () => {
 	let app: INestApplication;
-	let postgresqlContainer: StartedPostgreSqlContainer;
-	let redisContainer: StartedRedisContainer;
 
 	let userUtilRepository: UsersTestRepository;
 	let taskUtilRepository: TasksTestRepository;
@@ -49,17 +41,12 @@ describe('[E2E] Get tasks usecase', () => {
 		);
 	};
 
-	before(async () => {
-		({ app, postgresqlContainer, redisContainer } = await setupTestApplication({
-			imports: [MarkdownContentModule, TaskModule, UserModule, TelegramModule.forRoot({ useTelegramAPI: false })],
-		}));
+	before(function (this: ISharedContext) {
+		app = this.app;
 		const kysely = app.get(DatabaseProvider);
 		userUtilRepository = new UsersTestRepository(kysely);
 		taskUtilRepository = new TasksTestRepository(kysely);
 		markdownContentUtilRepository = new MarkDownContentTestRepository(kysely);
-
-		await app.init();
-		await app.listen(3000);
 
 		taskTestSdk = new TasksTestSdk(
 			new TestHttpClient({
@@ -74,12 +61,6 @@ describe('[E2E] Get tasks usecase', () => {
 		await userUtilRepository.clearAll();
 		await taskUtilRepository.clearAll();
 		await markdownContentUtilRepository.clearAll();
-	});
-
-	after(async () => {
-		await app.close();
-		await postgresqlContainer.stop();
-		await redisContainer.stop();
 	});
 
 	it('Unauthenticated gets 401', async () => {
