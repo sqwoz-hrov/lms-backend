@@ -132,7 +132,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
 		.addColumn('student_user_id', 'uuid', col => col.notNull().references('user.id').onDelete('cascade'))
 		.addColumn('contact_stage_id', 'uuid', col => col.notNull().references('hr_connection.id').onDelete('cascade'))
-		.addColumn('recording_link', 'varchar(128)', col => col.notNull())
+		.addColumn('video_id', 'uuid', col => col.references('video.id').onDelete('set null'))
 		.addColumn('backup_link', 'varchar(256)')
 		.addColumn('created_at', 'timestamp', col => col.notNull().defaultTo(sql`now()`))
 		.addColumn('name', 'varchar(64)', col => col.notNull())

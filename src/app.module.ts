@@ -14,6 +14,7 @@ import { TelegramModule } from './telegram/telegram.module';
 import { UserModule } from './user/user.module';
 import { VideoModule } from './video/video.module';
 import { HrConnectionModule } from './hr-connection/hr-connection.module';
+import { InterviewModule } from './interview/interview.module';
 
 @Module({
 	imports: [
@@ -23,8 +24,8 @@ import { HrConnectionModule } from './hr-connection/hr-connection.module';
 		}),
 		HrConnectionModule,
 		ImageModule.forRoot({ useRealStorageAdapters: true }),
-		VideoModule.forRoot({ useRealStorageAdapters: true }),
 		InfraModule,
+		InterviewModule,
 		JournalRecordModule,
 		MarkdownContentModule,
 		MaterialModule,
@@ -32,6 +33,7 @@ import { HrConnectionModule } from './hr-connection/hr-connection.module';
 		TaskModule,
 		TelegramModule.forRoot({ useTelegramAPI: true }),
 		UserModule,
+		VideoModule.forRoot({ useRealStorageAdapters: true }),
 	],
 	controllers: [],
 	providers: [],
