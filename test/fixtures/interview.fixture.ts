@@ -28,9 +28,10 @@ export class InterviewAggregateBuilder {
 		return this.interviewRepository.connection
 			.insertInto('interview')
 			.values({
-				name: overrides.interview?.name ?? randomWord(),
+				name: randomWord(),
 				hr_connection_id: hrConnection.id,
-				type: overrides.interview?.type ?? 'screening',
+				type: 'screening',
+				...overrides.interview,
 			})
 			.returningAll()
 			.executeTakeFirstOrThrow();
@@ -45,6 +46,7 @@ export const createTestInterviewDto = (
 		hr_connection_id: hrConnectionId,
 		name: randomWord(),
 		type: 'technical_interview',
+		video_id: undefined,
 		...overrides,
 	};
 };

@@ -17,7 +17,7 @@ export class GetJournalRecordInfoUsecase implements UsecaseInterface {
 			throw new NotFoundException('Запись не найдена');
 		}
 
-		const markDownContent = await this.markdownContentService.deleteMakdownContent(record.markdown_content_id);
+		const markDownContent = await this.markdownContentService.getMarkdownContent(record.markdown_content_id);
 
 		return {
 			...record,

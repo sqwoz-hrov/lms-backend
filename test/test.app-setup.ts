@@ -20,6 +20,7 @@ import { TaskModule } from '../src/task/task.module';
 import { TelegramModule } from '../src/telegram/telegram.module';
 import { UserModule } from '../src/user/user.module';
 import { InterviewModule } from '../src/interview/interview.module';
+import { FeedbackModule } from '../src/feedback/feedback.module';
 
 export interface ISharedContext extends Mocha.Context {
 	app: INestApplication;
@@ -49,6 +50,7 @@ export const mochaHooks = {
 					isGlobal: true,
 					envFilePath: '.env.test',
 				}),
+				FeedbackModule,
 				HrConnectionModule,
 				ImageModule.forRoot({ useRealStorageAdapters: false }),
 				InfraModule,

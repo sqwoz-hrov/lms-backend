@@ -15,6 +15,7 @@ import { UserModule } from './user/user.module';
 import { VideoModule } from './video/video.module';
 import { HrConnectionModule } from './hr-connection/hr-connection.module';
 import { InterviewModule } from './interview/interview.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
 	imports: [
@@ -22,6 +23,7 @@ import { InterviewModule } from './interview/interview.module';
 			load: [dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig, s3Config, youtubeConfig],
 			isGlobal: true,
 		}),
+		FeedbackModule,
 		HrConnectionModule,
 		ImageModule.forRoot({ useRealStorageAdapters: true }),
 		InfraModule,

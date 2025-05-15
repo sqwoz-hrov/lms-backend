@@ -20,6 +20,6 @@ import { InterviewRepository } from './interview.repository';
 		GetInterviewsUsecase,
 		InterviewRepository,
 	],
-	exports: [],
+	exports: [InterviewRepository],
 })
 export class InterviewModule {}

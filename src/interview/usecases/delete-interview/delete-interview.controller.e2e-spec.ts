@@ -19,7 +19,9 @@ describe('[E2E] Delete Interview usecase', () => {
 	let userUtilRepo: UsersTestRepository;
 	let hrUtilRepo: HrConnectionsTestRepository;
 	let interviewUtilRepo: InterviewsTestRepository;
+
 	let interviewTestSdk: InterviewsTestSdk;
+
 	let interviewBuilder: InterviewAggregateBuilder;
 
 	before(function (this: ISharedContext) {
