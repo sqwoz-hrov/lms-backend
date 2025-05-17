@@ -29,6 +29,9 @@ jobs:
       - name: 🎨 Check formatting
         run: npm run format
 
+      - name: 🔍 Type check
+        run: npx tsc --noEmit
+
       - name: 🛠️ Build
         run: npm run build
 

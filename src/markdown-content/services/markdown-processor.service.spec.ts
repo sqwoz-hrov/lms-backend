@@ -1,6 +1,6 @@
 import { expect } from 'chai';
+import { FakeImageStorageService } from '../../image/services/fake-image-storage.service';
 import { MarkdownProcessorService } from './markdown-processor.service';
-import { FakeImageStorageAdapter } from '../adapter/fake-image-storage.adapter';
 
 describe('MarkdownProcessorService', () => {
 	const imageStorageUrl = `https://sqwoz-hrov.ru/`;
@@ -18,7 +18,7 @@ describe('MarkdownProcessorService', () => {
             ![Image 3](${imageStorageUrl}image3.jpg)
         `;
 
-		const service = new MarkdownProcessorService(new FakeImageStorageAdapter(imageStorageUrl), { imageStorageUrl });
+		const service = new MarkdownProcessorService(new FakeImageStorageService(imageStorageUrl), { imageStorageUrl });
 
 		const processedMarkdown = await service.processMarkdown(markdown);
 
@@ -28,7 +28,7 @@ describe('MarkdownProcessorService', () => {
 	it('Should return markdown unchanged if no images are present', async () => {
 		const markdown = `This is some text without any images.`;
 
-		const service = new MarkdownProcessorService(new FakeImageStorageAdapter(imageStorageUrl), { imageStorageUrl });
+		const service = new MarkdownProcessorService(new FakeImageStorageService(imageStorageUrl), { imageStorageUrl });
 
 		const processedMarkdown = await service.processMarkdown(markdown);
 
@@ -46,7 +46,7 @@ describe('MarkdownProcessorService', () => {
 	    	![Image 2](${imageStorageUrl}image1.jpg)
 	    `;
 
-		const service = new MarkdownProcessorService(new FakeImageStorageAdapter(imageStorageUrl), { imageStorageUrl });
+		const service = new MarkdownProcessorService(new FakeImageStorageService(imageStorageUrl), { imageStorageUrl });
 
 		const processedMarkdown = await service.processMarkdown(markdown);
 
@@ -68,7 +68,7 @@ describe('MarkdownProcessorService', () => {
 	    	![](${imageStorageUrl}image2.jpg)
 	    `;
 
-		const service = new MarkdownProcessorService(new FakeImageStorageAdapter(imageStorageUrl), { imageStorageUrl });
+		const service = new MarkdownProcessorService(new FakeImageStorageService(imageStorageUrl), { imageStorageUrl });
 
 		const processedMarkdown = await service.processMarkdown(markdown);
 
@@ -98,7 +98,7 @@ describe('MarkdownProcessorService', () => {
 			[Shortcut]: ${imageStorageUrl}image4.jpg
 		`;
 
-		const service = new MarkdownProcessorService(new FakeImageStorageAdapter(imageStorageUrl), { imageStorageUrl });
+		const service = new MarkdownProcessorService(new FakeImageStorageService(imageStorageUrl), { imageStorageUrl });
 
 		const processedMarkdown = await service.processMarkdown(markdown);
 

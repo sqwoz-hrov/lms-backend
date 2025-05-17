@@ -1,12 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { imageStorageConfig } from '../../config';
-import { ImageStorageService } from '../../image/services/image-storage.service';
+import { IImageStorageService } from '../../image/ports/image-storage.adapter';
 
 @Injectable()
 export class MarkdownProcessorService {
 	constructor(
-		private readonly imageStorageService: ImageStorageService,
+		private readonly imageStorageService: IImageStorageService,
 		@Inject(imageStorageConfig.KEY)
 		private readonly config: ConfigType<typeof imageStorageConfig>,
 	) {}

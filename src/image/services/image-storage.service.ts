@@ -1,16 +1,13 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import got from 'got';
-import { IImageStorageAdapter } from '../../image/ports/image-storage.adapter';
-import { IMAGE_STORAGE_ADAPTER } from '../constants';
+import { IImageStorageService } from '../../image/ports/image-storage.adapter';
+import { ImageStorageAdapter } from '../adapters/image-storage.adapter';
 
 @Injectable()
-export class ImageStorageService {
+export class ImageStorageService implements IImageStorageService {
 	private readonly logger = new Logger(ImageStorageService.name);
 
-	constructor(
-		@Inject(IMAGE_STORAGE_ADAPTER)
-		private readonly imageStorageAdapter: IImageStorageAdapter,
-	) {}
+	constructor(private readonly imageStorageAdapter: ImageStorageAdapter) {}
 
 	async uploadImage(url: string): Promise<string> {
 		this.logger.log(`Downloading image from URL: ${url}`);
