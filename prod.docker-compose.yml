@@ -18,13 +18,9 @@ services:
       - 'traefik.http.services.lms-api.loadbalancer.server.port=${PORT}'
       - 'traefik.http.middlewares.lms-api-stripprefix.stripprefix.prefixes=/lms'
       - 'traefik.http.routers.lms-api.middlewares=lms-api-stripprefix@docker'
-    expose:
-      - '${PORT}'
     networks:
       - traefik
-      - app-network
-    volumes:
-      - ./public:/app/public
+      - lms-network 
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -34,7 +30,7 @@ services:
     restart: always
     command: ["redis-server", "--requirepass", "lms-api"]
     networks:
-      - app-network
+      - lms-network
 
 networks:
   traefik:
