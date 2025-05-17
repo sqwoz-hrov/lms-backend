@@ -1,0 +1,44 @@
+# Node modules
+node_modules
+npm-debug.log
+pnpm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Docker Compose override files
+dev.docker-compose.yml
+stage.docker-compose.yml
+prod.docker-compose.yml
+
+# Tests (Works, but scary)
+# test/
+# **/*.spec.ts
+# **/*.e2e-spec.ts
+# **/test.sdk.ts
+# **/test.repo.ts
+# coverage/
+
+# Compiled output
+dist/
+build/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Optional: ignore local database or temporary files
+*.sqlite
+*.db
+*.pid

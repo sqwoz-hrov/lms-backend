@@ -1,34 +1,34 @@
 services:
-  app:
+  lms-backend:
     build:
       context: .
       dockerfile: Dockerfile
       args:
         - PORT=$PORT
-    container_name: lms-api
+    container_name: lms-backend
     restart: always
     env_file:
       - .env
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.lms-api.rule=Host(`sqwoz-hrov.ru`) && PathPrefix(`/lms`)'
-      - 'traefik.http.routers.lms-api.entrypoints=websecure'
-      - 'traefik.http.routers.lms-api.tls=true'
-      - 'traefik.http.routers.lms-api.tls.certresolver=myresolver'
-      - 'traefik.http.services.lms-api.loadbalancer.server.port=${PORT}'
-      - 'traefik.http.middlewares.lms-api-stripprefix.stripprefix.prefixes=/lms'
-      - 'traefik.http.routers.lms-api.middlewares=lms-api-stripprefix@docker'
+      - 'traefik.http.routers.lms-backend.rule=Host(`sqwoz-hrov.ru`) && PathPrefix(`/lms`)'
+      - 'traefik.http.routers.lms-backend.entrypoints=websecure'
+      - 'traefik.http.routers.lms-backend.tls=true'
+      - 'traefik.http.routers.lms-backend.tls.certresolver=myresolver'
+      - 'traefik.http.services.lms-backend.loadbalancer.server.port=${PORT}'
+      - 'traefik.http.middlewares.lms-backend-stripprefix.stripprefix.prefixes=/lms'
+      - 'traefik.http.routers.lms-backend.middlewares=lms-backend-stripprefix@docker'
     networks:
       - traefik
       - lms-network 
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  redis:
+  lms-redis:
     image: redis:8
     container_name: lms-redis
     restart: always
-    command: ["redis-server", "--requirepass", "lms-api"]
+    command: ["redis-server", "--requirepass", "$REDIS_PASSWORD"]
     networks:
       - lms-network
 
