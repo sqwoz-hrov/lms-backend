@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:17.5
+    container_name: lms-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: lms-backend
+      POSTGRES_PASSWORD: lms-backend
+      POSTGRES_DB: lms-backend
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - lms-network
+
+  redis:
+    image: redis:8
+    container_name: lms-redis
+    ports:
+      - "6379:6379"
+    command: [ "redis-server", "--requirepass", "lms-backend" ]
+    networks:
+      - lms-network
+
+volumes:
+  postgres_data:
+
+networks:
+  lms-network:
+    driver: bridge
