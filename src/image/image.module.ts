@@ -1,8 +1,8 @@
 import { DynamicModule } from '@nestjs/common';
-import { IMAGE_STORAGE_ADAPTER } from './constants';
-import { ImageStorageAdapter } from './adapters/image-storage.adapter';
-import { FakeImageStorageAdapter } from './adapters/fake-image-storage.adapter';
+import { IMAGE_STORAGE_SERVICE } from './constants';
 import { ImageStorageService } from './services/image-storage.service';
+import { FakeImageStorageService } from './services/fake-image-storage.service';
+import { ImageStorageAdapter } from './adapters/image-storage.adapter';
 
 export class ImageModule {
 	static forRoot({ useRealStorageAdapters }: { useRealStorageAdapters: boolean }): DynamicModule {
@@ -11,13 +11,13 @@ export class ImageModule {
 				module: ImageModule,
 				global: true,
 				providers: [
+					ImageStorageAdapter,
 					{
-						provide: IMAGE_STORAGE_ADAPTER,
-						useClass: ImageStorageAdapter,
+						provide: IMAGE_STORAGE_SERVICE,
+						useClass: ImageStorageService,
 					},
-					ImageStorageService,
 				],
-				exports: [ImageStorageService],
+				exports: [IMAGE_STORAGE_SERVICE],
 			};
 		}
 		return {
@@ -25,12 +25,11 @@ export class ImageModule {
 			global: true,
 			providers: [
 				{
-					provide: IMAGE_STORAGE_ADAPTER,
-					useClass: FakeImageStorageAdapter,
+					provide: IMAGE_STORAGE_SERVICE,
+					useClass: FakeImageStorageService,
 				},
-				ImageStorageService,
 			],
-			exports: [ImageStorageService],
+			exports: [IMAGE_STORAGE_SERVICE],
 		};
 	}
 }

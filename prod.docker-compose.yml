@@ -1,0 +1,45 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PORT=$PORT
+    container_name: lms-api
+    restart: always
+    env_file:
+      - .env
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.lms-api.rule=Host(`sqwoz-hrov.ru`) && PathPrefix(`/lms`)'
+      - 'traefik.http.routers.lms-api.entrypoints=websecure'
+      - 'traefik.http.routers.lms-api.tls=true'
+      - 'traefik.http.routers.lms-api.tls.certresolver=myresolver'
+      - 'traefik.http.services.lms-api.loadbalancer.server.port=${PORT}'
+      - 'traefik.http.middlewares.lms-api-stripprefix.stripprefix.prefixes=/lms'
+      - 'traefik.http.routers.lms-api.middlewares=lms-api-stripprefix@docker'
+    expose:
+      - '${PORT}'
+    networks:
+      - traefik
+      - app-network
+    volumes:
+      - ./public:/app/public
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  redis:
+    image: redis:8
+    container_name: lms-redis
+    restart: always
+    command: ["redis-server", "--requirepass", "lms-api"]
+    networks:
+      - app-network
+
+networks:
+  traefik:
+    external: true
+    name: $TRAEFIK_NETWORK
+
+  app-network:
+    driver: bridge

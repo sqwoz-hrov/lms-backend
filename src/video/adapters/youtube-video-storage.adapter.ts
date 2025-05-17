@@ -36,7 +36,7 @@ export class YoutubeVideoStorageAdapter {
 						categoryId: '22',
 					},
 					status: {
-						privacyStatus: 'private',
+						privacyStatus: 'unlisted',
 						madeForKids: false,
 					},
 				},

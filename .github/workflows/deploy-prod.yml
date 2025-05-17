@@ -1,0 +1,25 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+
+      - name: 🚀 Deploy to Production via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_IP }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.PROJECT_DIRECTORY }} 
+            git pull origin main
+            docker compose -f prod.docker-compose.yml up -d --build

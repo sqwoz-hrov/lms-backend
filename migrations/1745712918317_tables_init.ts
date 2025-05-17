@@ -140,7 +140,6 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.dropTable('feedback').execute();
-	await db.schema.dropTable('interview_recording').execute();
 	await db.schema.dropTable('material').execute();
 	await db.schema.dropTable('interview').execute();
 	await db.schema.dropTable('journal_record').execute();
@@ -150,8 +149,10 @@ export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.dropTable('subject').execute();
 	await db.schema.dropTable('user').execute();
 	await db.schema.dropTable('markdown_content').execute();
+	await db.schema.dropTable('video').execute();
 
 	// Drop enum types
+	await db.schema.dropType('task_status').execute();
 	await db.schema.dropType('material_type').execute();
 	await db.schema.dropType('interview_type').execute();
 	await db.schema.dropType('hr_connection_status').execute();
