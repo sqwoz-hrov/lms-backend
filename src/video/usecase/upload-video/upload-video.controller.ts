@@ -8,7 +8,7 @@ import { RouteWithFileUpload } from '../../../common/nest/decorators/file-upload
 
 @ApiTags('Videos')
 @Controller('videos')
-@Roles('admin')
+@Roles('admin', 'user')
 export class UploadVideoController {
 	constructor(private readonly uploadVideoUsecase: UploadVideoUsecase) {}
 

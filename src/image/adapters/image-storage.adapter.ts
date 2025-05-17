@@ -4,11 +4,10 @@ import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { s3Config } from '../../config/s3.config';
-import { IImageStorageAdapter } from '../../image/ports/image-storage.adapter';
 import { randomUUID } from 'crypto';
 
 @Injectable()
-export class ImageStorageAdapter implements IImageStorageAdapter {
+export class ImageStorageAdapter {
 	private readonly logger = new Logger(ImageStorageAdapter.name);
 	private readonly s3Client: S3Client;
 
