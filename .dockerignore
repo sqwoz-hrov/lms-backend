@@ -42,3 +42,6 @@ Thumbs.db
 *.sqlite
 *.db
 *.pid
+
+# Workflows
+.github

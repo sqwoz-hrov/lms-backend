@@ -24,6 +24,6 @@ jobs:
             git pull origin main
             docker build -f Dockerfile.migrator -t kysely-migrator .
             docker run --rm \
-              --network ${COMPOSE_PROJECT_NAME}_app-network \
-              -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
+              --env-file .env \
+              --add-host=host.docker.internal:host-gateway \
               kysely-migrator
