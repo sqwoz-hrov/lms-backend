@@ -5,6 +5,6 @@ WORKDIR /app
 RUN npm install -g kysely@latest pg tsx
 
 COPY ./migrations ./migrations
-COPY ./kysely.config.ts ./
+COPY ./.config/kysely.config.ts ./.config/
 
 ENTRYPOINT ["tsx", "kysely", "migrate", "latest"]
