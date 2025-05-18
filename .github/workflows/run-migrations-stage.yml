@@ -1,0 +1,29 @@
+name: Run Migrations on Stage
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    name: Run Kysely Migrations on Stage
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+
+      - name: 🐳 Run Migration Container via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGE_IP }}
+          username: ${{ secrets.STAGE_USER }}
+          key: ${{ secrets.STAGE_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.PROJECT_DIRECTORY }}
+            git pull origin main
+            docker build -f Dockerfile.migrator -t kysely-migrator .
+            docker run --rm \
+              --network ${COMPOSE_PROJECT_NAME}_app-network \
+              -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
+              kysely-migrator
