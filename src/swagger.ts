@@ -3,6 +3,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 export const createSwagger = (nestApplication: INestApplication) => {
 	const config = new DocumentBuilder()
+		.addServer(process.env.SWAGGER_BASE_URL ?? 'http://localhost:3000')
 		.setTitle('Sqwoz Hrov LMS')
 		.setDescription(`Документация API ЛМС Sqwoz Hrov`)
 		.setVersion('1.0')
