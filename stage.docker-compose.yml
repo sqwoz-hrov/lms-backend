@@ -11,7 +11,7 @@ services:
       - .env
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.lms-backend.rule=Host(`sqwoz-hrov.ru`) && PathPrefix(`/lms`)'
+      - 'traefik.http.routers.lms-backend.rule=Host(`stage.sqwoz-hrov.ru`) && PathPrefix(`/lms`)'
       - 'traefik.http.routers.lms-backend.entrypoints=websecure'
       - 'traefik.http.routers.lms-backend.tls=true'
       - 'traefik.http.routers.lms-backend.tls.certresolver=myresolver'
