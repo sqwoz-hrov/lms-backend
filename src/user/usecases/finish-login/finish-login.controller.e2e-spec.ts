@@ -99,7 +99,7 @@ describe('[E2E] FinishLogin usecase', () => {
 		expect(finishLoginResponse.body).to.have.property('token');
 	});
 
-	it('Wrong OTP code returns 400', async () => {
+	it('Wrong OTP code returns 422', async () => {
 		const user = await createTestUser(utilRepository);
 		const askLoginResponse = await userTestSdk.askLogin({
 			params: {
@@ -130,6 +130,6 @@ describe('[E2E] FinishLogin usecase', () => {
 				isAuth: false,
 			},
 		});
-		expect(finishLoginResponse.status).to.equal(404);
+		expect(finishLoginResponse.status).to.equal(422);
 	});
 });
