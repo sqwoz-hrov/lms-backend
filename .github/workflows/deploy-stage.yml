@@ -2,6 +2,11 @@ name: Deploy to Stage
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'main'
 
 jobs:
   deploy:
@@ -21,5 +26,7 @@ jobs:
           key: ${{ secrets.STAGE_PRIVATE_KEY }}
           script: |
             cd ${{ secrets.PROJECT_DIRECTORY }} 
-            git pull origin main
+            git fetch origin
+            git checkout ${{ github.event.inputs.branch }}
+            git pull origin ${{ github.event.inputs.branch }}
             docker compose -f stage.docker-compose.yml up -d --build
