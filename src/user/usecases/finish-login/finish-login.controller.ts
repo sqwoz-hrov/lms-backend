@@ -23,10 +23,12 @@ export class FinishLoginController {
 				schema: {
 					type: 'object',
 					properties: {
-						message: { type: 'string' },
+						message: {
+							enum: [UNPROCESSABLE_ENTITY_ERROR_MESSAGE],
+							type: 'string',
+							example: UNPROCESSABLE_ENTITY_ERROR_MESSAGE,
+						},
 					},
-					enum: [UNPROCESSABLE_ENTITY_ERROR_MESSAGE],
-					example: UNPROCESSABLE_ENTITY_ERROR_MESSAGE,
 				},
 			},
 		],
