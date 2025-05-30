@@ -18,7 +18,7 @@ export class FinishLoginController {
 		responseType: FinishLoginResponseDto,
 		possibleErrors: [
 			{
-				status: 422,
+				status: HttpStatus.UNPROCESSABLE_ENTITY,
 				description: 'Неверный код',
 				schema: {
 					type: 'object',
