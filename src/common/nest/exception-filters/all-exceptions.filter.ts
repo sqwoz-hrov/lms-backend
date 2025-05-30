@@ -8,6 +8,7 @@ import {
 	Logger,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
+import { DEFAULT_ERROR_MESSAGE } from '../const';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -28,7 +29,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 			this.logger.error('Unexpected error', exception);
 		}
 
-		const errorMessage = maybeClassValidatorError || maybeGeneralError || 'Unexpected error';
+		const errorMessage = maybeClassValidatorError || maybeGeneralError || DEFAULT_ERROR_MESSAGE;
 
 		httpAdapter.reply(
 			ctx.getResponse(),

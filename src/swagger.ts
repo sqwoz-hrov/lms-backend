@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { DEFAULT_ERROR_MESSAGE } from './common/nest/const';
 
 export const createSwagger = (nestApplication: INestApplication) => {
 	const config = new DocumentBuilder()
@@ -8,6 +9,20 @@ export const createSwagger = (nestApplication: INestApplication) => {
 		.setDescription(`Документация API ЛМС Sqwoz Hrov`)
 		.setVersion('1.0')
 		.addBearerAuth()
+		.addGlobalResponse({
+			status: 500,
+			description: 'Что-то пошло не так на нашей стороне :(',
+			schema: {
+				type: 'object',
+				properties: {
+					message: {
+						type: 'string',
+						description: 'Сообщение об ошибке',
+						enum: [DEFAULT_ERROR_MESSAGE],
+					},
+				},
+			},
+		})
 		.build();
 
 	const document = SwaggerModule.createDocument(nestApplication, config);

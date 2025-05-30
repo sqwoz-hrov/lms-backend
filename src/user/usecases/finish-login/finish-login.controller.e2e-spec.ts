@@ -11,6 +11,13 @@ import { REDIS_CONNECTION_KEY } from '../../../infra/redis.const';
 import { UsersTestRepository } from '../../test-utils/test.repo';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
 
+const ensureWrongOtpCode = (otpCode: number) => {
+	// handle six digit overflow
+	if (otpCode === 999999) otpCode -= 1;
+	else otpCode += 1;
+	return otpCode;
+};
+
 describe('[E2E] FinishLogin usecase', () => {
 	let app: INestApplication;
 	let utilRepository: UsersTestRepository;
@@ -99,7 +106,7 @@ describe('[E2E] FinishLogin usecase', () => {
 		expect(finishLoginResponse.body).to.have.property('token');
 	});
 
-	it('Wrong OTP code returns 400', async () => {
+	it('Wrong OTP code returns 422', async () => {
 		const user = await createTestUser(utilRepository);
 		const askLoginResponse = await userTestSdk.askLogin({
 			params: {
@@ -116,8 +123,7 @@ describe('[E2E] FinishLogin usecase', () => {
 		let otpCode = Number(await redisConnection.get(user.id));
 
 		// Make sure the OTP code is wrong, but valid
-		if (otpCode === 999999) otpCode -= 1;
-		else otpCode += 1;
+		otpCode = ensureWrongOtpCode(otpCode);
 
 		const finishLoginResponse = await userTestSdk.finishLogin({
 			params: {
@@ -130,6 +136,6 @@ describe('[E2E] FinishLogin usecase', () => {
 				isAuth: false,
 			},
 		});
-		expect(finishLoginResponse.status).to.equal(404);
+		expect(finishLoginResponse.status).to.equal(422);
 	});
 });
