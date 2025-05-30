@@ -29,6 +29,8 @@ export const createSwagger = (nestApplication: INestApplication) => {
 
 	SwaggerModule.setup('api', nestApplication, document, {
 		customSiteTitle: 'Sqwoz Hrov LMS API',
+		yamlDocumentUrl: '/download',
+		jsonDocumentUrl: '/download',
 	});
 
 	return JSON.stringify(document);
