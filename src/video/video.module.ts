@@ -4,9 +4,11 @@ import { YoutubeVideoStorageAdapter } from './adapters/youtube-video-storage.ada
 import { VIDEO_STORAGE_SERVICE } from './constants';
 import { FakeVideoStorageService } from './services/fake-video-storage.service';
 import { VideoStorageService } from './services/video-storage.service';
-import { VideoRepository } from './video.repoistory';
+import { GetVideoController } from './usecase/get-video/get-video.controller';
+import { GetVideoUsecase } from './usecase/get-video/get-video.usecase';
 import { UploadVideoController } from './usecase/upload-video/upload-video.controller';
 import { UploadVideoUsecase } from './usecase/upload-video/upload-video.usecase';
+import { VideoRepository } from './video.repoistory';
 
 @Module({})
 export class VideoModule {
@@ -15,8 +17,9 @@ export class VideoModule {
 			return {
 				module: VideoModule,
 				global: true,
-				controllers: [UploadVideoController],
+				controllers: [GetVideoController, UploadVideoController],
 				providers: [
+					GetVideoUsecase,
 					S3VideoStorageAdapter,
 					YoutubeVideoStorageAdapter,
 					{

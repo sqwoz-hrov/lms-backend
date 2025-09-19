@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, InternalServerErrorException, Param } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, NotFoundException, Param } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
@@ -22,7 +22,7 @@ export class GetJournalRecordInfoController {
 		const record = await this.getUsecase.execute({ id });
 
 		if (!record) {
-			throw new InternalServerErrorException('Запись не найдена');
+			throw new NotFoundException('Запись не найдена');
 		}
 
 		return record;

@@ -10,9 +10,13 @@ import { SignupUsecase } from './usecases/signup/signup.usecase';
 import { UserRepository } from './user.repository';
 import { JwtService } from '../infra/services/jwt.service';
 import { SignupController } from './usecases/signup/signup.controller';
+import { GetMeController } from './usecases/get-me/get-me.controller';
+import { GetMeUsecase } from './usecases/get-me/get-me.usecase';
+import { GetUsersController } from './usecases/get-users/get-users.controller';
+import { GetUsersUsecase } from './usecases/get-users/get-users.usecase';
 
 @Module({
-	controllers: [AskForLoginController, FinishLoginController, SignupController],
+	controllers: [AskForLoginController, FinishLoginController, GetMeController, GetUsersController, SignupController],
 	providers: [
 		OTPRedisStorage,
 		UserSignupAdapter,
@@ -20,6 +24,8 @@ import { SignupController } from './usecases/signup/signup.controller';
 		JwtService,
 		AskForLoginUsecase,
 		FinishLoginUsecase,
+		GetMeUsecase,
+		GetUsersUsecase,
 		SignupUsecase,
 		UserRepository,
 	],
