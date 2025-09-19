@@ -71,6 +71,21 @@ describe('[E2E] Get journal records usecase', () => {
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
+	it('Non-admin gets 401', async () => {
+		const user = await createTestUser(userUtilRepository);
+
+		const res = await journalTestSdk.getJournalRecords({
+			params: {},
+			userMeta: {
+				userId: user.id,
+				isAuth: true,
+				isWrongJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
+	});
+
 	it('Admin gets all journal records', async () => {
 		const admin = await createTestAdmin(userUtilRepository);
 
@@ -100,29 +115,5 @@ describe('[E2E] Get journal records usecase', () => {
 		const names = res.body.map((r: BaseJournalRecordDto) => r.name);
 		expect(names).to.include(record1.name);
 		expect(names).to.include(record2.name);
-	});
-
-	it('User also gets all journal records', async () => {
-		const user = await createTestUser(userUtilRepository);
-
-		const record = await createTestJournalRecord(
-			userUtilRepository,
-			markdownContentRepository,
-			journalRecordUtilRepository,
-		);
-
-		const res = await journalTestSdk.getJournalRecords({
-			params: {},
-			userMeta: {
-				userId: user.id,
-				isAuth: true,
-				isWrongJwt: false,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.OK);
-		expect(res.body.length).to.equal(1);
-		expect(res.body[0].id).to.equal(record.id);
-		expect(res.body[0].name).to.equal(record.name);
 	});
 });

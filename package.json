@@ -16,7 +16,9 @@
     "format": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:fix": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "mocha 'src/**/*.spec.ts' --require ts-node/register/transpile-only --timeout 10000",
-    "test:e2e": "mocha 'src/**/*.e2e-spec.ts' -r ts-node/register/transpile-only -r ./test/test.app-setup.ts --timeout 20000"
+    "test:e2e": "mocha 'src/**/*.e2e-spec.ts' -r ts-node/register/transpile-only -r ./test/test.app-setup.ts --timeout 20000",
+    "infra-dev:up": "docker compose -f dev.docker-compose.yml up -d",
+    "infra-dev:down": "docker compose -f dev.docker-compose.yml down"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.804.0",

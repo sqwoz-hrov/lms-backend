@@ -8,7 +8,7 @@ import { GetJournalRecordsUsecase } from './get-journal-records.usecase';
 
 @ApiTags('Journal Records')
 @Controller('journal-records')
-@Roles('admin', 'user')
+@Roles('admin')
 export class GetJournalRecordsController {
 	constructor(private readonly getUsecase: GetJournalRecordsUsecase) {}
 
