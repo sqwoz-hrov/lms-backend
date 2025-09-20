@@ -16,6 +16,7 @@ import { VideoModule } from './video/video.module';
 import { HrConnectionModule } from './hr-connection/hr-connection.module';
 import { InterviewModule } from './interview/interview.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
 	imports: [
@@ -31,6 +32,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 		JournalRecordModule,
 		MarkdownContentModule,
 		MaterialModule,
+		MetricsModule,
 		SubjectModule,
 		TaskModule,
 		TelegramModule.forRoot({ useTelegramAPI: true }),

@@ -37,5 +37,9 @@ networks:
     external: true
     name: $TRAEFIK_NETWORK
 
+  infra_monitoring:
+    external: true
+    name: $INFRA_MONITORING_NETWORK
+
   lms-network:
     driver: bridge
