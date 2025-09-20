@@ -7,6 +7,6 @@ import { MetricsMiddleware } from '../common/nest/middlewares/http-metrics-middl
 })
 export class MetricsModule implements NestModule {
 	configure(consumer: MiddlewareConsumer) {
-		consumer.apply(MetricsMiddleware);
+		consumer.apply(MetricsMiddleware).forRoutes('*');
 	}
 }
