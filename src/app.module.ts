@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig } from './config';
+import { appConfig, dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig } from './config';
 import { s3Config } from './config/s3.config';
 import { youtubeConfig } from './config/youtube.config';
 import { ImageModule } from './image/image.module';
@@ -21,7 +21,17 @@ import { MetricsModule } from './metrics/metrics.module';
 @Module({
 	imports: [
 		ConfigModule.forRoot({
-			load: [dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig, s3Config, youtubeConfig],
+			load: [
+				appConfig,
+				dbConfig,
+				imageStorageConfig,
+				jwtConfig,
+				otpBotConfig,
+				otpConfig,
+				redisConfig,
+				s3Config,
+				youtubeConfig,
+			],
 			isGlobal: true,
 		}),
 		FeedbackModule,

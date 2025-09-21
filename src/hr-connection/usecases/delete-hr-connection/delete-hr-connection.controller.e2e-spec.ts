@@ -27,11 +27,13 @@ describe('[E2E] Delete HR connection usecase', () => {
 		hrUtilRepository = new HrConnectionsTestRepository(kysely);
 
 		hrTestSdk = new HrConnectionsTestSdk(
-			new TestHttpClient({
-				port: 3000,
-				host: 'http://127.0.0.1',
-			}),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{
+					port: 3000,
+					host: 'http://127.0.0.1',
+				},
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 	});
 
@@ -49,7 +51,7 @@ describe('[E2E] Delete HR connection usecase', () => {
 			userMeta: {
 				userId: user.id,
 				isAuth: false,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 
@@ -65,7 +67,7 @@ describe('[E2E] Delete HR connection usecase', () => {
 			userMeta: {
 				userId: user.id,
 				isAuth: true,
-				isWrongJwt: true,
+				isWrongAccessJwt: true,
 			},
 		});
 
@@ -83,7 +85,7 @@ describe('[E2E] Delete HR connection usecase', () => {
 			userMeta: {
 				userId: user.id,
 				isAuth: true,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 
@@ -102,7 +104,7 @@ describe('[E2E] Delete HR connection usecase', () => {
 			userMeta: {
 				userId: anotherUser.id,
 				isAuth: true,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 
@@ -121,7 +123,7 @@ describe('[E2E] Delete HR connection usecase', () => {
 			userMeta: {
 				userId: admin.id,
 				isAuth: true,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 
@@ -136,7 +138,7 @@ describe('[E2E] Delete HR connection usecase', () => {
 			userMeta: {
 				userId: user.id,
 				isAuth: true,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 

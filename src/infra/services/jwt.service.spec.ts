@@ -7,35 +7,37 @@ const secret = 'secret';
 
 const jwtService = new JwtService({
 	secret,
-	expiresInSeconds: 60,
+	accessExpiresInSeconds: 60,
+	refreshExpiresInSeconds: 3600,
 });
 
-const rubbishJwtService = {
+const customTokenFactory = {
 	generate: ({
 		expiryMs,
-		secret,
+		secretOverride,
 		algorithm,
 		userId,
 		payload,
 		noExp,
 	}: {
 		expiryMs?: number;
-		secret?: string;
+		secretOverride?: string;
 		algorithm?: 'HS512' | 'HS256';
 		userId?: string;
-		payload?: Record<string, string | number | boolean>;
+		payload?: Record<string, unknown>;
 		noExp?: boolean;
 	}) => {
-		const fallbackSecret = 'AWDHJWAKLDJWAOLIDUJAWIOLDJAWLKDJAWDLAWD';
+		const fallbackSecret = 'SUPER_SECRET';
 		const fallbackAlgorithm = 'HS512';
-		const fallbackExpiry = Date.now() + 1000 * 60 * 60; // 1 hour
-		const fallbackUserId = v7();
-		const noExpPayload = noExp || false;
+		const fallbackUserId = userId ?? v7();
 
-		const preparedPayload = payload ?? { userId: userId ?? fallbackUserId };
+		const finalPayload = payload ?? {
+			userId: fallbackUserId,
+			type: 'access',
+		};
 
-		const token = sign({ ...preparedPayload }, secret ?? fallbackSecret, {
-			...(noExpPayload ? {} : { expiresIn: `${expiryMs ?? fallbackExpiry}` }),
+		const token = sign(finalPayload, secretOverride ?? fallbackSecret, {
+			...(noExp ? {} : { expiresIn: `${expiryMs ?? 1000 * 60}` }),
 			algorithm: algorithm ?? fallbackAlgorithm,
 		});
 
@@ -47,116 +49,97 @@ describe('JwtService', () => {
 	it('Expired token should not verify', async () => {
 		const userId = v7();
 
-		const expiredToken = rubbishJwtService.generate({
+		const expiredToken = customTokenFactory.generate({
 			expiryMs: 1,
 			userId,
-			secret,
+			secretOverride: secret,
 		});
 
-		await new Promise(resolve => setTimeout(resolve, 20));
+		await new Promise(r => setTimeout(r, 10));
 
 		const result = await jwtService.verify(expiredToken);
 		expect(result).to.deep.equal({ success: false });
 	});
 
-	it('Wrong sign alg token should not verify', async () => {
+	it('Wrong sign algorithm should not verify', async () => {
 		const userId = v7();
 
-		const expiredToken = rubbishJwtService.generate({
+		const wrongAlgToken = customTokenFactory.generate({
 			userId,
-			secret,
-			algorithm: 'HS256',
+			secretOverride: secret,
+			algorithm: 'HS256', // неверный алгоритм
 		});
 
-		const result = await jwtService.verify(expiredToken);
+		const result = await jwtService.verify(wrongAlgToken);
 		expect(result).to.deep.equal({ success: false });
 	});
 
 	it('Fake signature should not verify', async () => {
 		const userId = v7();
-		const fakeSignatureToken = rubbishJwtService.generate({
-			expiryMs: 1000 * 60,
+
+		const fakeToken = customTokenFactory.generate({
 			userId,
+			// secretOverride отсутствует — подпись другая
 		});
 
-		const result = await jwtService.verify(fakeSignatureToken);
+		const result = await jwtService.verify(fakeToken);
 		expect(result).to.deep.equal({ success: false });
 	});
 
-	it('Invalid payload should not verify', async () => {
-		const userId = v7();
-		const fakeSignatureToken = rubbishJwtService.generate({
-			expiryMs: 1000 * 60,
-			userId,
-			secret,
-			payload: { test: 'test' },
+	it('Invalid payload (no userId) should not verify', async () => {
+		const token = customTokenFactory.generate({
+			secretOverride: secret,
+			payload: { type: 'access' }, // нет userId
 		});
 
-		const result = await jwtService.verify(fakeSignatureToken);
+		const result = await jwtService.verify(token);
 		expect(result).to.deep.equal({ success: false });
 	});
 
 	it('Extended payload should not verify', async () => {
 		const userId = v7();
-		const fakeSignatureToken = rubbishJwtService.generate({
-			expiryMs: 1000 * 60,
-			userId,
-			secret,
-			payload: { userId, test: 'test' },
+		const token = customTokenFactory.generate({
+			secretOverride: secret,
+			payload: { userId, type: 'access', extra: 'bad' },
 		});
 
-		const result = await jwtService.verify(fakeSignatureToken);
-		expect(result).to.deep.equal({ success: false });
-	});
-
-	it('Empty payload should not verify', async () => {
-		const userId = v7();
-		const fakeSignatureToken = rubbishJwtService.generate({
-			expiryMs: 1000 * 60,
-			userId,
-			secret,
-			payload: {},
-		});
-
-		const result = await jwtService.verify(fakeSignatureToken);
+		const result = await jwtService.verify(token);
 		expect(result).to.deep.equal({ success: false });
 	});
 
 	it('No expiry should not verify', async () => {
 		const userId = v7();
-		const noExpiryToken = rubbishJwtService.generate({
+
+		const tokenWithoutExp = customTokenFactory.generate({
 			userId,
-			secret,
+			secretOverride: secret,
 			noExp: true,
 		});
 
-		const result = await jwtService.verify(noExpiryToken);
+		const result = await jwtService.verify(tokenWithoutExp);
 		expect(result).to.deep.equal({ success: false });
 	});
 
-	it('No userId should not verify', async () => {
-		const noUserIdToken = rubbishJwtService.generate({
-			userId: undefined,
-			secret,
-			payload: {},
-		});
+	it('Valid access token should verify', async () => {
+		const { accessToken } = jwtService.generatePair({ userId: v7() });
 
-		const result = await jwtService.verify(noUserIdToken);
-		expect(result).to.deep.equal({ success: false });
+		const result = await jwtService.verify(accessToken);
+		expect(result.success).to.equal(true);
+		if (result.success) {
+			expect(result.data.type).to.equal('access');
+			expect(result.data.userId).to.be.a('string');
+			expect(result.data.exp).to.be.greaterThan(Math.floor(Date.now() / 1000));
+		}
 	});
 
-	it('Valid token should verify', async () => {
-		const userId = v7();
-		const validToken = rubbishJwtService.generate({
-			userId,
-			secret,
-		});
-		const result = await jwtService.verify(validToken);
-		expect(result).to.have.property('success').to.equal(true);
-		expect(result).to.have.property('data').and.to.have.property('userId').to.equal(userId);
-		expect(result)
-			.to.have.property('data')
-			.and.to.have.property('expires')
-			.to.be.greaterThan(Date.now() / 1000);
+	it('Valid refresh token should verify and have jti', async () => {
+		const { refreshToken } = jwtService.generatePair({ userId: v7() });
+
+		const result = await jwtService.verify(refreshToken);
+		expect(result.success).to.equal(true);
+		if (result.success) {
+			expect(result.data).to.have.property('type').to.equal('refresh');
+			expect(result.data).to.have.property('jti').to.be.a('string');
+		}
 	});
 });

@@ -29,8 +29,10 @@ describe('[E2E] Change task status usecase', () => {
 		markdownContentUtilRepository = new MarkDownContentTestRepository(kysely);
 
 		taskTestSdk = new TasksTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 	});
 
@@ -53,7 +55,7 @@ describe('[E2E] Change task status usecase', () => {
 
 		const res = await taskTestSdk.changeTaskStatus({
 			params: { id: task.id, status: 'done' },
-			userMeta: { userId: admin.id, isAuth: false, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: false, isWrongAccessJwt: false },
 		});
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
@@ -71,7 +73,7 @@ describe('[E2E] Change task status usecase', () => {
 
 		const res = await taskTestSdk.changeTaskStatus({
 			params: { id: task.id, status: 'done' },
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: true },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: true },
 		});
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
@@ -90,7 +92,7 @@ describe('[E2E] Change task status usecase', () => {
 
 		const res = await taskTestSdk.changeTaskStatus({
 			params: { id: task.id, status: 'done' },
-			userMeta: { userId: student1.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: student1.id, isAuth: true, isWrongAccessJwt: false },
 		});
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
@@ -108,7 +110,7 @@ describe('[E2E] Change task status usecase', () => {
 
 		const res = await taskTestSdk.changeTaskStatus({
 			params: { id: task.id, status: 'in_progress' },
-			userMeta: { userId: student.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: student.id, isAuth: true, isWrongAccessJwt: false },
 		});
 		expect(res.status).to.equal(HttpStatus.OK);
 		expect(res.body.status).to.equal('in_progress');
@@ -129,7 +131,7 @@ describe('[E2E] Change task status usecase', () => {
 
 		const res = await taskTestSdk.changeTaskStatus({
 			params: { id: task.id, status: 'done' },
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 		expect(res.status).to.equal(HttpStatus.OK);
 		expect(res.body.status).to.equal('done');
@@ -149,7 +151,7 @@ describe('[E2E] Change task status usecase', () => {
 
 		const res = await taskTestSdk.changeTaskStatus({
 			params: { id: task.id, status: 'done' },
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 		expect(res.status).to.equal(HttpStatus.OK);
 		expect(res.body.status).to.equal('done');
@@ -160,7 +162,7 @@ describe('[E2E] Change task status usecase', () => {
 
 		const res = await taskTestSdk.changeTaskStatus({
 			params: { id: v7(), status: 'done' },
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 		expect(res.status).to.equal(HttpStatus.NOT_FOUND);
 	});

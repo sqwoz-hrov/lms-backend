@@ -3,7 +3,15 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 import { RedisContainer, StartedRedisContainer } from '@testcontainers/redis';
 import { InfraModule } from '../src/infra/infra.module';
 import { ConfigModule, ConfigType } from '@nestjs/config';
-import { dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig } from '../src/config';
+import {
+	appConfig,
+	dbConfig,
+	imageStorageConfig,
+	jwtConfig,
+	otpBotConfig,
+	otpConfig,
+	redisConfig,
+} from '../src/config';
 import { runMigrations } from './test.run-migrations';
 import { SilentLogger } from './test.silent-logger';
 import { s3Config } from '../src/config/s3.config';
@@ -21,6 +29,7 @@ import { TelegramModule } from '../src/telegram/telegram.module';
 import { UserModule } from '../src/user/user.module';
 import { InterviewModule } from '../src/interview/interview.module';
 import { FeedbackModule } from '../src/feedback/feedback.module';
+import * as cookieParser from 'cookie-parser';
 
 export interface ISharedContext extends Mocha.Context {
 	app: INestApplication;
@@ -38,6 +47,7 @@ export const mochaHooks = {
 			imports: [
 				ConfigModule.forRoot({
 					load: [
+						appConfig,
 						dbConfig,
 						imageStorageConfig,
 						jwtConfig,
@@ -68,6 +78,7 @@ export const mochaHooks = {
 
 		const app = testModule.createNestApplication();
 		app.useLogger(new SilentLogger());
+		app.use(cookieParser());
 
 		const _dbConfig = app.get<ConfigType<typeof dbConfig>>(dbConfig.KEY);
 		const _redisConfig = app.get<ConfigType<typeof redisConfig>>(redisConfig.KEY);

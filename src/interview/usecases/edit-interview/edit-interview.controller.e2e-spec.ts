@@ -31,8 +31,10 @@ describe('[E2E] Edit Interview usecase', () => {
 		interviewUtilRepo = new InterviewsTestRepository(kysely);
 
 		interviewTestSdk = new InterviewsTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 
 		interviewBuilder = new InterviewAggregateBuilder(userUtilRepo, hrUtilRepo, interviewUtilRepo);
@@ -52,7 +54,7 @@ describe('[E2E] Edit Interview usecase', () => {
 
 		const res = await interviewTestSdk.editInterview({
 			params: { id: interview.id, name: 'New name' },
-			userMeta: { userId: user.id, isAuth: false, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -66,7 +68,7 @@ describe('[E2E] Edit Interview usecase', () => {
 
 		const res = await interviewTestSdk.editInterview({
 			params: { id: interview.id, name: 'New name' },
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: true },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: true },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -83,7 +85,7 @@ describe('[E2E] Edit Interview usecase', () => {
 
 		const res = await interviewTestSdk.editInterview({
 			params: { id: interview.id, name: newComment },
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
@@ -99,7 +101,7 @@ describe('[E2E] Edit Interview usecase', () => {
 
 		const res = await interviewTestSdk.editInterview({
 			params: { id: interview.id, name: 'Should not be allowed' },
-			userMeta: { userId: anotherUser.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: anotherUser.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -116,7 +118,7 @@ describe('[E2E] Edit Interview usecase', () => {
 
 		const res = await interviewTestSdk.editInterview({
 			params: { id: interview.id, name: newComment },
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
@@ -128,7 +130,7 @@ describe('[E2E] Edit Interview usecase', () => {
 
 		const res = await interviewTestSdk.editInterview({
 			params: { id: v7(), name: 'Whatever' },
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.NOT_FOUND);

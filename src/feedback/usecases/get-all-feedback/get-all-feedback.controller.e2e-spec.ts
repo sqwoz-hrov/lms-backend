@@ -39,8 +39,10 @@ describe('[E2E] Get All Feedback usecase', () => {
 		feedbackUtilRepo = new FeedbacksTestRepository(kysely);
 
 		feedbackSdk = new FeedbackTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 
 		feedbackBuilder = new FeedbackAggregateBuilder(
@@ -65,7 +67,7 @@ describe('[E2E] Get All Feedback usecase', () => {
 
 		const res = await feedbackSdk.getAllFeedback({
 			params: {},
-			userMeta: { userId: user.id, isAuth: false, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -76,7 +78,7 @@ describe('[E2E] Get All Feedback usecase', () => {
 
 		const res = await feedbackSdk.getAllFeedback({
 			params: {},
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: true },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: true },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -118,7 +120,7 @@ describe('[E2E] Get All Feedback usecase', () => {
 		it('Admin sees all feedbacks', async () => {
 			const res = await feedbackSdk.getAllFeedback({
 				params: {},
-				userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -135,7 +137,7 @@ describe('[E2E] Get All Feedback usecase', () => {
 		it('User sees only their own feedbacks', async () => {
 			const res = await feedbackSdk.getAllFeedback({
 				params: {},
-				userMeta: { userId: user1.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -149,7 +151,7 @@ describe('[E2E] Get All Feedback usecase', () => {
 		it('User cannot filter using someone else’s interview_id', async () => {
 			const res = await feedbackSdk.getAllFeedback({
 				params: { interview_id: feedback1_user2.interview_id },
-				userMeta: { userId: user1.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);

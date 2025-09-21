@@ -49,11 +49,13 @@ describe('[E2E] Get tasks usecase', () => {
 		markdownContentUtilRepository = new MarkDownContentTestRepository(kysely);
 
 		taskTestSdk = new TasksTestSdk(
-			new TestHttpClient({
-				port: 3000,
-				host: 'http://127.0.0.1',
-			}),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{
+					port: 3000,
+					host: 'http://127.0.0.1',
+				},
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 	});
 
@@ -73,7 +75,7 @@ describe('[E2E] Get tasks usecase', () => {
 			userMeta: {
 				userId: admin.id,
 				isAuth: false,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 
@@ -90,7 +92,7 @@ describe('[E2E] Get tasks usecase', () => {
 			userMeta: {
 				userId: admin.id,
 				isAuth: true,
-				isWrongJwt: true,
+				isWrongAccessJwt: true,
 			},
 		});
 
@@ -129,7 +131,7 @@ describe('[E2E] Get tasks usecase', () => {
 		it('Admin can filter by mentor_user_id', async () => {
 			const res = await taskTestSdk.getTasks({
 				params: { mentor_user_id: admin1.id },
-				userMeta: { userId: admin1.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -142,7 +144,7 @@ describe('[E2E] Get tasks usecase', () => {
 		it('Admin can filter by student_user_id', async () => {
 			const res = await taskTestSdk.getTasks({
 				params: { student_user_id: user2.id },
-				userMeta: { userId: admin2.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -156,7 +158,7 @@ describe('[E2E] Get tasks usecase', () => {
 		it('Admin without filters gets all tasks', async () => {
 			const res = await taskTestSdk.getTasks({
 				params: {},
-				userMeta: { userId: admin3.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin3.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -168,7 +170,7 @@ describe('[E2E] Get tasks usecase', () => {
 			// user2 attempts to filter by user1.id but should only see their own tasks
 			const res = await taskTestSdk.getTasks({
 				params: { student_user_id: user1.id },
-				userMeta: { userId: user2.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -182,7 +184,7 @@ describe('[E2E] Get tasks usecase', () => {
 		it('Regular user without any filters sees only own tasks', async () => {
 			const res = await taskTestSdk.getTasks({
 				params: {},
-				userMeta: { userId: user3.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user3.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -197,7 +199,7 @@ describe('[E2E] Get tasks usecase', () => {
 
 			const res = await taskTestSdk.getTasks({
 				params: { student_user_id: admin2.id },
-				userMeta: { userId: admin1.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -213,7 +215,7 @@ describe('[E2E] Get tasks usecase', () => {
 			// User1 tries to filter by someone else’s student_user_id and by mentor_user_id
 			const res = await taskTestSdk.getTasks({
 				params: { student_user_id: user2.id, mentor_user_id: admin3.id },
-				userMeta: { userId: user1.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);

@@ -13,46 +13,34 @@ export class RoleGuard implements CanActivate {
 		private readonly reflector: Reflector,
 	) {}
 
-	private getTokenFromRequest(request: Request) {
-		const authHeader = request?.headers?.authorization;
-
-		if (!authHeader || typeof authHeader !== 'string') {
-			throw new UnauthorizedException();
+	private getAccessTokenFromCookies(request: Request): string {
+		const token = request.cookies?.['access_token'] as string | undefined;
+		if (!token) {
+			throw new UnauthorizedException('Missing access token cookie');
 		}
-		if (!authHeader.startsWith('Bearer ')) {
-			throw new UnauthorizedException();
-		}
-
-		const token = authHeader.split(' ').at(1);
-
 		return token;
 	}
 
 	async canActivate(context: ExecutionContext) {
 		const request = context.switchToHttp().getRequest<Request>();
 
-		const token = this.getTokenFromRequest(request);
+		const token = this.getAccessTokenFromCookies(request);
 
-		if (!token) {
-			throw new UnauthorizedException();
+		const result = await this.jwtService.verify(token);
+
+		if (!result.success) {
+			throw new UnauthorizedException('Invalid or expired access token');
 		}
 
-		const requestAuthorOrFalse = await this.jwtService.verify(token);
-
-		if (!requestAuthorOrFalse.success) {
-			throw new UnauthorizedException();
+		if (result.data.type !== 'access') {
+			throw new UnauthorizedException('Refresh token cannot be used for access');
 		}
 
 		const conn = this.databaseProvider.getDatabase<UserAggregation>();
-
-		const user = await conn
-			.selectFrom('user')
-			.selectAll()
-			.where('id', '=', requestAuthorOrFalse.data.userId)
-			.executeTakeFirst();
+		const user = await conn.selectFrom('user').selectAll().where('id', '=', result.data.userId).executeTakeFirst();
 
 		if (!user) {
-			throw new UnauthorizedException();
+			throw new UnauthorizedException('User not found');
 		}
 
 		request['user'] = user;
@@ -62,12 +50,8 @@ export class RoleGuard implements CanActivate {
 			context.getClass(),
 		]);
 
-		if (!allowedRoles) {
-			throw new UnauthorizedException();
-		}
-
-		if (!allowedRoles.includes(user.role)) {
-			throw new UnauthorizedException();
+		if (!allowedRoles || !allowedRoles.includes(user.role)) {
+			throw new UnauthorizedException('Access denied: role not allowed');
 		}
 
 		return true;

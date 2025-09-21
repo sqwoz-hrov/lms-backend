@@ -12,28 +12,41 @@ export class FinishLoginUsecase implements UsecaseInterface {
 		private readonly repo: UserRepository,
 		private readonly jwtService: JwtService,
 	) {}
-	public async execute({
-		inputOtp,
-		userEmailOrLogin,
-	}: {
-		inputOtp: OTP;
-		userEmailOrLogin: string;
-	}): Promise<{ success: false } | { success: true; data: { token: string } }> {
-		// If he enters coorectly, let him in. If not, from client we can re-send OTP
+
+	public async execute({ inputOtp, userEmailOrLogin }: { inputOtp: OTP; userEmailOrLogin: string }): Promise<
+		| { success: false }
+		| {
+				success: true;
+				data: {
+					accessToken: string;
+					refreshToken: string;
+					accessTtlMs: number;
+					refreshTtlMs: number;
+				};
+		  }
+	> {
 		const userOrUndefined = await this.repo.findByEmail(userEmailOrLogin);
 
 		if (!userOrUndefined) {
 			return { success: false };
 		}
 
-		const res = await this.otpService.isOtpValid({ userId: userOrUndefined.id, userInputOtp: inputOtp });
+		const isValid = await this.otpService.isOtpValid({
+			userId: userOrUndefined.id,
+			userInputOtp: inputOtp,
+		});
 
-		if (!res) {
+		if (!isValid) {
 			return { success: false };
 		}
 
-		const token = this.jwtService.generate({ userId: userOrUndefined.id });
+		const { accessToken, refreshToken, accessTtlMs, refreshTtlMs } = this.jwtService.generatePair({
+			userId: userOrUndefined.id,
+		});
 
-		return { success: true, data: { token } };
+		return {
+			success: true,
+			data: { accessToken, refreshToken, accessTtlMs, refreshTtlMs },
+		};
 	}
 }

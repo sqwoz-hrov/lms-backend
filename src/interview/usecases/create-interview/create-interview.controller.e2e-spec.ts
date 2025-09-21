@@ -30,8 +30,10 @@ describe('[E2E] Create Interview usecase', () => {
 		interviewUtilRepo = new InterviewsTestRepository(kysely);
 
 		interviewTestSdk = new InterviewsTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 	});
 
@@ -50,7 +52,7 @@ describe('[E2E] Create Interview usecase', () => {
 
 		const res = await interviewTestSdk.createInterview({
 			params: dto,
-			userMeta: { userId: user.id, isAuth: false, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -65,7 +67,7 @@ describe('[E2E] Create Interview usecase', () => {
 
 		const res = await interviewTestSdk.createInterview({
 			params: dto,
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: true },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: true },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -81,7 +83,7 @@ describe('[E2E] Create Interview usecase', () => {
 
 		const res = await interviewTestSdk.createInterview({
 			params: dto,
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.FORBIDDEN);
@@ -97,7 +99,7 @@ describe('[E2E] Create Interview usecase', () => {
 
 		const res = await interviewTestSdk.createInterview({
 			params: dto,
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
@@ -115,7 +117,7 @@ describe('[E2E] Create Interview usecase', () => {
 
 		const res = await interviewTestSdk.createInterview({
 			params: dto,
-			userMeta: { userId: student.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: student.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
