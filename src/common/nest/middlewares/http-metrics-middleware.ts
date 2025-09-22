@@ -7,7 +7,6 @@ export class MetricsMiddleware implements NestMiddleware {
 	private readonly logger = new Logger(MetricsMiddleware.name);
 
 	use(req: Request, res: Response, next: NextFunction) {
-		this.logger.log('Collecting http metrics');
 		httpRequestsTotal.inc();
 		res.on('finish', () => {
 			const group = `${Math.floor(res.statusCode / 100)}xx`;
