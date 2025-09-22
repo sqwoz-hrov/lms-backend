@@ -6,7 +6,7 @@ import { JwtService } from './jwt.service';
 const secret = 'secret';
 
 const jwtService = new JwtService({
-	secret,
+	accessSecret: secret,
 	accessExpiresInSeconds: 60,
 	refreshExpiresInSeconds: 3600,
 });

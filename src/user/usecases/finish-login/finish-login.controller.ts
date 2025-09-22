@@ -1,35 +1,15 @@
-import {
-	Controller,
-	Body,
-	Post,
-	HttpCode,
-	HttpStatus,
-	UnprocessableEntityException,
-	Res,
-	Inject,
-} from '@nestjs/common';
-import type { Response } from 'express';
+import { Controller, Body, Post, HttpCode, HttpStatus, UnprocessableEntityException, Res, Req } from '@nestjs/common';
+import type { Response, Request } from 'express';
 import { FinishLoginUsecase } from './finish-login.usecase';
 import { FinishLoginDto } from '../../dto/finish-login.dto';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { ApiTags } from '@nestjs/swagger';
 import { OTP } from '../../core/otp';
-import { appConfig as appConf } from '../../../config';
-import { ConfigType } from '@nestjs/config';
-
-const UNPROCESSABLE_ENTITY_ERROR_MESSAGE = 'Неправильно введён одноразовый пароль';
-
-const ACCESS_COOKIE_NAME = 'access_token';
-const REFRESH_COOKIE_NAME = 'refresh_token';
 
 @ApiTags('Users')
 @Controller('/users/login/finish')
 export class FinishLoginController {
-	constructor(
-		private readonly finishLoginUsecase: FinishLoginUsecase,
-		@Inject(appConf.KEY)
-		private readonly appConfig: ConfigType<typeof appConf>,
-	) {}
+	constructor(private readonly finishLoginUsecase: FinishLoginUsecase) {}
 
 	@Route({
 		summary: 'Завершение логина',
@@ -38,36 +18,22 @@ export class FinishLoginController {
 	})
 	@Post('/')
 	@HttpCode(HttpStatus.ACCEPTED)
-	public async execute(@Body() body: FinishLoginDto, @Res({ passthrough: true }) res: Response) {
+	public async execute(@Body() body: FinishLoginDto, @Res({ passthrough: true }) res: Response, @Req() req: Request) {
 		const result = await this.finishLoginUsecase.execute({
 			userEmailOrLogin: body.email,
 			inputOtp: new OTP(body.otpCode),
+			ip: req.ip,
+			userAgent: req.get('user-agent') ?? undefined,
 		});
 
 		if (!result.success) {
-			throw new UnprocessableEntityException(UNPROCESSABLE_ENTITY_ERROR_MESSAGE);
+			throw new UnprocessableEntityException('Неправильно введён одноразовый пароль');
 		}
 
-		res.cookie(ACCESS_COOKIE_NAME, result.data.accessToken, {
-			...this.buildCookieBase(),
-			maxAge: result.data.accessTtlMs,
-			path: '/',
-		});
-
-		res.cookie(REFRESH_COOKIE_NAME, result.data.refreshToken, {
-			...this.buildCookieBase(),
-			maxAge: result.data.refreshTtlMs,
-			path: '/users',
-		});
+		for (const c of result.data.cookies) {
+			res.cookie(c.name, c.value, c.options);
+		}
 
 		return { ok: true };
-	}
-
-	public buildCookieBase() {
-		return {
-			httpOnly: true as const,
-			secure: this.appConfig.useSecureCookies,
-			sameSite: 'lax' as const,
-		};
 	}
 }

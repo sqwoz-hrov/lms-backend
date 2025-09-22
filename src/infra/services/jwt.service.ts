@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { sign, verify } from 'jsonwebtoken';
+import { sign, verify, decode } from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { jwtConfig } from '../../config';
@@ -38,7 +38,7 @@ export class JwtService {
 	}
 
 	private sign(payload: Omit<JwtPayloadBase, 'exp' | 'iat'>, expiresIn: `${number}s`) {
-		return sign(payload, this.config.secret, {
+		return sign(payload, this.config.accessSecret, {
 			expiresIn,
 			algorithm: 'HS512',
 		});
@@ -70,7 +70,7 @@ export class JwtService {
 
 	async verify(token: string): Promise<{ success: false } | { success: true; data: JwtPayloadBase }> {
 		try {
-			const payload = await this._verify(token, this.config.secret);
+			const payload = await this._verify(token, this.config.accessSecret);
 			const resultValidation = payloadSchema.safeParse(payload);
 
 			if (!payload || resultValidation.success === false) {
@@ -85,6 +85,21 @@ export class JwtService {
 		} catch (error) {
 			this.logger.error(`Verifying JWT error: ${error}`);
 			return { success: false };
+		}
+	}
+
+	public decode(token: string): JwtPayloadBase | undefined {
+		try {
+			const raw = decode(token);
+			if (!raw || typeof raw !== 'object') return undefined;
+
+			const parsed = payloadSchema.safeParse(raw);
+			if (!parsed.success) return undefined;
+
+			return parsed.data;
+		} catch (err) {
+			this.logger.warn(`Decode JWT error: ${err}`);
+			return undefined;
 		}
 	}
 }
