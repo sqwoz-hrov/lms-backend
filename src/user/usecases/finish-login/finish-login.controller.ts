@@ -66,7 +66,7 @@ export class FinishLoginController {
 	public buildCookieBase() {
 		return {
 			httpOnly: true as const,
-			secure: this.appConfig.useHttpOnlyCookies,
+			secure: this.appConfig.useSecureCookies,
 			sameSite: 'lax' as const,
 		};
 	}
