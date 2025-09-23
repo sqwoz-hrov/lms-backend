@@ -25,8 +25,12 @@ export class RefreshTokensController {
 	})
 	@Post('/')
 	@HttpCode(HttpStatus.OK)
-	public async handle(@Req() req: Request, @Res({ passthrough: true }) res: Response, @Body() body: RefreshBodyDto) {
-		const rawRefreshToken = (req.cookies?.['refresh_token'] as string | undefined) ?? body.fallbackToken;
+	public async handle(
+		@Req() req: Request,
+		@Res({ passthrough: true }) res: Response,
+		@Body() body: RefreshBodyDto | undefined,
+	) {
+		const rawRefreshToken = (req.cookies?.['refresh_token'] as string | undefined) ?? body?.fallbackToken;
 
 		if (!rawRefreshToken) throw new UnauthorizedException();
 
