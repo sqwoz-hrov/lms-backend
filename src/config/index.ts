@@ -1,3 +1,4 @@
+export { appConfig } from './app.config';
 export { dbConfig } from './db.config';
 export { imageStorageConfig } from './image-storage.config';
 export { jwtConfig } from './jwt.config';

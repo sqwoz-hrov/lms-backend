@@ -22,11 +22,13 @@ describe('[E2E] Signup usecase', () => {
 		utilRepository = new UsersTestRepository(kysely);
 
 		userTestSdk = new UsersTestSdk(
-			new TestHttpClient({
-				port: 3000,
-				host: 'http://127.0.0.1',
-			}),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{
+					port: 3000,
+					host: 'http://127.0.0.1',
+				},
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 	});
 
@@ -47,7 +49,7 @@ describe('[E2E] Signup usecase', () => {
 			},
 			userMeta: {
 				userId: requestAuthor.id,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 				isAuth: false,
 			},
 		});
@@ -68,7 +70,7 @@ describe('[E2E] Signup usecase', () => {
 			},
 			userMeta: {
 				userId: requestAuthor.id,
-				isWrongJwt: true,
+				isWrongAccessJwt: true,
 				isAuth: true,
 			},
 		});
@@ -89,7 +91,7 @@ describe('[E2E] Signup usecase', () => {
 			},
 			userMeta: {
 				userId: requestAuthor.id,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 				isAuth: true,
 			},
 		});
@@ -112,7 +114,7 @@ describe('[E2E] Signup usecase', () => {
 			},
 			userMeta: {
 				userId: requestAuthor.id,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 				isAuth: true,
 			},
 		});
@@ -139,7 +141,7 @@ describe('[E2E] Signup usecase', () => {
 			},
 			userMeta: {
 				userId: requestAuthor.id,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 				isAuth: true,
 			},
 		});
@@ -169,7 +171,7 @@ describe('[E2E] Signup usecase', () => {
 			params: user2,
 			userMeta: {
 				userId: requestAuthor.id,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 				isAuth: true,
 			},
 		});

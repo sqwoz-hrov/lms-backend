@@ -33,8 +33,10 @@ describe('[E2E] Delete Interview usecase', () => {
 		interviewUtilRepo = new InterviewsTestRepository(kysely);
 
 		interviewTestSdk = new InterviewsTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 
 		interviewBuilder = new InterviewAggregateBuilder(userUtilRepo, hrUtilRepo, interviewUtilRepo);
@@ -54,7 +56,7 @@ describe('[E2E] Delete Interview usecase', () => {
 
 		const res = await interviewTestSdk.deleteInterview({
 			params: { id: interview.id },
-			userMeta: { userId: user.id, isAuth: false, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -68,7 +70,7 @@ describe('[E2E] Delete Interview usecase', () => {
 
 		const res = await interviewTestSdk.deleteInterview({
 			params: { id: interview.id },
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: true },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: true },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -82,7 +84,7 @@ describe('[E2E] Delete Interview usecase', () => {
 
 		const res = await interviewTestSdk.deleteInterview({
 			params: { id: interview.id },
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
@@ -98,7 +100,7 @@ describe('[E2E] Delete Interview usecase', () => {
 
 		const res = await interviewTestSdk.deleteInterview({
 			params: { id: interview.id },
-			userMeta: { userId: anotherUser.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: anotherUser.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -113,7 +115,7 @@ describe('[E2E] Delete Interview usecase', () => {
 
 		const res = await interviewTestSdk.deleteInterview({
 			params: { id: interview.id },
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
@@ -125,7 +127,7 @@ describe('[E2E] Delete Interview usecase', () => {
 
 		const res = await interviewTestSdk.deleteInterview({
 			params: { id: v7() },
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.NOT_FOUND);

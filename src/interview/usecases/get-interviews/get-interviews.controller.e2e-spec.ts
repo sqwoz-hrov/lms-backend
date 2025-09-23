@@ -30,8 +30,10 @@ describe('[E2E] Get Interviews usecase', () => {
 		interviewUtilRepo = new InterviewsTestRepository(kysely);
 
 		interviewTestSdk = new InterviewsTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 
 		interviewBuilder = new InterviewAggregateBuilder(userUtilRepo, hrUtilRepo, interviewUtilRepo);
@@ -47,7 +49,7 @@ describe('[E2E] Get Interviews usecase', () => {
 		const user = await createTestUser(userUtilRepo);
 		const res = await interviewTestSdk.getInterviews({
 			params: {},
-			userMeta: { userId: user.id, isAuth: false, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
 		});
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
@@ -56,7 +58,7 @@ describe('[E2E] Get Interviews usecase', () => {
 		const user = await createTestUser(userUtilRepo);
 		const res = await interviewTestSdk.getInterviews({
 			params: {},
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: true },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: true },
 		});
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
@@ -90,7 +92,7 @@ describe('[E2E] Get Interviews usecase', () => {
 		it('Admin sees all interviews', async () => {
 			const res = await interviewTestSdk.getInterviews({
 				params: {},
-				userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
 			expect(res.status).to.equal(HttpStatus.OK);
 			expect(res.body).to.be.an('array').with.length(3);
@@ -99,7 +101,7 @@ describe('[E2E] Get Interviews usecase', () => {
 		it('User sees only their own interviews', async () => {
 			const res = await interviewTestSdk.getInterviews({
 				params: {},
-				userMeta: { userId: user1.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 			expect(res.status).to.equal(HttpStatus.OK);
 			expect(res.body).to.be.an('array').with.length(2);
@@ -111,13 +113,13 @@ describe('[E2E] Get Interviews usecase', () => {
 		it('User cannot use someone else’s hr_connection_id', async () => {
 			const allInterviews = await interviewTestSdk.getInterviews({
 				params: {},
-				userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
 			const foreignHrId = allInterviews.body.find((i: any) => i.name === 'Interview A')?.hr_connection_id;
 
 			const res = await interviewTestSdk.getInterviews({
 				params: { hr_connection_id: foreignHrId },
-				userMeta: { userId: user2.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);

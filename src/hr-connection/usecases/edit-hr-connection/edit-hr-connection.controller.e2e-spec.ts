@@ -27,8 +27,10 @@ describe('[E2E] Edit HR Connection', () => {
 		hrUtilRepository = new HrConnectionsTestRepository(kysely);
 
 		hrSdk = new HrConnectionsTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 	});
 
@@ -53,7 +55,7 @@ describe('[E2E] Edit HR Connection', () => {
 			userMeta: {
 				userId: user.id,
 				isAuth: false,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 
@@ -76,7 +78,7 @@ describe('[E2E] Edit HR Connection', () => {
 			userMeta: {
 				userId: user.id,
 				isAuth: false,
-				isWrongJwt: true,
+				isWrongAccessJwt: true,
 			},
 		});
 
@@ -101,7 +103,7 @@ describe('[E2E] Edit HR Connection', () => {
 			userMeta: {
 				userId: user.id,
 				isAuth: true,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 
@@ -126,7 +128,7 @@ describe('[E2E] Edit HR Connection', () => {
 			userMeta: {
 				userId: anotherUser.id,
 				isAuth: true,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 
@@ -153,7 +155,7 @@ describe('[E2E] Edit HR Connection', () => {
 			userMeta: {
 				userId: admin.id,
 				isAuth: true,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 

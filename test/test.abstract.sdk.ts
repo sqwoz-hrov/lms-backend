@@ -2,7 +2,8 @@ type AbstractSDKMethod = (args: { params: any; userMeta: UserMeta }) => Promise<
 
 export type UserMeta = {
 	userId: string;
-	isWrongJwt: boolean;
+	isWrongAccessJwt: boolean;
+	isWrongRefreshJwt?: boolean;
 	isAuth: boolean;
 };
 

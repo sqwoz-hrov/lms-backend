@@ -39,8 +39,10 @@ describe('[E2E] Edit Feedback usecase', () => {
 		feedbackUtilRepo = new FeedbacksTestRepository(kysely);
 
 		feedbackSdk = new FeedbackTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 
 		feedbackAggregateBuilder = new FeedbackAggregateBuilder(
@@ -65,7 +67,7 @@ describe('[E2E] Edit Feedback usecase', () => {
 
 		const res = await feedbackSdk.editFeedback({
 			params: { id: feedback.id, markdown_content: 'Updated markdown_content' },
-			userMeta: { userId: admin.id, isAuth: false, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: false, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -77,7 +79,7 @@ describe('[E2E] Edit Feedback usecase', () => {
 
 		const res = await feedbackSdk.editFeedback({
 			params: { id: feedback.id, markdown_content: 'Updated markdown_content' },
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: true },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: true },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -91,7 +93,7 @@ describe('[E2E] Edit Feedback usecase', () => {
 
 		const res = await feedbackSdk.editFeedback({
 			params: { id: feedback.id, markdown_content: 'Updated markdown_content' },
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -105,7 +107,7 @@ describe('[E2E] Edit Feedback usecase', () => {
 
 		const res = await feedbackSdk.editFeedback({
 			params: { id: feedback.id, markdown_content: newContent },
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
@@ -117,7 +119,7 @@ describe('[E2E] Edit Feedback usecase', () => {
 
 		const res = await feedbackSdk.editFeedback({
 			params: { id: v7(), markdown_content: 'Ghost markdown_content' },
-			userMeta: { userId: admin.id, isAuth: true, isWrongJwt: false },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.NOT_FOUND);

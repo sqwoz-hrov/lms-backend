@@ -26,8 +26,10 @@ describe('[E2E] Get HR connections usecase', () => {
 		hrConnectionUtilRepository = new HrConnectionsTestRepository(kysely);
 
 		sdk = new HrConnectionsTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 	});
 
@@ -40,7 +42,7 @@ describe('[E2E] Get HR connections usecase', () => {
 		const user = await createTestUser(userUtilRepository);
 		const res = await sdk.getHrConnections({
 			params: {},
-			userMeta: { userId: user.id, isAuth: false, isWrongJwt: false },
+			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -50,7 +52,7 @@ describe('[E2E] Get HR connections usecase', () => {
 		const user = await createTestUser(userUtilRepository);
 		const res = await sdk.getHrConnections({
 			params: {},
-			userMeta: { userId: user.id, isAuth: true, isWrongJwt: true },
+			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: true },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -90,7 +92,7 @@ describe('[E2E] Get HR connections usecase', () => {
 		it('Admin can filter by student_user_id', async () => {
 			const res = await sdk.getHrConnections({
 				params: { student_user_id: user2.id },
-				userMeta: { userId: admin1.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -103,7 +105,7 @@ describe('[E2E] Get HR connections usecase', () => {
 		it('Admin without filters gets all connections', async () => {
 			const res = await sdk.getHrConnections({
 				params: {},
-				userMeta: { userId: admin2.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -113,7 +115,7 @@ describe('[E2E] Get HR connections usecase', () => {
 		it('Regular user only sees their own connections, ignoring filters', async () => {
 			const res = await sdk.getHrConnections({
 				params: { student_user_id: user1.id },
-				userMeta: { userId: user2.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -126,7 +128,7 @@ describe('[E2E] Get HR connections usecase', () => {
 		it('Regular user without filters sees only own connections', async () => {
 			const res = await sdk.getHrConnections({
 				params: {},
-				userMeta: { userId: user3.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user3.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);

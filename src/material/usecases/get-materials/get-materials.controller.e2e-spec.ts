@@ -53,8 +53,10 @@ describe('[E2E] Get materials usecase', () => {
 		subjectUtilRepository = new SubjectsTestRepository(kysely);
 
 		materialTestSdk = new MaterialsTestSdk(
-			new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{ port: 3000, host: 'http://127.0.0.1' },
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 	});
 
@@ -73,7 +75,7 @@ describe('[E2E] Get materials usecase', () => {
 			userMeta: {
 				userId: admin.id,
 				isAuth: false,
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 			},
 		});
 
@@ -88,7 +90,7 @@ describe('[E2E] Get materials usecase', () => {
 			userMeta: {
 				userId: admin.id,
 				isAuth: true,
-				isWrongJwt: true,
+				isWrongAccessJwt: true,
 			},
 		});
 
@@ -116,7 +118,7 @@ describe('[E2E] Get materials usecase', () => {
 		it('Admin can filter by student_user_id', async () => {
 			const res = await materialTestSdk.getMaterials({
 				params: { student_user_id: user1.id },
-				userMeta: { userId: admin1.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -129,7 +131,7 @@ describe('[E2E] Get materials usecase', () => {
 		it('Admin can filter by is_archived', async () => {
 			const res = await materialTestSdk.getMaterials({
 				params: { is_archived: true },
-				userMeta: { userId: admin2.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -140,7 +142,7 @@ describe('[E2E] Get materials usecase', () => {
 		it('Admin without filters gets all materials', async () => {
 			const res = await materialTestSdk.getMaterials({
 				params: {},
-				userMeta: { userId: admin2.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: admin2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -150,7 +152,7 @@ describe('[E2E] Get materials usecase', () => {
 		it('User only sees their own materials, ignoring student_user_id filters', async () => {
 			const res = await materialTestSdk.getMaterials({
 				params: { student_user_id: user2.id },
-				userMeta: { userId: user1.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -163,7 +165,7 @@ describe('[E2E] Get materials usecase', () => {
 		it('User without filters sees only own materials', async () => {
 			const res = await materialTestSdk.getMaterials({
 				params: {},
-				userMeta: { userId: user2.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -174,7 +176,7 @@ describe('[E2E] Get materials usecase', () => {
 		it('User cannot override filters, even when trying to see another student’s or is_archived=true', async () => {
 			const res = await materialTestSdk.getMaterials({
 				params: { student_user_id: admin1.id, is_archived: true },
-				userMeta: { userId: user2.id, isAuth: true, isWrongJwt: false },
+				userMeta: { userId: user2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);

@@ -18,6 +18,20 @@ const ensureWrongOtpCode = (otpCode: number) => {
 	return otpCode;
 };
 
+function cookieMap(setCookie: string[] | undefined) {
+	const map = new Map<string, string>();
+	(setCookie ?? []).forEach(header => {
+		const first = header.split(';', 1)[0];
+		const eqIdx = first.indexOf('=');
+		if (eqIdx > 0) {
+			const name = first.slice(0, eqIdx).trim();
+			const value = first.slice(eqIdx + 1).trim();
+			map.set(name, value);
+		}
+	});
+	return map;
+}
+
 describe('[E2E] FinishLogin usecase', () => {
 	let app: INestApplication;
 	let utilRepository: UsersTestRepository;
@@ -32,11 +46,13 @@ describe('[E2E] FinishLogin usecase', () => {
 		redisConnection = app.get<Redis>(REDIS_CONNECTION_KEY);
 
 		userTestSdk = new UsersTestSdk(
-			new TestHttpClient({
-				port: 3000,
-				host: 'http://127.0.0.1',
-			}),
-			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			new TestHttpClient(
+				{
+					port: 3000,
+					host: 'http://127.0.0.1',
+				},
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
 		);
 	});
 
@@ -44,98 +60,100 @@ describe('[E2E] FinishLogin usecase', () => {
 		await utilRepository.clearAll();
 	});
 
-	it('No JWT token works just fine', async () => {
+	it('No JWT token works just fine (sets cookies)', async () => {
 		const user = await createTestUser(utilRepository);
+
 		const askLoginResponse = await userTestSdk.askLogin({
-			params: {
-				email: user.email,
-			},
+			params: { email: user.email },
 			userMeta: {
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 				userId: user.id,
 				isAuth: false,
 			},
 		});
-
 		expect(askLoginResponse.status).to.equal(202);
 
 		const otpCode = await redisConnection.get(user.id);
+
 		const finishLoginResponse = await userTestSdk.finishLogin({
-			params: {
-				email: user.email,
-				otpCode: Number(otpCode),
-			},
+			params: { email: user.email, otpCode: Number(otpCode) },
 			userMeta: {
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 				userId: user.id,
 				isAuth: false,
 			},
 		});
+
 		expect(finishLoginResponse.status).to.equal(202);
-		expect(finishLoginResponse.body).to.have.property('token');
+
+		const cookies = finishLoginResponse.cookies ?? [];
+		const map = cookieMap(cookies);
+
+		expect(map.has('access_token')).to.equal(true, 'access_token must be set');
+		expect(map.has('refresh_token')).to.equal(true, 'refresh_token must be set');
 	});
 
-	it('Authed user just renews token', async () => {
+	it('Authed user just renews token (sets cookies again)', async () => {
 		const user = await createTestUser(utilRepository);
+
 		const askLoginResponse = await userTestSdk.askLogin({
-			params: {
-				email: user.email,
-			},
+			params: { email: user.email },
 			userMeta: {
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
+				userId: user.id,
+				isAuth: true,
+			},
+		});
+		expect(askLoginResponse.status).to.equal(202);
+
+		const otpCode = await redisConnection.get(user.id);
+
+		const finishLoginResponse = await userTestSdk.finishLogin({
+			params: { email: user.email, otpCode: Number(otpCode) },
+			userMeta: {
+				isWrongAccessJwt: false,
 				userId: user.id,
 				isAuth: true,
 			},
 		});
 
-		expect(askLoginResponse.status).to.equal(202);
-
-		const otpCode = await redisConnection.get(user.id);
-		const finishLoginResponse = await userTestSdk.finishLogin({
-			params: {
-				email: user.email,
-				otpCode: Number(otpCode),
-			},
-			userMeta: {
-				isWrongJwt: false,
-				userId: user.id,
-				isAuth: true,
-			},
-		});
 		expect(finishLoginResponse.status).to.equal(202);
-		expect(finishLoginResponse.body).to.have.property('token');
+
+		const cookies = finishLoginResponse.cookies ?? [];
+		const map = cookieMap(cookies);
+
+		expect(map.has('access_token')).to.equal(true, 'access_token must be re-set');
+		expect(map.has('refresh_token')).to.equal(true, 'refresh_token must be re-set');
 	});
 
-	it('Wrong OTP code returns 422', async () => {
+	it('Wrong OTP code returns 422 (no cookies)', async () => {
 		const user = await createTestUser(utilRepository);
+
 		const askLoginResponse = await userTestSdk.askLogin({
-			params: {
-				email: user.email,
-			},
+			params: { email: user.email },
 			userMeta: {
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 				userId: user.id,
 				isAuth: false,
 			},
 		});
-
 		expect(askLoginResponse.status).to.equal(202);
+
 		let otpCode = Number(await redisConnection.get(user.id));
-
-		// Make sure the OTP code is wrong, but valid
 		otpCode = ensureWrongOtpCode(otpCode);
 
 		const finishLoginResponse = await userTestSdk.finishLogin({
-			params: {
-				email: user.email,
-				otpCode: otpCode,
-			},
+			params: { email: user.email, otpCode },
 			userMeta: {
-				isWrongJwt: false,
+				isWrongAccessJwt: false,
 				userId: user.id,
 				isAuth: false,
 			},
 		});
+
 		expect(finishLoginResponse.status).to.equal(422);
+
+		const cookies = finishLoginResponse.cookies ?? [];
+		expect(cookies.length).to.equal(0);
 	});
 });
