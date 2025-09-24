@@ -1,14 +1,15 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { S3AdapterDouble, YoutubeAdapterDouble } from './adapters/doubles.adapter';
 import { S3VideoStorageAdapter } from './adapters/s3-video-storage.adapter';
 import { YoutubeVideoStorageAdapter } from './adapters/youtube-video-storage.adapter';
-import { VIDEO_STORAGE_SERVICE } from './constants';
-import { FakeVideoStorageService } from './services/fake-video-storage.service';
+import { S3_VIDEO_STORAGE_ADAPTER, YOUTUBE_VIDEO_STORAGE_ADAPTER } from './constants';
 import { VideoStorageService } from './services/video-storage.service';
 import { GetVideoController } from './usecase/get-video/get-video.controller';
 import { GetVideoUsecase } from './usecase/get-video/get-video.usecase';
 import { UploadVideoController } from './usecase/upload-video/upload-video.controller';
 import { UploadVideoUsecase } from './usecase/upload-video/upload-video.usecase';
 import { VideoRepository } from './video.repoistory';
+import { FormidableTimingProbe } from '../common/testing/formidable-timing-probe';
 
 @Module({})
 export class VideoModule {
@@ -20,12 +21,15 @@ export class VideoModule {
 				controllers: [GetVideoController, UploadVideoController],
 				providers: [
 					GetVideoUsecase,
-					S3VideoStorageAdapter,
-					YoutubeVideoStorageAdapter,
 					{
-						provide: VIDEO_STORAGE_SERVICE,
-						useClass: VideoStorageService,
+						provide: S3_VIDEO_STORAGE_ADAPTER,
+						useClass: S3VideoStorageAdapter,
 					},
+					{
+						provide: YOUTUBE_VIDEO_STORAGE_ADAPTER,
+						useClass: YoutubeVideoStorageAdapter,
+					},
+					VideoStorageService,
 					UploadVideoUsecase,
 					VideoRepository,
 				],
@@ -34,14 +38,21 @@ export class VideoModule {
 		return {
 			module: VideoModule,
 			global: true,
-			controllers: [UploadVideoController],
+			controllers: [GetVideoController, UploadVideoController],
 			providers: [
+				GetVideoUsecase,
 				{
-					provide: VIDEO_STORAGE_SERVICE,
-					useClass: FakeVideoStorageService,
+					provide: S3_VIDEO_STORAGE_ADAPTER,
+					useClass: S3AdapterDouble,
 				},
+				{
+					provide: YOUTUBE_VIDEO_STORAGE_ADAPTER,
+					useClass: YoutubeAdapterDouble,
+				},
+				VideoStorageService,
 				UploadVideoUsecase,
 				VideoRepository,
+				FormidableTimingProbe,
 			],
 		};
 	}

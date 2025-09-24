@@ -13,7 +13,6 @@ import {
 	redisConfig,
 } from '../src/config';
 import { runMigrations } from './test.run-migrations';
-import { SilentLogger } from './test.silent-logger';
 import { s3Config } from '../src/config/s3.config';
 import { youtubeConfig } from '../src/config/youtube.config';
 import { ImageModule } from '../src/image/image.module';
@@ -30,6 +29,7 @@ import { UserModule } from '../src/user/user.module';
 import { InterviewModule } from '../src/interview/interview.module';
 import { FeedbackModule } from '../src/feedback/feedback.module';
 import * as cookieParser from 'cookie-parser';
+import { SilentLogger } from './test.silent-logger';
 
 export interface ISharedContext extends Mocha.Context {
 	app: INestApplication;
