@@ -1,44 +1,34 @@
-import { pipeline, Readable } from 'node:stream';
-import { YoutubeVideoStorageAdapter } from '../adapters/youtube-video-storage.adapter';
-import { S3VideoStorageAdapter } from '../adapters/s3-video-storage.adapter';
 import { Inject, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { pipeline, Readable } from 'node:stream';
 import { PassThrough } from 'stream';
+import { S3_VIDEO_STORAGE_ADAPTER, YOUTUBE_VIDEO_STORAGE_ADAPTER } from '../constants';
+import { IS3VideoStorageAdapter, IYoutubeVideoStorageAdapter } from '../ports/video-storage.adapter';
 import { IVideoStorageService } from '../ports/video-storage.service';
 
 export class VideoStorageService implements IVideoStorageService {
 	private readonly logger = new Logger(VideoStorageService.name);
 
 	constructor(
-		@Inject(YoutubeVideoStorageAdapter)
-		private readonly youtubeVideoStorageAdapter: YoutubeVideoStorageAdapter,
-		@Inject(S3VideoStorageAdapter)
-		private readonly s3VideoStorageAdapter: S3VideoStorageAdapter,
+		@Inject(YOUTUBE_VIDEO_STORAGE_ADAPTER)
+		private readonly youtubeVideoStorageAdapter: IYoutubeVideoStorageAdapter,
+		@Inject(S3_VIDEO_STORAGE_ADAPTER)
+		private readonly s3VideoStorageAdapter: IS3VideoStorageAdapter,
 	) {}
 
 	async uploadVideo({ file, title }: { file: Readable; title: string }) {
-		// Create two identical streams using PassThrough
 		const streamForYoutube = new PassThrough();
 		const streamForS3 = new PassThrough();
 
-		// Create a readable stream to distribute data
-		const distributor = new PassThrough();
-
-		pipeline(file, distributor, err => {
+		pipeline(file, streamForYoutube, err => {
 			if (err) {
 				this.logger.error('Error in source stream', err);
 			}
 		});
 
-		pipeline(distributor, streamForYoutube, err => {
+		pipeline(file, streamForS3, err => {
 			if (err) {
-				this.logger.error('Error in YouTube stream pipeline', err);
-			}
-		});
-
-		pipeline(distributor, streamForS3, err => {
-			if (err) {
-				this.logger.error('Error in S3 stream pipeline', err);
+				this.logger.error('Error in source stream', err);
 			}
 		});
 

@@ -4,9 +4,10 @@ import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { s3Config } from '../../config/s3.config';
+import { IS3VideoStorageAdapter } from '../ports/video-storage.adapter';
 
 @Injectable()
-export class S3VideoStorageAdapter {
+export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 	private readonly logger = new Logger(S3VideoStorageAdapter.name);
 	private readonly s3Client: S3Client;
 

@@ -7,8 +7,11 @@ const secret = 'secret';
 
 const jwtService = new JwtService({
 	accessSecret: secret,
+	refreshSecret: secret,
 	accessExpiresInSeconds: 60,
 	refreshExpiresInSeconds: 3600,
+	accessCookiePath: '/',
+	refreshCookiePath: '/',
 });
 
 const customTokenFactory = {

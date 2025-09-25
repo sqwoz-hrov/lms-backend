@@ -3,6 +3,7 @@ import { JwtFactory } from './test.jwt.factory';
 import { jwtConfig } from '../src/config';
 import { ConfigType } from '@nestjs/config';
 import { UserMeta } from './test.abstract.sdk';
+import { fetch, FormData } from 'undici';
 
 const getRandomJwt = () => {
 	const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
@@ -69,14 +70,19 @@ export class TestHttpClient {
 		}
 
 		const cookieHeader = cookies.map(c => `${c.key}=${c.value}`).join('; ');
-		const headersObject = {
-			'Content-Type': 'application/json',
+
+		const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
+		// ВАЖНО: для FormData НЕЛЬЗЯ руками ставить Content-Type — undici сам проставит boundary.
+		const headersObject: Record<string, string> = {
+			Accept: 'application/json',
 			...(isAuth ? { Cookie: cookieHeader } : {}),
+			...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
 		};
 
 		const result = await fetch(`${this.config.host}:${this.config.port}${path}`, {
 			method,
-			...(body ? { body: JSON.stringify(body) } : {}),
+			...(body ? (isFormData ? { body: body } : { body: JSON.stringify(body) }) : {}),
 			headers: headersObject,
 		});
 
@@ -85,9 +91,17 @@ export class TestHttpClient {
 			this.setCookies(setCookieHeaders);
 		}
 
+		// пробуем распарсить json, если его нет — вернём {}
+		let json: TResponse | Record<string, never> = {};
+		try {
+			json = (await result.json()) as TResponse;
+		} catch {
+			// ignore
+		}
+
 		return {
 			status: result.status,
-			body: (await result.json().catch(() => ({}))) as TResponse,
+			body: json as TResponse,
 			cookies: setCookieHeaders,
 		};
 	}

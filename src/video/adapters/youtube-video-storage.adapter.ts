@@ -4,8 +4,9 @@ import { OAuth2Client } from 'google-auth-library';
 import { Inject, Logger } from '@nestjs/common';
 import { youtubeConfig } from '../../config/youtube.config';
 import { ConfigType } from '@nestjs/config';
+import { IYoutubeVideoStorageAdapter } from '../ports/video-storage.adapter';
 
-export class YoutubeVideoStorageAdapter {
+export class YoutubeVideoStorageAdapter implements IYoutubeVideoStorageAdapter {
 	private readonly logger = new Logger(YoutubeVideoStorageAdapter.name);
 	private youtubeClient = youtube('v3');
 	private authClient: OAuth2Client;

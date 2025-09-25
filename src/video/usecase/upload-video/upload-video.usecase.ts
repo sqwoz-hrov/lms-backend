@@ -1,6 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { VideoStorageService } from '../../services/video-storage.service';
-import { VIDEO_STORAGE_SERVICE } from '../../constants';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { Readable } from 'stream';
 import { VideoRepository } from '../../video.repoistory';
@@ -8,7 +7,7 @@ import { VideoRepository } from '../../video.repoistory';
 @Injectable()
 export class UploadVideoUsecase implements UsecaseInterface {
 	constructor(
-		@Inject(VIDEO_STORAGE_SERVICE) private readonly videoStorageService: VideoStorageService,
+		private readonly videoStorageService: VideoStorageService,
 		private readonly videoRepository: VideoRepository,
 	) {}
 
