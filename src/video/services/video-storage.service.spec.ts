@@ -3,7 +3,7 @@ import * as sinon from 'sinon';
 import { VideoStorageService } from './video-storage.service';
 import { YoutubeAdapterDouble, S3AdapterDouble } from '../adapters/doubles.adapter';
 import { createChunkedStream } from '../../../test/helpers/stream.helper';
-import chaiAsPromised from 'chai-as-promised';
+import * as chaiAsPromised from 'chai-as-promised';
 import * as chai from 'chai';
 
 chai.use(chaiAsPromised);
