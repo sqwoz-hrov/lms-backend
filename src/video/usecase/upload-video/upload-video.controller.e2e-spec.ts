@@ -13,7 +13,7 @@ import { ISharedContext } from '../../../../test/test.app-setup';
 import { randomBytes } from 'crypto';
 import { FormidableTimingProbe } from '../../../common/testing/formidable-timing-probe';
 
-describe.only('[E2E] Upload Video — stream split & parallel', () => {
+describe('[E2E] Upload Video — stream split & parallel', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
 	let sdk: VideosTestSdk;
@@ -42,8 +42,10 @@ describe.only('[E2E] Upload Video — stream split & parallel', () => {
 
 	afterEach(async () => {
 		await usersRepo.clearAll();
-		yt.capture = { totalBytes: 0 };
-		s3.capture = { totalBytes: 0 };
+		yt.capture = { totalBytes: 0, attempts: 0, bytesPerAttempt: [] };
+		s3.capture = { totalBytes: 0, attempts: 0, bytesPerAttempt: [] };
+		yt.failOnceAtChunkIndex = undefined;
+		s3.failOnceAtChunkIndex = undefined;
 		probe.reset();
 	});
 
@@ -112,5 +114,64 @@ describe.only('[E2E] Upload Video — stream split & parallel', () => {
 		expect(dEndS3, `Δ(S3 last→end)=${dEndS3}ms`).to.be.lessThan(50);
 
 		expect(probe.mark.elapsedMs!).to.be.greaterThan(0);
+	});
+
+	// Продолжение загрузки не реализовано
+	it.skip('resumes when YouTube branch fails once mid-stream', async () => {
+		const admin = await createTestAdmin(usersRepo);
+
+		const size = 10 * 1024 * 1024; // 10 MB — хватит чанков для сбоя
+		const buf = randomBytes(size);
+
+		// уроним YouTube на 5-м чанке первой попытки
+		yt.failOnceAtChunkIndex = 5;
+
+		const res = await sdk.uploadVideo({
+			params: { file: buf, filename: 'resume-yt.bin' },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+		});
+
+		expect(res.status).to.equal(HttpStatus.CREATED);
+
+		// YouTube: 2 попытки, вторая — успешная и целиком
+		expect(yt.capture.attempts).to.equal(2);
+		expect(yt.capture.bytesPerAttempt.length).to.equal(2);
+		expect(yt.capture.bytesPerAttempt[0]).to.be.greaterThan(0);
+		expect(yt.capture.bytesPerAttempt[0]).to.be.lessThan(size);
+		expect(yt.capture.bytesPerAttempt[1]).to.equal(size);
+
+		// S3: 1 попытка, целиком
+		expect(s3.capture.attempts).to.equal(1);
+		expect(s3.capture.bytesPerAttempt.length).to.equal(1);
+		expect(s3.capture.bytesPerAttempt[0]).to.equal(size);
+	});
+
+	it.skip('resumes when S3 branch fails once mid-stream', async () => {
+		const admin = await createTestAdmin(usersRepo);
+
+		const size = 10 * 1024 * 1024;
+		const buf = randomBytes(size);
+
+		// уроним S3 на 7-м чанке первой попытки
+		s3.failOnceAtChunkIndex = 7;
+
+		const res = await sdk.uploadVideo({
+			params: { file: buf, filename: 'resume-s3.bin' },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+		});
+
+		expect(res.status).to.equal(HttpStatus.CREATED);
+
+		// S3: 2 попытки, вторая — целиком
+		expect(s3.capture.attempts).to.equal(2);
+		expect(s3.capture.bytesPerAttempt.length).to.equal(2);
+		expect(s3.capture.bytesPerAttempt[0]).to.be.greaterThan(0);
+		expect(s3.capture.bytesPerAttempt[0]).to.be.lessThan(size);
+		expect(s3.capture.bytesPerAttempt[1]).to.equal(size);
+
+		// YT: 1 попытка, целиком
+		expect(yt.capture.attempts).to.equal(1);
+		expect(yt.capture.bytesPerAttempt.length).to.equal(1);
+		expect(yt.capture.bytesPerAttempt[0]).to.equal(size);
 	});
 });

@@ -15,7 +15,7 @@ describe.only('VideoStorageService streaming tee', () => {
 
 	beforeEach(() => {
 		youtubeDouble = new YoutubeAdapterDouble();
-		s3Double = new S3AdapterDouble({ slow: true });
+		s3Double = new S3AdapterDouble();
 
 		// Собираем сервис с дублями (DI в тесте вручную)
 		// В проде это Nest DI, но тут нам достаточно new:
