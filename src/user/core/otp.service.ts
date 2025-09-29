@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
+import { randomBytes } from 'crypto';
 import { OTP } from './otp';
 import { IOTPStorage } from '../ports/otp-storage.port';
 import { OTPRedisStorage } from '../adapters/otp-storage.adapter';

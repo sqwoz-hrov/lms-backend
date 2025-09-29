@@ -3,7 +3,8 @@ import { JwtFactory } from './test.jwt.factory';
 import { jwtConfig } from '../src/config';
 import { ConfigType } from '@nestjs/config';
 import { UserMeta } from './test.abstract.sdk';
-import { fetch, FormData } from 'undici';
+import * as FormData from 'form-data';
+import { Readable } from 'stream';
 
 const getRandomJwt = () => {
 	const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
@@ -18,20 +19,36 @@ const getRandomJwt = () => {
 	return `${header}.${payload}.${signature}`;
 };
 
+type RequestBody = Record<string, any> | FormData | Buffer | Readable | string;
+
+interface RequestOptions {
+	path: string;
+	body?: RequestBody;
+	headers?: Record<string, any>;
+	method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+	userMeta: UserMeta;
+}
+
+export type RequestResult<TResponse> = {
+	status: number;
+	body: TResponse;
+	headers: Headers;
+	cookies: string[];
+};
+
 export class TestHttpClient {
 	private readonly jwtFactory: JwtFactory;
 	private readonly cookieJar = new CookieJar();
+	private readonly baseUrl: string;
 
-	constructor(
-		private readonly config: { port: number | undefined; host: string },
-		jwtOptions: ConfigType<typeof jwtConfig>,
-	) {
+	constructor(config: { port: number | undefined; host: string }, jwtOptions: ConfigType<typeof jwtConfig>) {
 		this.jwtFactory = new JwtFactory(jwtOptions);
+		this.baseUrl = `${config.host}${config.port ? `:${config.port}` : ''}`;
 	}
 
 	public setCookies(cookies: string[]) {
 		for (const cookie of cookies) {
-			this.cookieJar.setCookieSync(cookie, `${this.config.host}:${this.config.port}`);
+			this.cookieJar.setCookieSync(cookie, this.baseUrl);
 		}
 	}
 
@@ -39,70 +56,167 @@ export class TestHttpClient {
 		this.cookieJar.removeAllCookiesSync();
 	}
 
-	public async request<TResponse>({
+	public async request<TResponse = any>({
 		path,
 		body,
+		headers = {},
 		method,
 		userMeta,
-	}: {
-		path: string;
-		body?: unknown;
-		method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-		userMeta: UserMeta;
-	}) {
-		let cookies: Cookie[] = [];
-		const { userId, isAuth, isWrongAccessJwt, isWrongRefreshJwt } = userMeta;
-		if (isAuth) {
-			const { accessToken, refreshToken } = this.jwtFactory.getJwtPair(userId);
+	}: RequestOptions): Promise<RequestResult<TResponse>> {
+		const url = `${this.baseUrl}${path}`;
+		const authCookie = this.buildAuthCookie(userMeta);
+		const { processedBody, contentHeaders } = this.processBody(body);
 
-			const effectiveRefreshOverride = isWrongRefreshJwt !== undefined ? isWrongRefreshJwt : isWrongAccessJwt;
-
-			cookies = [
-				new Cookie({
-					key: 'access_token',
-					value: isWrongAccessJwt ? getRandomJwt() : accessToken,
-				}),
-				new Cookie({
-					key: 'refresh_token',
-					value: effectiveRefreshOverride ? getRandomJwt() : refreshToken,
-				}),
-			];
-		}
-
-		const cookieHeader = cookies.map(c => `${c.key}=${c.value}`).join('; ');
-
-		const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
-
-		// ВАЖНО: для FormData НЕЛЬЗЯ руками ставить Content-Type — undici сам проставит boundary.
-		const headersObject: Record<string, string> = {
-			Accept: 'application/json',
-			...(isAuth ? { Cookie: cookieHeader } : {}),
-			...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
-		};
-
-		const result = await fetch(`${this.config.host}:${this.config.port}${path}`, {
-			method,
-			...(body ? (isFormData ? { body: body } : { body: JSON.stringify(body) }) : {}),
-			headers: headersObject,
+		const finalHeaders = this.buildHeaders({
+			authCookie,
+			contentHeaders,
+			customHeaders: headers,
 		});
 
-		const setCookieHeaders = result.headers.getSetCookie();
+		const response = await fetch(url, {
+			method,
+			body: processedBody as BodyInit,
+			headers: finalHeaders,
+		});
+
+		const setCookieHeaders = response.headers.getSetCookie();
 		if (setCookieHeaders.length > 0) {
 			this.setCookies(setCookieHeaders);
 		}
 
-		// пробуем распарсить json, если его нет — вернём {}
-		let json: TResponse | Record<string, never> = {};
-		try {
-			json = (await result.json()) as TResponse;
-		} catch {
-			// ignore
-		}
+		const parsedBody = await this.parseResponseBody<TResponse>(response);
 
 		return {
-			status: result.status,
-			body: json as TResponse,
+			status: response.status,
+			body: parsedBody as TResponse,
+			headers: response.headers,
 			cookies: setCookieHeaders,
 		};
+	}
+
+	private buildAuthCookie(userMeta: UserMeta): string | null {
+		const { userId, isAuth, isWrongAccessJwt, isWrongRefreshJwt } = userMeta;
+
+		if (!isAuth) {
+			return null;
+		}
+
+		const { accessToken, refreshToken } = this.jwtFactory.getJwtPair(userId);
+		const effectiveRefreshOverride = isWrongRefreshJwt ?? isWrongAccessJwt;
+
+		const cookies = [
+			new Cookie({
+				key: 'access_token',
+				value: isWrongAccessJwt ? getRandomJwt() : accessToken,
+			}),
+			new Cookie({
+				key: 'refresh_token',
+				value: effectiveRefreshOverride ? getRandomJwt() : refreshToken,
+			}),
+		];
+
+		return cookies.map(c => `${c.key}=${c.value}`).join('; ');
+	}
+
+	private processBody(body?: RequestBody) {
+		if (!body) {
+			return { processedBody: undefined, contentHeaders: {} };
+		}
+
+		// Handle FormData (Node.js form-data package)
+		if (body instanceof FormData) {
+			return {
+				processedBody: body.getBuffer(),
+				contentHeaders: body.getHeaders(),
+			};
+		}
+
+		// Handle Buffer
+		if (Buffer.isBuffer(body)) {
+			return {
+				processedBody: body,
+				contentHeaders: {
+					'Content-Type': 'application/octet-stream',
+					'Content-Length': String(body.length),
+				},
+			};
+		}
+
+		// Handle Readable streams
+		if (body instanceof Readable) {
+			return {
+				processedBody: body,
+				contentHeaders: {
+					'Content-Type': 'application/octet-stream',
+				},
+			};
+		}
+
+		// Handle string
+		if (typeof body === 'string') {
+			return {
+				processedBody: body,
+				contentHeaders: {
+					'Content-Type': 'text/plain',
+				},
+			};
+		}
+
+		// Handle plain objects (JSON)
+		return {
+			processedBody: JSON.stringify(body),
+			contentHeaders: {
+				'Content-Type': 'application/json',
+			},
+		};
+	}
+
+	private buildHeaders({
+		authCookie,
+		contentHeaders,
+		customHeaders,
+	}: {
+		authCookie: string | null;
+		contentHeaders: Record<string, string | undefined>;
+		customHeaders: Record<string, any>;
+	}): Record<string, string> {
+		const headers: Record<string, string> = {
+			Accept: 'application/json',
+			...contentHeaders,
+		};
+
+		if (authCookie) {
+			headers.Cookie = authCookie;
+		}
+
+		// Custom headers override everything (including content-type if needed)
+		for (const [key, value] of Object.entries(customHeaders)) {
+			if (value !== undefined && value !== null) {
+				headers[key] = String(value);
+			}
+		}
+
+		return headers;
+	}
+
+	private async parseResponseBody<TResponse>(response: Response): Promise<TResponse | Record<string, never>> {
+		const contentType = response.headers.get('content-type') || '';
+
+		// If no content or 204 No Content, return empty object
+		if (response.status === 204 || !contentType) {
+			return {} as Record<string, never>;
+		}
+
+		// Parse JSON responses
+		if (contentType.includes('application/json')) {
+			return (await response.json()) as TResponse;
+		}
+
+		// For non-JSON responses, try to parse anyway (for compatibility)
+		try {
+			return (await response.json()) as TResponse;
+		} catch {
+			return {} as Record<string, never>;
+		}
 	}
 }

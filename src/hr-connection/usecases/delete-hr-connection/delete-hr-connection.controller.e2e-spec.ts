@@ -10,7 +10,7 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { HrConnectionsTestRepository } from '../../test-utils/test.repo';
 import { HrConnectionsTestSdk } from '../../test-utils/test.sdk';
-import { ISharedContext } from '../../../../test/test.app-setup';
+import { ISharedContext } from '../../../../test/setup/test.app-setup';
 
 describe('[E2E] Delete HR connection usecase', () => {
 	let app: INestApplication;

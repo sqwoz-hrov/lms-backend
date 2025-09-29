@@ -1,81 +1,101 @@
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import * as fs from 'fs';
 import { randomUUID } from 'crypto';
-import { pipeline, Readable } from 'node:stream';
-import { PassThrough } from 'stream';
-import { S3_VIDEO_STORAGE_ADAPTER, YOUTUBE_VIDEO_STORAGE_ADAPTER } from '../constants';
-import { IS3VideoStorageAdapter, IYoutubeVideoStorageAdapter } from '../ports/video-storage.adapter';
-import { IVideoStorageService } from '../ports/video-storage.service';
 
-export class VideoStorageService implements IVideoStorageService {
+import { S3_VIDEO_STORAGE_ADAPTER } from '../constants';
+import type { IS3VideoStorageAdapter } from '../ports/video-storage.adapter';
+import { Readable, Writable } from 'stream';
+
+export type UploadLocalFileInput = {
+	localPath: string;
+	filename: string;
+	contentType: string;
+	contentLength: number;
+	checksumBase64?: string;
+	metadata?: Record<string, string>;
+};
+
+export type UploadLocalFileResult = {
+	storageKey: string;
+	coldStorageKey?: string;
+};
+
+@Injectable()
+export class VideoStorageService {
 	private readonly logger = new Logger(VideoStorageService.name);
 
 	constructor(
-		@Inject(YOUTUBE_VIDEO_STORAGE_ADAPTER)
-		private readonly youtubeVideoStorageAdapter: IYoutubeVideoStorageAdapter,
 		@Inject(S3_VIDEO_STORAGE_ADAPTER)
-		private readonly s3VideoStorageAdapter: IS3VideoStorageAdapter,
+		private readonly s3Storage: IS3VideoStorageAdapter,
 	) {}
 
-	async uploadVideo({ file, title }: { file: Readable; title: string }) {
-		const streamForYoutube = new PassThrough();
-		const streamForS3 = new PassThrough();
+	/**
+	 * Параллельно грузит локальный файл в два S3 (hot и cold).
+	 * Возвращает URL/ключ из HOT.
+	 */
+	async uploadLocalFile(input: UploadLocalFileInput): Promise<UploadLocalFileResult> {
+		const id = randomUUID();
+		const safeName = sanitizeName(input.filename);
+		const hotKey = `videos/${id}/${safeName}`;
+		const coldKey = `videos/${id}/${safeName}`;
 
-		pipeline(file, streamForYoutube, err => {
-			if (err) {
-				this.logger.error('Error in source stream', err);
-			}
+		// два независимых чтения с диска — надёжнее, чем tee/PassThrough
+		const rsHot = fs.createReadStream(input.localPath, { highWaterMark: 1024 * 1024 });
+		const rsCold = fs.createReadStream(input.localPath, { highWaterMark: 1024 * 1024 });
+
+		const hotUpload = this.s3Storage.uploadStreamToHot({
+			key: hotKey,
+			stream: rsHot,
+			contentType: input.contentType,
+			contentLength: input.contentLength,
+			checksumBase64: input.checksumBase64,
+			metadata: input.metadata,
 		});
 
-		pipeline(file, streamForS3, err => {
-			if (err) {
-				this.logger.error('Error in source stream', err);
-			}
+		const coldUpload = this.s3Storage.uploadStreamToCold({
+			key: coldKey,
+			stream: rsCold,
+			contentType: input.contentType,
+			contentLength: input.contentLength,
+			checksumBase64: input.checksumBase64,
+			metadata: input.metadata,
 		});
 
-		// Generate S3 ID upfront
-		const s3ObjectId = randomUUID();
-
-		// Upload to both services concurrently
-		const youtubePromise = this.uploadToYoutube({
-			file: streamForYoutube,
-			title,
-		});
-
-		const s3Promise = this.uploadToS3({
-			id: s3ObjectId,
-			file: streamForS3,
-			title,
-		});
-
-		// Wait for both uploads to complete or fail
 		try {
-			const [youtubeLink] = await Promise.all([youtubePromise, s3Promise]);
-			this.logger.log(`Video uploaded successfully to both YouTube (ID: ${youtubeLink}) and S3 (ID: ${s3ObjectId})`);
-			return { youtubeLink, s3ObjectId };
-		} catch (error) {
-			this.logger.error('Failed to upload video to one or both services', error);
-			throw new Error('Video upload failed');
-		}
-	}
+			const hotRes = await hotUpload;
+			await coldUpload;
 
-	private async uploadToYoutube(params: { file: Readable; title: string }): Promise<string> {
-		try {
-			const youtubeVideoId = await this.youtubeVideoStorageAdapter.uploadVideo(params);
-			this.logger.log(`Video uploaded to YouTube. ID: ${youtubeVideoId}`);
-			return youtubeVideoId;
+			return {
+				storageKey: hotRes.storageKey ?? hotKey,
+				coldStorageKey: coldKey,
+			};
 		} catch (err) {
-			this.logger.error('Failed to upload video to YouTube.', err);
-			throw new Error('Primary video upload failed (YouTube)');
+			this.logger.error('Parallel S3 upload failed', err as Error);
+			this.closeStreamSafely(rsHot, 'rsHot');
+			this.closeStreamSafely(rsCold, 'rsCold');
+			throw err;
 		}
 	}
 
-	private async uploadToS3(params: { id: string; file: Readable; title: string }): Promise<void> {
+	private closeStreamSafely(stream: Readable | Writable | null | undefined, label: string): boolean {
+		if (!stream) return false;
 		try {
-			await this.s3VideoStorageAdapter.uploadVideo(params);
-			this.logger.log(`Backup uploaded to S3 with ID: ${params.id}`);
-		} catch (err) {
-			this.logger.error(`S3 backup failed. ID: ${params.id}`, err);
-			throw new Error('Backup upload failed (S3)');
+			// если уже закрыт/уничтожен — ничего не делаем
+			const anyStream = stream;
+			const destroyed = Boolean(anyStream.destroyed);
+			if (!destroyed) {
+				stream.destroy(new Error('cleanup'));
+				this.logger.debug(`Stream ${label} destroyed during cleanup`);
+				return true;
+			}
+			return false;
+		} catch (e) {
+			this.logger.warn(`Failed to destroy stream ${label}: ${(e as Error).message}`);
+			return false;
 		}
 	}
+}
+
+function sanitizeName(s: string): string {
+	return s.replace(/[^\w.-]+/g, '_');
 }

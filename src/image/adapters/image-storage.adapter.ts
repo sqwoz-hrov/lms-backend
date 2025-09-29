@@ -1,9 +1,9 @@
-import { Readable } from 'node:stream';
+import { Readable } from 'stream';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { s3Config } from '../../config/s3.config';
+import { s3Config } from '../../config';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -17,7 +17,6 @@ export class ImageStorageAdapter {
 	) {
 		this.s3Client = new S3Client({
 			region: this.config.region,
-			endpoint: this.config.enpoint,
 			credentials: {
 				accessKeyId: this.config.accessKeyId,
 				secretAccessKey: this.config.secretAccessKey,

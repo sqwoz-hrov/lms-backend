@@ -1,10 +1,23 @@
-import { Generated, Insertable, Selectable, Updateable } from 'kysely';
+import { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
+
+export type UploadPhase = 'receiving' | 'hashing' | 'uploading_s3' | 'completed' | 'failed';
+
+export type UploadedRange = { start: number; end: number };
 
 export type VideoTable = {
 	id: Generated<string>;
-	youtube_link: string;
-	s3_object_id: string;
-	content_type: string | undefined;
+	user_id: string;
+	filename: string;
+	mime_type: string | null;
+	total_size: string;
+	chunk_size: string;
+	tmp_path: string;
+	phase: UploadPhase;
+	uploaded_ranges: ColumnType<UploadedRange[], UploadedRange[] | null, UploadedRange[]>;
+	upload_offset: Generated<string>;
+	checksum_sha256_base64: string | null;
+	storage_key: string | null;
+	created_at: ColumnType<Date, string | undefined, never>;
 };
 
 export type Video = Selectable<VideoTable>;

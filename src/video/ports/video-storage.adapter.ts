@@ -1,9 +1,17 @@
 import { Readable } from 'stream';
 
-export interface IS3VideoStorageAdapter {
-	uploadVideo: (params: { id: string; file: Readable; title: string }) => Promise<void>;
-}
+export type UploadStreamInput = {
+	key: string;
+	stream: Readable;
+	contentType: string;
+	contentLength: number;
+	checksumBase64?: string;
+	metadata?: Record<string, string>;
+};
 
-export interface IYoutubeVideoStorageAdapter {
-	uploadVideo(params: { file: Readable; title: string }): Promise<string>;
+export type UploadStreamResult = { storageKey: string };
+
+export interface IS3VideoStorageAdapter {
+	uploadStreamToCold(input: UploadStreamInput): Promise<UploadStreamResult>;
+	uploadStreamToHot(input: UploadStreamInput): Promise<UploadStreamResult>;
 }

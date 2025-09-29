@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes } from 'crypto';
 
 export const randomWord = () => {
 	const buf = randomBytes(4);

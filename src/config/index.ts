@@ -5,3 +5,4 @@ export { jwtConfig } from './jwt.config';
 export { otpBotConfig } from './otp-bot.config';
 export { otpConfig } from './otp.config';
 export { redisConfig } from './redis.config';
+export { s3Config } from './s3.config';
