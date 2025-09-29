@@ -18,7 +18,7 @@ export class VideoModule {
 			return {
 				module: VideoModule,
 				global: true,
-				...(process.env.DISABLE_VIDEO_MODULE && {controllers: [GetVideoController, UploadVideoController]}),
+				...(process.env.DISABLE_VIDEO_MODULE && { controllers: [GetVideoController, UploadVideoController] }),
 				providers: [
 					GetVideoUsecase,
 					{
