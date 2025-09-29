@@ -6,7 +6,9 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "tsgo -p tsconfig.build.json",
+    "build:tsc": "tsc -p tsconfig.build.json",
+    "typecheck": "tsgo --noEmit -p tsconfig.json",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -72,6 +74,7 @@
     "@types/node-telegram-bot-api": "^0.64.11",
     "@types/pg": "^8.11.14",
     "@types/sinon": "^17.0.4",
+    "@typescript/native-preview": "^7.0.0-dev.20250929.1",
     "chai": "^4.3.10",
     "chai-as-promised": "^7.1.2",
     "eslint": "^9.18.0",

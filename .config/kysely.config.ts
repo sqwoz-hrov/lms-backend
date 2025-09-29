@@ -1,7 +1,7 @@
-import { PostgresDialect } from 'kysely'
-import { defineConfig } from 'kysely-ctl'
-import { Pool } from 'pg'
-import { get } from 'env-var'
+import { PostgresDialect } from 'kysely';
+import { defineConfig } from 'kysely-ctl';
+import { Pool } from 'pg';
+import { get } from 'env-var';
 
 export default defineConfig({
 	dialect: new PostgresDialect({
@@ -14,10 +14,10 @@ export default defineConfig({
 		}),
 	}),
 	migrations: {
-		migrationFolder: "migrations",
+		migrationFolder: 'migrations',
 	},
 	plugins: [],
 	seeds: {
-		seedFolder: "seeds",
-	}
-})
+		seedFolder: 'seeds',
+	},
+});
