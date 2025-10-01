@@ -1,10 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import { randomUUID } from 'crypto';
-
-import { S3_VIDEO_STORAGE_ADAPTER } from '../constants';
-import type { IS3VideoStorageAdapter } from '../ports/video-storage.adapter';
 import { Readable, Writable } from 'stream';
+import { S3VideoStorageAdapter } from '../adapters/s3-video-storage.adapter';
 
 export type UploadLocalFileInput = {
 	localPath: string;
@@ -24,10 +22,7 @@ export type UploadLocalFileResult = {
 export class VideoStorageService {
 	private readonly logger = new Logger(VideoStorageService.name);
 
-	constructor(
-		@Inject(S3_VIDEO_STORAGE_ADAPTER)
-		private readonly s3Storage: IS3VideoStorageAdapter,
-	) {}
+	constructor(private readonly s3Storage: S3VideoStorageAdapter) {}
 
 	/**
 	 * Параллельно грузит локальный файл в два S3 (hot и cold).

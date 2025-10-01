@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
 	IsArray,
 	IsDateString,
@@ -6,15 +7,17 @@ import {
 	IsInt,
 	IsNotEmpty,
 	IsOptional,
-	IsPositive,
 	IsString,
+	Matches,
 	Min,
 	ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 
 export const UploadPhaseEnum = ['receiving', 'hashing', 'uploading_s3', 'completed', 'failed'] as const;
 export type UploadPhase = (typeof UploadPhaseEnum)[number];
+
+// Reusable numeric-string validator: only non-negative integers in decimal form
+const NUMERIC_STRING = /^[0-9]+$/;
 
 export class UploadedRangeDto {
 	@ApiProperty({ description: 'Начало диапазона (в байтах)', example: 0 })
@@ -36,7 +39,7 @@ export class UploadChecksumDto {
 	@ApiProperty({ description: 'Значение контрольной суммы в base64' })
 	@IsString()
 	@IsNotEmpty()
-	valueBase64: string;
+	value_base64: string;
 }
 
 export class BaseVideoDto {
@@ -48,7 +51,7 @@ export class BaseVideoDto {
 	@ApiProperty({ description: 'ID пользователя-владельца' })
 	@IsString()
 	@IsNotEmpty()
-	userId: string;
+	user_id: string;
 
 	@ApiProperty({ description: 'Имя файла (как сохранено)', example: 'lecture-001.mp4' })
 	@IsString()
@@ -58,17 +61,17 @@ export class BaseVideoDto {
 	@ApiProperty({ description: 'MIME-тип файла', nullable: true, required: false, example: 'video/mp4' })
 	@IsString()
 	@IsOptional()
-	mimeType?: string | null;
+	mime_type?: string | null;
 
-	@ApiProperty({ description: 'Общий размер файла, байт', example: 10737418240 })
-	@IsInt()
-	@IsPositive()
-	totalSize: number;
+	@ApiProperty({ description: 'Общий размер файла, байт (строкой)', example: '10737418240' })
+	@IsString()
+	@Matches(NUMERIC_STRING, { message: 'total_size must be a non-negative integer string' })
+	total_size: string;
 
-	@ApiProperty({ description: 'Размер чанка, байт', example: 1048576 })
-	@IsInt()
-	@IsPositive()
-	chunkSize: number;
+	@ApiProperty({ description: 'Размер чанка, байт (строкой)', example: '1048576' })
+	@IsString()
+	@Matches(NUMERIC_STRING, { message: 'chunk_size must be a non-negative integer string' })
+	chunk_size: string;
 
 	@ApiProperty({ enum: UploadPhaseEnum, description: 'Текущая фаза загрузки' })
 	@IsEnum(UploadPhaseEnum)
@@ -78,19 +81,22 @@ export class BaseVideoDto {
 		description: 'Список уже принятых диапазонов (включительно)',
 		type: [UploadedRangeDto],
 		example: [
-			{ start: 0, end: 1048575 },
-			{ start: 1048576, end: 2097151 },
+			{ start: '0', end: '1048575' },
+			{ start: '1048576', end: '2097151' },
 		],
 	})
 	@IsArray()
 	@ValidateNested({ each: true })
 	@Type(() => UploadedRangeDto)
-	uploadedRanges: UploadedRangeDto[];
+	uploaded_ranges: UploadedRangeDto[];
 
-	@ApiProperty({ description: 'Текущий смещенный байт (offset), от начала файла', example: 2097152 })
-	@IsInt()
-	@Min(0)
-	uploadOffset: number;
+	@ApiProperty({
+		description: 'Текущий смещенный байт (offset), от начала файла (строкой)',
+		example: '2097152',
+	})
+	@IsString()
+	@Matches(NUMERIC_STRING, { message: 'upload_offset must be a non-negative integer string' })
+	upload_offset: string;
 
 	@ApiProperty({
 		description: 'Контрольная сумма загружаемого файла',
@@ -109,7 +115,14 @@ export class BaseVideoDto {
 		example: '2025-09-28T10:15:30.000Z',
 	})
 	@IsDateString()
-	createdAt: Date;
+	created_at: Date;
 }
 
 export class VideoResponseDto extends BaseVideoDto {}
+
+export class GetVideoByIdResponseDto extends BaseVideoDto {
+	@ApiProperty({
+		description: 'Подписанная ссылка доступа с ограниченным временем доступа',
+	})
+	video_url: string;
+}

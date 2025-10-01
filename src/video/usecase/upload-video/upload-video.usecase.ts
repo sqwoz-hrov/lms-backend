@@ -160,7 +160,7 @@ export class UploadVideoUsecase {
 			return {
 				...base,
 				isComplete: true,
-				video: updated as unknown as VideoResponseDto,
+				video: updated,
 				location: `/videos/${updated.id}`,
 			};
 		}
@@ -170,7 +170,7 @@ export class UploadVideoUsecase {
 		return {
 			...base,
 			isComplete: true,
-			video: updated as unknown as VideoResponseDto,
+			video: updated,
 			location: `/videos/${updated.id}`,
 		};
 	}

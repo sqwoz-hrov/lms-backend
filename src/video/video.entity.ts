@@ -13,7 +13,7 @@ export type VideoTable = {
 	chunk_size: string;
 	tmp_path: string;
 	phase: UploadPhase;
-	uploaded_ranges: ColumnType<UploadedRange[], UploadedRange[] | null, UploadedRange[]>;
+	uploaded_ranges: UploadedRange[];
 	upload_offset: Generated<string>;
 	checksum_sha256_base64: string | null;
 	storage_key: string | null;

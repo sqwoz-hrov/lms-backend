@@ -4,6 +4,7 @@ export function setupCors(app: INestApplication) {
 	app.enableCors({
 		origin: process.env.CORS_ORIGINS?.split(',') ?? [],
 		methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+		exposedHeaders: ['Upload-Session-Id', 'Upload-Offset', 'Upload-Length', 'Location'],
 		credentials: true,
 	});
 }

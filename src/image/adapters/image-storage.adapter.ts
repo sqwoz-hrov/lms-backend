@@ -17,6 +17,7 @@ export class ImageStorageAdapter {
 	) {
 		this.s3Client = new S3Client({
 			region: this.config.region,
+			endpoint: this.config.endpoint,
 			credentials: {
 				accessKeyId: this.config.accessKeyId,
 				secretAccessKey: this.config.secretAccessKey,

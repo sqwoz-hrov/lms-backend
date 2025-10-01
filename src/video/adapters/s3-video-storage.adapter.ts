@@ -1,9 +1,10 @@
-import { S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { s3Config } from '../../config';
 import { IS3VideoStorageAdapter, UploadStreamInput, UploadStreamResult } from '../ports/video-storage.adapter';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
 export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
@@ -65,6 +66,37 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 		} catch (error) {
 			this.logger.error('Error uploading video to S3:', error);
 			throw new Error('Failed to upload video to S3');
+		}
+	}
+
+	async getPresignedUrl(
+		key: string,
+		opts?: {
+			expiresInSeconds?: number;
+			asAttachmentName?: string;
+			responseContentType?: string;
+		},
+	): Promise<string> {
+		const expiresIn = opts?.expiresInSeconds ?? 3600 * 3; // 3 hours
+
+		const responseContentDisposition = opts?.asAttachmentName
+			? `attachment; filename="${encodeURIComponent(opts.asAttachmentName)}"`
+			: undefined;
+
+		try {
+			const cmd = new GetObjectCommand({
+				Bucket: this.config.videosHotBucketName,
+				Key: key,
+				ResponseContentDisposition: responseContentDisposition,
+				ResponseContentType: opts?.responseContentType,
+			});
+
+			const url = await getSignedUrl(this.s3Client, cmd, { expiresIn });
+			this.logger.log(`Issued presigned URL for hot video: ${key} (exp=${expiresIn}s)`);
+			return url;
+		} catch (error) {
+			this.logger.error(`Error creating presigned URL for ${key}:`, error as Error);
+			throw new Error('Failed to create presigned URL');
 		}
 	}
 }

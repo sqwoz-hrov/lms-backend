@@ -63,7 +63,7 @@ export const mochaHooks = {
 				TaskModule,
 				TelegramModule.forRoot({ useTelegramAPI: false }),
 				UserModule,
-				VideoModule.forRoot({ useRealStorageAdapters: false }),
+				VideoModule,
 			],
 		}).compile();
 

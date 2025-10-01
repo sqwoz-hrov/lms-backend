@@ -104,7 +104,6 @@ describe('[E2E] Upload Video — resumable via MinIO', () => {
 		S3_COLD_BUCKET = s3Conf.videosColdBucketName;
 
 		s3 = new S3Client({
-			region: s3Conf.region,
 			endpoint: s3Conf.endpoint,
 			forcePathStyle: s3Conf.forcePathStyle,
 			credentials: {

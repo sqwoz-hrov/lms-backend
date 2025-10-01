@@ -44,7 +44,7 @@ import { MetricsModule } from './metrics/metrics.module';
 		TaskModule,
 		TelegramModule.forRoot({ useTelegramAPI: true }),
 		UserModule,
-		VideoModule.forRoot({ useRealStorageAdapters: true }),
+		VideoModule,
 	],
 	controllers: [],
 	providers: [],
