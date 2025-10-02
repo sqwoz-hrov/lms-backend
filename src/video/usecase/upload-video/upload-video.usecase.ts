@@ -3,6 +3,7 @@ import {
 	ConflictException,
 	Injectable,
 	InternalServerErrorException,
+	Logger,
 	NotFoundException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
@@ -18,7 +19,7 @@ import { hasConflictingOverlap } from '../../utils/has-conflicting-overlap';
 import { isRangeAlreadyCovered } from '../../utils/is-range-already-covered';
 import { calcOffsetFromRanges } from '../../utils/calc-offset-from-ranges';
 import { mergeRanges } from '../../utils/merge-ranges';
-import { UploadedRange } from '../../video.entity';
+import { UploadedRange, Video } from '../../video.entity';
 
 type ExecuteInput = {
 	userId: string;
@@ -48,6 +49,8 @@ const DEFAULT_TMP_DIR = path.resolve(process.cwd(), 'data', 'tmp');
 
 @Injectable()
 export class UploadVideoUsecase {
+	private readonly logger = new Logger(UploadVideoUsecase.name);
+
 	constructor(
 		private readonly chunks: ChunkUploadService,
 		private readonly storage: VideoStorageService,
@@ -55,7 +58,6 @@ export class UploadVideoUsecase {
 	) {}
 
 	async execute(input: ExecuteInput): Promise<ExecuteResult> {
-		// 1) Создать или найти сессию (в БД это запись video)
 		let videoId = input.sessionId;
 		if (!videoId) {
 			const { id } = await this.videoRepo.save({
@@ -92,12 +94,10 @@ export class UploadVideoUsecase {
 			};
 		}
 
-		// 3) Запрет конфликтующих частичных перекрытий
 		if (hasConflictingOverlap(video.uploaded_ranges, start, end)) {
 			throw new ConflictException('Range overlaps existing data');
 		}
 
-		// 4) Фактическая запись чанка в файл (без БД-вызовов)
 		await this.chunks.writeChunkAt({
 			body: input.stream,
 			tmpPath: video.tmp_path,
@@ -121,57 +121,19 @@ export class UploadVideoUsecase {
 
 		if (!base.isComplete) return base;
 
-		// 6) Пост-обработка: hashing -> upload S3 -> завершение
 		await this.videoRepo.setPhase(videoId, 'hashing');
-
 		const fresh = await this.videoRepo.findById(videoId);
 		if (!fresh) throw new NotFoundException('Upload session lost');
 
-		const sha256 = await sha256File(fresh.tmp_path);
-		await this.videoRepo.setChecksum(videoId, sha256);
-
-		await this.videoRepo.setPhase(videoId, 'uploading_s3');
-
-		const storeRes = await this.storage.uploadLocalFile({
-			localPath: fresh.tmp_path,
-			filename: fresh.filename,
-			contentType: fresh.mime_type ?? 'application/octet-stream',
-			contentLength: Number(fresh.total_size),
-			checksumBase64: sha256,
-			metadata: { userId: fresh.user_id },
+		this.hasnAndSaveToS3(fresh).catch(e => {
+			this.logger.fatal(e, `Failed to hash and save video to s3, video id ${fresh.id}`);
 		});
-
-		const updated = await this.videoRepo.update(videoId, {
-			user_id: fresh.user_id,
-			filename: fresh.filename,
-			mime_type: fresh.mime_type,
-			total_size: fresh.total_size,
-			storage_key: storeRes.storageKey,
-			checksum_sha256_base64: sha256,
-		});
-
-		if (!updated) {
-			throw new InternalServerErrorException('Video is being uploaded by another request');
-		}
-
-		try {
-			fs.unlinkSync(fresh.tmp_path);
-		} catch {
-			return {
-				...base,
-				isComplete: true,
-				video: updated,
-				location: `/videos/${updated.id}`,
-			};
-		}
-
-		await this.videoRepo.setPhase(videoId, 'completed');
 
 		return {
 			...base,
 			isComplete: true,
-			video: updated,
-			location: `/videos/${updated.id}`,
+			video: fresh,
+			location: `/videos/${fresh.id}`,
 		};
 	}
 
@@ -196,5 +158,42 @@ export class UploadVideoUsecase {
 		const p = path.join(baseDir, `${crypto.randomUUID()}.part`);
 		fs.closeSync(fs.openSync(p, 'w'));
 		return p;
+	}
+
+	private async hasnAndSaveToS3(video: Video): Promise<void> {
+		const sha256 = await sha256File(video.tmp_path);
+		await this.videoRepo.setChecksum(video.id, sha256);
+
+		await this.videoRepo.setPhase(video.id, 'uploading_s3');
+
+		const storeRes = await this.storage.uploadLocalFile({
+			localPath: video.tmp_path,
+			filename: video.filename,
+			contentType: video.mime_type ?? 'application/octet-stream',
+			contentLength: Number(video.total_size),
+			checksumBase64: sha256,
+			metadata: { userId: video.user_id },
+		});
+
+		const updated = await this.videoRepo.update(video.id, {
+			user_id: video.user_id,
+			filename: video.filename,
+			mime_type: video.mime_type,
+			total_size: video.total_size,
+			storage_key: storeRes.storageKey,
+			checksum_sha256_base64: sha256,
+		});
+
+		if (!updated) {
+			throw new InternalServerErrorException('Video is being uploaded by another request');
+		}
+
+		try {
+			fs.unlinkSync(video.tmp_path);
+		} catch {
+			this.logger.debug(`Failed to delete file ${video.tmp_path}`);
+		}
+
+		await this.videoRepo.setPhase(video.id, 'completed');
 	}
 }

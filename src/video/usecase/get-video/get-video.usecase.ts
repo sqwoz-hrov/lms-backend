@@ -14,12 +14,17 @@ export class GetVideoUsecase implements UsecaseInterface {
 
 	async execute({ video_id, user }: { video_id: string; user: User }): Promise<GetVideoByIdResponseDto | undefined> {
 		const video = await this.videoRepository.findById(video_id);
-		if (video?.phase != 'completed' || video.storage_key == null) {
+
+		if (video == null) {
 			throw new NotFoundException('Video not found or still uploading');
 		}
 
 		if (user.role !== 'admin' && video.user_id !== user.id) {
 			throw new ForbiddenException("You don't have rights to access this video");
+		}
+
+		if (video.phase != 'completed' || video.storage_key == null) {
+			return video;
 		}
 
 		const keyForS3 = video.storage_key;

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
 	IsArray,
@@ -121,8 +121,8 @@ export class BaseVideoDto {
 export class VideoResponseDto extends BaseVideoDto {}
 
 export class GetVideoByIdResponseDto extends BaseVideoDto {
-	@ApiProperty({
+	@ApiPropertyOptional({
 		description: 'Подписанная ссылка доступа с ограниченным временем доступа',
 	})
-	video_url: string;
+	video_url?: string;
 }
