@@ -112,7 +112,7 @@ describe('[E2E] Get materials usecase', () => {
 			await createMaterial({ student_user_id: user1.id });
 			await createMaterial({ student_user_id: user1.id });
 			await createMaterial({ student_user_id: user2.id });
-			await createMaterial({ student_user_id: admin2.id, is_archived: true });
+			await createMaterial({ is_archived: true });
 		});
 
 		it('Admin can filter by student_user_id', async () => {
@@ -139,14 +139,14 @@ describe('[E2E] Get materials usecase', () => {
 			expect(res.body[0].is_archived).to.equal(true);
 		});
 
-		it('Admin without filters gets all materials', async () => {
+		it('Admin without filters gets all unarchived materials', async () => {
 			const res = await materialTestSdk.getMaterials({
 				params: {},
 				userMeta: { userId: admin2.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body).to.be.an('array').with.length(4);
+			expect(res.body).to.be.an('array').with.length(3);
 		});
 
 		it('User only sees their own materials, ignoring student_user_id filters', async () => {
