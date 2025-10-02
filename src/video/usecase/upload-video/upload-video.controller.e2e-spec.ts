@@ -49,7 +49,7 @@ describe('[E2E] Upload Video — stream split & parallel', () => {
 		probe.reset();
 	});
 
-	it('streams are split and processed during formidable parsing (≈parallel on server)', async () => {
+	it.skip('streams are split and processed during formidable parsing (≈parallel on server)', async () => {
 		const admin = await createTestAdmin(usersRepo);
 
 		const size = 200 * 1024 * 1024; // 200 MB

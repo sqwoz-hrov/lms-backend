@@ -36,10 +36,18 @@ export class MaterialRepository {
 	}
 
 	async find(filter: Partial<Material> = {}): Promise<Material[]> {
-		let query = this.connection.selectFrom('material').selectAll();
-		for (const key in filter) {
-			query = query.where(key as keyof typeof filter, '=', filter[key as keyof typeof filter]!);
+		let q = this.connection.selectFrom('material').selectAll();
+
+		if (filter.subject_id !== undefined) {
+			q = q.where('subject_id', '=', filter.subject_id);
 		}
-		return await query.execute();
+
+		if (filter.student_user_id !== undefined) {
+			q = q.where(eb => eb.or([eb('student_user_id', '=', filter.student_user_id), eb('student_user_id', 'is', null)]));
+		}
+
+		q = q.where('is_archived', '=', Boolean(filter.is_archived));
+
+		return q.execute();
 	}
 }
