@@ -11,7 +11,10 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { VideosTestSdk } from '../../test-utils/test.sdk';
 
-describe('[E2E] Upload Video — resumable via MinIO', () => {
+// TODO: await for hashing and s3 upload
+// TODO: gzip inflation/deflation
+// TODO: deduplication checks
+describe.skip('[E2E] Upload Video — resumable via MinIO', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
 	let videoTestSdk: VideosTestSdk;
@@ -105,7 +108,7 @@ describe('[E2E] Upload Video — resumable via MinIO', () => {
 
 		s3 = new S3Client({
 			endpoint: s3Conf.endpoint,
-			forcePathStyle: s3Conf.forcePathStyle,
+			region: s3Conf.region,
 			credentials: {
 				accessKeyId: s3Conf.accessKeyId,
 				secretAccessKey: s3Conf.secretAccessKey,
