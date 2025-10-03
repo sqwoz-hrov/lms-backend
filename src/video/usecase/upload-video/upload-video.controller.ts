@@ -16,7 +16,7 @@ export class UploadVideoController {
 	constructor(private readonly uploadVideoUsecase: UploadVideoUsecase) {}
 
 	@RouteWithFileUpload({
-		summary: 'Загружает видео (resumable, chunked)',
+		summary: 'Загружает видео (resumable, chunked, compressed)',
 		responseType: VideoResponseDto,
 	})
 	@Post()
@@ -27,6 +27,7 @@ export class UploadVideoController {
 		@Headers('upload-session-id') sessionIdHeader?: string,
 		@Headers('content-range') contentRangeHeader?: string,
 		@Headers('upload-chunk-size') chunkSizeHeader?: string,
+		@Headers('content-encoding') contentEncodingHeader?: string,
 	): Promise<VideoResponseDto | void> {
 		if (!contentRangeHeader) {
 			throw new BadRequestException('Content-Range header is required');
@@ -41,14 +42,30 @@ export class UploadVideoController {
 			throw new BadRequestException('Upload-Chunk-Size must be a positive number');
 		}
 
-		const user = req.user;
+		const encoding = (contentEncodingHeader || '').toLowerCase().trim();
+		const allowedEncodings = new Set(['gzip']);
+		if (!encoding) {
+			throw new BadRequestException(
+				'Content-Encoding is required and must be "gzip" or "deflate" (server does not accept uncompressed chunks).',
+			);
+		}
+		if (!allowedEncodings.has(encoding)) {
+			throw new BadRequestException(`Unsupported Content-Encoding "${contentEncodingHeader}". Allowed: gzip, deflate.`);
+		}
 
+		const user = req.user;
 		const file = req['parsed-file'];
 		if (!file?.stream) {
 			throw new BadRequestException('File stream is missing');
 		}
 
-		// 2) передаём нормализованные данные в usecase
+		const declaredLength = cr.end - cr.start + 1;
+		if (chunkSize && chunkSize !== declaredLength) {
+			throw new BadRequestException(
+				`Upload-Chunk-Size (${chunkSize}) must match Content-Range length (${declaredLength}).`,
+			);
+		}
+
 		const result = await this.uploadVideoUsecase.execute({
 			userId: user.id,
 			sessionId: sessionIdHeader,
@@ -56,12 +73,13 @@ export class UploadVideoController {
 			chunk: {
 				range: { start: cr.start, end: cr.end },
 				totalSize: cr.total,
-				length: cr.end - cr.start + 1,
+				length: declaredLength,
 				chunkSize,
 			},
 			formParsePromise: file.formParsePromise,
 			filename: 'test',
 			mimeType: 'video/mp4',
+			contentEncoding: encoding,
 		});
 
 		res.setHeader('Upload-Session-Id', result.sessionId);

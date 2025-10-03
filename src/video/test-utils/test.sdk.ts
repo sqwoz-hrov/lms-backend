@@ -17,13 +17,14 @@ export interface UploadChunkParams extends UploadVideoParams {
 export interface UploadChunkHeaders {
 	'content-range': string;
 	'upload-session-id'?: string;
-	'upload-chunk-size'?: number;
+	'upload-chunk-size'?: string;
+	'content-encoding': string;
 }
 
 export interface UploadOptions<T = UploadVideoParams> {
 	params: T;
 	userMeta: UserMeta;
-	headers?: Record<string, string | number>;
+	headers?: UploadChunkHeaders;
 }
 
 export class VideosTestSdk implements ValidateSDK<VideosTestSdk> {
@@ -43,7 +44,7 @@ export class VideosTestSdk implements ValidateSDK<VideosTestSdk> {
 		});
 	}
 
-	async uploadChunk({ params, userMeta, headers }: UploadOptions<UploadChunkParams> & { headers: UploadChunkHeaders }) {
+	async uploadChunk({ params, userMeta, headers }: UploadOptions<UploadChunkParams>) {
 		const { start, end, file, filename } = params;
 
 		// Extract only the bytes for this chunk
@@ -51,35 +52,13 @@ export class VideosTestSdk implements ValidateSDK<VideosTestSdk> {
 		const form = this.createFormData(chunkBuffer, filename);
 
 		// Build headers with proper types
-		const requestHeaders = this.buildChunkHeaders(headers);
 
 		return await this.testClient.request<VideoResponseDto>({
 			path: '/videos',
 			method: 'POST',
 			body: form,
-			headers: requestHeaders,
+			headers,
 			userMeta,
-		});
-	}
-
-	/**
-	 * Upload an entire file as a single chunk (convenience method)
-	 */
-	public async uploadWhole({ params, userMeta }: UploadOptions) {
-		const totalSize = params.file.length;
-
-		return this.uploadChunk({
-			params: {
-				...params,
-				totalSize,
-				start: 0,
-				end: totalSize - 1,
-			},
-			userMeta,
-			headers: {
-				'content-range': `bytes 0-${totalSize - 1}/${totalSize}`,
-				'upload-chunk-size': Number(totalSize),
-			},
 		});
 	}
 
@@ -96,25 +75,6 @@ export class VideosTestSdk implements ValidateSDK<VideosTestSdk> {
 		});
 
 		return form;
-	}
-
-	/**
-	 * Build headers for chunk upload requests
-	 */
-	private buildChunkHeaders(headers: UploadChunkHeaders): Record<string, string> {
-		const requestHeaders: Record<string, string> = {
-			'content-range': headers['content-range'],
-		};
-
-		if (headers['upload-session-id']) {
-			requestHeaders['upload-session-id'] = headers['upload-session-id'];
-		}
-
-		if (typeof headers['upload-chunk-size'] === 'number') {
-			requestHeaders['upload-chunk-size'] = String(headers['upload-chunk-size']);
-		}
-
-		return requestHeaders;
 	}
 
 	/**

@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
-import { randomUUID } from 'crypto';
 import { Readable, Writable } from 'stream';
 import { S3VideoStorageAdapter } from '../adapters/s3-video-storage.adapter';
 
@@ -10,12 +9,14 @@ export type UploadLocalFileInput = {
 	contentType: string;
 	contentLength: number;
 	checksumBase64?: string;
+	contentEncoding: string;
 	metadata?: Record<string, string>;
 };
 
 export type UploadLocalFileResult = {
 	storageKey: string;
 	coldStorageKey?: string;
+	deduplicated?: boolean;
 };
 
 @Injectable()
@@ -24,17 +25,23 @@ export class VideoStorageService {
 
 	constructor(private readonly s3Storage: S3VideoStorageAdapter) {}
 
-	/**
-	 * Параллельно грузит локальный файл в два S3 (hot и cold).
-	 * Возвращает URL/ключ из HOT.
-	 */
-	async uploadLocalFile(input: UploadLocalFileInput): Promise<UploadLocalFileResult> {
-		const id = randomUUID();
+	public async findOrUploadByChecksum(
+		input: UploadLocalFileInput & { checksumBase64: string },
+	): Promise<UploadLocalFileResult> {
 		const safeName = sanitizeName(input.filename);
-		const hotKey = `videos/${id}/${safeName}`;
-		const coldKey = `videos/${id}/${safeName}`;
+		const hashHex = base64ToHex(input.checksumBase64);
+		const hotKey = `videos/by-hash/${hashHex}/${safeName}`;
+		const coldKey = `videos/by-hash/${hashHex}/${safeName}`;
 
-		// два независимых чтения с диска — надёжнее, чем tee/PassThrough
+		const head = await this.s3Storage.headHotObject({ key: hotKey }).catch(() => null);
+		if (head?.exists) {
+			return {
+				storageKey: hotKey,
+				coldStorageKey: undefined,
+				deduplicated: true,
+			};
+		}
+
 		const rsHot = fs.createReadStream(input.localPath, { highWaterMark: 1024 * 1024 });
 		const rsCold = fs.createReadStream(input.localPath, { highWaterMark: 1024 * 1024 });
 
@@ -45,6 +52,7 @@ export class VideoStorageService {
 			contentLength: input.contentLength,
 			checksumBase64: input.checksumBase64,
 			metadata: input.metadata,
+			contentEncoding: input.contentEncoding,
 		});
 
 		const coldUpload = this.s3Storage.uploadStreamToCold({
@@ -54,6 +62,7 @@ export class VideoStorageService {
 			contentLength: input.contentLength,
 			checksumBase64: input.checksumBase64,
 			metadata: input.metadata,
+			contentEncoding: input.contentEncoding,
 		});
 
 		try {
@@ -63,6 +72,7 @@ export class VideoStorageService {
 			return {
 				storageKey: hotRes.storageKey ?? hotKey,
 				coldStorageKey: coldKey,
+				deduplicated: false,
 			};
 		} catch (err) {
 			this.logger.error('Parallel S3 upload failed', err as Error);
@@ -75,7 +85,6 @@ export class VideoStorageService {
 	private closeStreamSafely(stream: Readable | Writable | null | undefined, label: string): boolean {
 		if (!stream) return false;
 		try {
-			// если уже закрыт/уничтожен — ничего не делаем
 			const anyStream = stream;
 			const destroyed = Boolean(anyStream.destroyed);
 			if (!destroyed) {
@@ -93,4 +102,8 @@ export class VideoStorageService {
 
 function sanitizeName(s: string): string {
 	return s.replace(/[^\w.-]+/g, '_');
+}
+
+function base64ToHex(b64: string): string {
+	return Buffer.from(b64, 'base64').toString('hex');
 }

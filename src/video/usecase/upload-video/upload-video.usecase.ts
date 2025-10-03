@@ -34,6 +34,7 @@ type ExecuteInput = {
 	formParsePromise: Promise<any>;
 	filename: string;
 	mimeType: string;
+	contentEncoding: string;
 };
 
 type ExecuteResult = {
@@ -125,7 +126,7 @@ export class UploadVideoUsecase {
 		const fresh = await this.videoRepo.findById(videoId);
 		if (!fresh) throw new NotFoundException('Upload session lost');
 
-		this.hasnAndSaveToS3(fresh).catch(e => {
+		this.hasnAndSaveToS3(fresh, input.contentEncoding).catch(e => {
 			this.logger.fatal(e, `Failed to hash and save video to s3, video id ${fresh.id}`);
 		});
 
@@ -160,19 +161,20 @@ export class UploadVideoUsecase {
 		return p;
 	}
 
-	private async hasnAndSaveToS3(video: Video): Promise<void> {
-		const sha256 = await sha256File(video.tmp_path);
+	private async hasnAndSaveToS3(video: Video, contentEncoding: string): Promise<void> {
+		const sha256 = await sha256File(video.tmp_path); // base64
 		await this.videoRepo.setChecksum(video.id, sha256);
 
 		await this.videoRepo.setPhase(video.id, 'uploading_s3');
 
-		const storeRes = await this.storage.uploadLocalFile({
+		const storeRes = await this.storage.findOrUploadByChecksum({
 			localPath: video.tmp_path,
 			filename: video.filename,
 			contentType: video.mime_type ?? 'application/octet-stream',
 			contentLength: Number(video.total_size),
 			checksumBase64: sha256,
 			metadata: { userId: video.user_id },
+			contentEncoding,
 		});
 
 		const updated = await this.videoRepo.update(video.id, {
@@ -195,5 +197,6 @@ export class UploadVideoUsecase {
 		}
 
 		await this.videoRepo.setPhase(video.id, 'completed');
+		console.log('complete');
 	}
 }

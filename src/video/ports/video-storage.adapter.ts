@@ -5,6 +5,7 @@ export type UploadStreamInput = {
 	stream: Readable;
 	contentType: string;
 	contentLength: number;
+	contentEncoding: string;
 	checksumBase64?: string;
 	metadata?: Record<string, string>;
 };

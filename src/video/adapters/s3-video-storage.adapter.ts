@@ -1,4 +1,4 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, HeadObjectCommand, NoSuchKey, S3Client, S3ServiceException } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
@@ -25,6 +25,43 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 		});
 	}
 
+	async headHotObject({
+		key,
+	}: {
+		key: string;
+	}): Promise<{ exists: boolean; eTag?: string; size?: number; metadata?: Record<string, string> }> {
+		try {
+			const res = await this.s3Client.send(
+				new HeadObjectCommand({
+					Bucket: this.config.videosHotBucketName,
+					Key: `videos/${key}`,
+				}),
+			);
+
+			this.logger.log(`HEAD hot video OK: ${key}`);
+			return {
+				exists: true,
+				eTag: res.ETag ?? undefined,
+				size: typeof res.ContentLength === 'number' ? res.ContentLength : Number(res.ContentLength ?? 0),
+				metadata: (res.Metadata as Record<string, string>) ?? undefined,
+			};
+		} catch (error) {
+			if (error instanceof NoSuchKey) {
+				return { exists: false };
+			}
+
+			if (error instanceof S3ServiceException) {
+				const code = error.$metadata?.httpStatusCode;
+				if (code === 404) return { exists: false };
+				if (code === 403) {
+					return { exists: false };
+				}
+			}
+
+			throw error;
+		}
+	}
+
 	async uploadStreamToCold(input: UploadStreamInput): Promise<UploadStreamResult> {
 		const upload = new Upload({
 			client: this.s3Client,
@@ -34,6 +71,7 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 				Body: input.stream,
 				Metadata: input.metadata,
 				ACL: 'private',
+				ContentEncoding: input.contentEncoding,
 			},
 		});
 
@@ -56,6 +94,7 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 				Body: input.stream,
 				Metadata: input.metadata,
 				ACL: 'private',
+				ContentEncoding: input.contentEncoding,
 			},
 		});
 
