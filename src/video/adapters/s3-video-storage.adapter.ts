@@ -1,4 +1,4 @@
-import { GetObjectCommand, HeadObjectCommand, NoSuchKey, S3Client, S3ServiceException } from '@aws-sdk/client-s3';
+import { GetObjectCommand, HeadObjectCommand, S3Client, S3ServiceException } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
@@ -34,7 +34,7 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 			const res = await this.s3Client.send(
 				new HeadObjectCommand({
 					Bucket: this.config.videosHotBucketName,
-					Key: `videos/${key}`,
+					Key: key,
 				}),
 			);
 
@@ -46,18 +46,10 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 				metadata: (res.Metadata as Record<string, string>) ?? undefined,
 			};
 		} catch (error) {
-			if (error instanceof NoSuchKey) {
-				return { exists: false };
-			}
-
 			if (error instanceof S3ServiceException) {
 				const code = error.$metadata?.httpStatusCode;
-				if (code === 404) return { exists: false };
-				if (code === 403) {
-					return { exists: false };
-				}
+				if (code === 404 || code === 403) return { exists: false };
 			}
-
 			throw error;
 		}
 	}
@@ -67,21 +59,22 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 			client: this.s3Client,
 			params: {
 				Bucket: this.config.videosColdBucketName,
-				Key: `videos/${input.key}`,
+				Key: input.key,
 				Body: input.stream,
 				Metadata: input.metadata,
 				ACL: 'private',
 				ContentEncoding: input.contentEncoding,
+				ContentType: input.contentType,
 			},
 		});
 
 		try {
 			const result = await upload.done();
-			this.logger.log(`Video ${input.key} uploaded successfully.`);
-			return { storageKey: result.Key! };
+			this.logger.log(`Video uploaded to COLD: ${input.key}`);
+			return { storageKey: result.Key ?? input.key };
 		} catch (error) {
-			this.logger.error('Error uploading video to S3:', error);
-			throw new Error('Failed to upload video to S3');
+			this.logger.error('Error uploading video to COLD S3:', error);
+			throw new Error('Failed to upload video to S3 (cold)');
 		}
 	}
 
@@ -90,21 +83,22 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 			client: this.s3Client,
 			params: {
 				Bucket: this.config.videosHotBucketName,
-				Key: `videos/${input.key}`,
+				Key: input.key,
 				Body: input.stream,
 				Metadata: input.metadata,
 				ACL: 'private',
 				ContentEncoding: input.contentEncoding,
+				ContentType: input.contentType,
 			},
 		});
 
 		try {
 			const result = await upload.done();
-			this.logger.log(`Video ${input.key} uploaded successfully.`);
-			return { storageKey: result.Key! };
+			this.logger.log(`Video uploaded to HOT: ${input.key}`);
+			return { storageKey: result.Key ?? input.key };
 		} catch (error) {
-			this.logger.error('Error uploading video to S3:', error);
-			throw new Error('Failed to upload video to S3');
+			this.logger.error('Error uploading video to HOT S3:', error);
+			throw new Error('Failed to upload video to S3 (hot)');
 		}
 	}
 

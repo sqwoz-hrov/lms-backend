@@ -28,10 +28,12 @@ export class VideoStorageService {
 	public async findOrUploadByChecksum(
 		input: UploadLocalFileInput & { checksumBase64: string },
 	): Promise<UploadLocalFileResult> {
-		const safeName = sanitizeName(input.filename);
 		const hashHex = base64ToHex(input.checksumBase64);
-		const hotKey = `videos/by-hash/${hashHex}/${safeName}`;
-		const coldKey = `videos/by-hash/${hashHex}/${safeName}`;
+
+		const { hotKey, coldKey } = buildNormalizedKeys({
+			filename: input.filename,
+			hashHex,
+		});
 
 		const head = await this.s3Storage.headHotObject({ key: hotKey }).catch(() => null);
 		if (head?.exists) {
@@ -100,8 +102,21 @@ export class VideoStorageService {
 	}
 }
 
+function buildNormalizedKeys(args: { filename: string; hashHex: string }) {
+	const safeName = sanitizeName(args.filename);
+	const base = 'videos/by-hash';
+	const hotKey = `${base}/${args.hashHex}/${safeName}`;
+	const coldKey = `${base}/${args.hashHex}/${safeName}`;
+	return { hotKey, coldKey };
+}
+
 function sanitizeName(s: string): string {
-	return s.replace(/[^\w.-]+/g, '_');
+	const stripped = s.replace(/[/\\]+/g, '_').replace(/\.\.+/g, '.');
+	const normalized = stripped
+		.replace(/[^\w.-]+/g, '_')
+		.replace(/_+/g, '_')
+		.replace(/^_+|_+$/g, '');
+	return normalized.toLowerCase();
 }
 
 function base64ToHex(b64: string): string {
