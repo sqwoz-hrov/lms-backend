@@ -5,7 +5,7 @@ import { createTestFeedbackDto } from '../../../../test/fixtures/feedback.fixtur
 import { InterviewAggregateBuilder } from '../../../../test/fixtures/interview.fixture';
 import { createTestMarkdownContent } from '../../../../test/fixtures/markdown-content.fixture';
 import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
-import { ISharedContext } from '../../../../test/test.app-setup';
+import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { HrConnectionsTestRepository } from '../../../hr-connection/test-utils/test.repo';

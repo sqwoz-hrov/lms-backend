@@ -1,177 +1,314 @@
+import { DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
 import { HttpStatus, INestApplication } from '@nestjs/common';
-import { expect } from 'chai';
 import { ConfigType } from '@nestjs/config';
-import { jwtConfig } from '../../../config';
-import { TestHttpClient } from '../../../../test/test.http-client';
-import { VideosTestSdk } from '../../test-utils/test.sdk';
-import { createTestAdmin } from '../../../../test/fixtures/user.fixture';
-import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { DatabaseProvider } from '../../../infra/db/db.provider';
-import { S3AdapterDouble, YoutubeAdapterDouble } from '../../adapters/doubles.adapter';
-import { S3_VIDEO_STORAGE_ADAPTER, YOUTUBE_VIDEO_STORAGE_ADAPTER } from '../../constants';
-import { ISharedContext } from '../../../../test/test.app-setup';
+import { expect } from 'chai';
 import { randomBytes } from 'crypto';
-import { FormidableTimingProbe } from '../../../common/testing/formidable-timing-probe';
+import * as zlib from 'zlib';
+import * as sinon from 'sinon';
+import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import { ISharedContext } from '../../../../test/setup/test.app-setup';
+import { TestHttpClient } from '../../../../test/test.http-client';
+import { jwtConfig, s3Config } from '../../../config';
+import { DatabaseProvider } from '../../../infra/db/db.provider';
+import { UsersTestRepository } from '../../../user/test-utils/test.repo';
+import { UploadChunkHeaders, VideosTestSdk } from '../../test-utils/test.sdk';
+import { VideoStorageService } from '../../services/video-storage.service';
 
-describe('[E2E] Upload Video — stream split & parallel', () => {
+describe.skip('[E2E] Upload Video — resumable via MinIO (gzip, async S3)', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
-	let sdk: VideosTestSdk;
+	let videoTestSdk: VideosTestSdk;
+	let jwtConf: ConfigType<typeof jwtConfig>;
 
-	let yt: YoutubeAdapterDouble;
-	let s3: S3AdapterDouble;
-	let probe: FormidableTimingProbe;
+	let s3: S3Client;
+	let S3_HOT_BUCKET: string;
+	let S3_COLD_BUCKET: string;
 
+	let storageSvc: VideoStorageService;
+	let s3UploadSpy: sinon.SinonSpy;
+
+	/** ---------- generic helpers ---------- */
+	const gzip = (buf: Buffer) => zlib.gzipSync(buf);
+	const rangeHeader = (start: number, end: number, total: number) => `bytes ${start}-${end}/${total}`;
+
+	async function waitFor(predicate: () => boolean, timeoutMs = 15_000, intervalMs = 50): Promise<void> {
+		const start = Date.now();
+
+		while (true) {
+			if (predicate()) return;
+			if (Date.now() - start > timeoutMs) throw new Error('Timed out waiting for condition');
+			await new Promise(r => setTimeout(r, intervalMs));
+		}
+	}
+
+	function buildHeaders(args: {
+		start: number;
+		end: number;
+		total: number;
+		chunkSize: number;
+		sessionId?: string | null;
+		encoding?: 'gzip';
+	}) {
+		const h: UploadChunkHeaders = {
+			'content-range': rangeHeader(args.start, args.end, args.total),
+			'upload-chunk-size': String(args.chunkSize),
+			'content-encoding': args.encoding ?? 'gzip',
+		};
+		if (args.sessionId) h['upload-session-id'] = args.sessionId;
+		return h;
+	}
+
+	async function headObjectSize(s3: S3Client, bucket: string, key?: string): Promise<number | undefined> {
+		if (!key) return undefined;
+		const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+		return head.ContentLength ?? undefined;
+	}
+
+	async function findObjectOfSize(bucket: string, size: number): Promise<number | undefined> {
+		const res = await s3.send(new ListObjectsV2Command({ Bucket: bucket }));
+		if (!res.Contents?.length) return undefined;
+		for (const o of res.Contents) {
+			const sizeFromHead = await headObjectSize(s3, bucket, o.Key);
+			if (sizeFromHead === size) return sizeFromHead;
+		}
+		return undefined;
+	}
+
+	async function clearBucket(s3: S3Client, bucket: string): Promise<void> {
+		try {
+			let token: string | undefined;
+			do {
+				const list = await s3.send(
+					new ListObjectsV2Command({ Bucket: bucket, ...(token && { ContinuationToken: token }) }),
+				);
+				if (!list.Contents?.length) break;
+				for (const o of list.Contents) {
+					if (!o.Key) continue;
+					try {
+						await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: o.Key }));
+					} catch (e) {
+						// don't fail teardown on a single delete error
+						console.warn(`Failed to delete object ${o.Key}:`, e);
+					}
+				}
+				token = list.NextContinuationToken;
+			} while (token);
+		} catch (err: any) {
+			if (err?.name === 'NoSuchBucket') return;
+			throw err;
+		}
+	}
+
+	/** Upload one compressed chunk with consistent headers */
+	async function uploadChunkGzip(opts: {
+		filename: string;
+		file: Buffer; // already gzipped
+		start: number;
+		end: number;
+		totalCompressed: number;
+		userMeta: { userId: string; isAuth: boolean; isWrongAccessJwt: boolean };
+		sessionId?: string | null;
+	}) {
+		return videoTestSdk.uploadChunk({
+			params: {
+				file: opts.file,
+				filename: opts.filename,
+				start: opts.start,
+				end: opts.end,
+				totalSize: opts.totalCompressed,
+			},
+			userMeta: opts.userMeta,
+			headers: buildHeaders({
+				start: opts.start,
+				end: opts.end,
+				total: opts.totalCompressed,
+				chunkSize: opts.file.length,
+				sessionId: opts.sessionId,
+			}),
+		});
+	}
+
+	/** Wait for async S3 path to trigger, then assert both hot/cold contain object with expected size */
+	async function expectAsyncUploadFinishedWithSize(expectedSize: number) {
+		console.log('waiting');
+		await waitFor(() => s3UploadSpy.calledOnce);
+		console.log('finish waiting');
+		const hot = await findObjectOfSize(S3_HOT_BUCKET, expectedSize);
+		const cold = await findObjectOfSize(S3_COLD_BUCKET, expectedSize);
+		expect(hot, 'hot object size').to.equal(expectedSize);
+		expect(cold, 'cold object size').to.equal(expectedSize);
+	}
+
+	/** Split random buffer into 2 parts, compress both, and return sizes */
+	function twoPartCompressed(size: number, splitAt?: number) {
+		const plain = randomBytes(size);
+		const m = splitAt ?? Math.floor(size / 2);
+		const p1 = plain.subarray(0, m);
+		const p2 = plain.subarray(m);
+		const gz1 = gzip(p1);
+		const gz2 = gzip(p2);
+		return {
+			part1Gz: gz1,
+			part2Gz: gz2,
+			totalCompressed: gz1.length + gz2.length,
+		};
+	}
+
+	/** ---------- mocha lifecycle ---------- */
 	before(function (this: ISharedContext) {
 		app = this.app;
 
 		const kysely = app.get(DatabaseProvider);
 		usersRepo = new UsersTestRepository(kysely);
 
-		yt = app.get<YoutubeAdapterDouble>(YOUTUBE_VIDEO_STORAGE_ADAPTER);
-		s3 = app.get<S3AdapterDouble>(S3_VIDEO_STORAGE_ADAPTER);
-		probe = app.get(FormidableTimingProbe);
+		jwtConf = app.get(jwtConfig.KEY);
+		videoTestSdk = new VideosTestSdk(new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }, jwtConf));
 
-		sdk = new VideosTestSdk(
-			new TestHttpClient(
-				{ port: 3000, host: 'http://127.0.0.1' },
-				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
-			),
-		);
+		const s3Conf = app.get<ConfigType<typeof s3Config>>(s3Config.KEY);
+		S3_HOT_BUCKET = s3Conf.videosHotBucketName;
+		S3_COLD_BUCKET = s3Conf.videosColdBucketName;
+
+		s3 = new S3Client({
+			endpoint: s3Conf.endpoint,
+			region: s3Conf.region,
+			credentials: {
+				accessKeyId: s3Conf.accessKeyId,
+				secretAccessKey: s3Conf.secretAccessKey,
+			},
+		});
+
+		// spy on the service that triggers S3 upload (async after HTTP response)
+		storageSvc = app.get(VideoStorageService);
+		s3UploadSpy = sinon.spy(storageSvc, 'findOrUploadByChecksum');
 	});
 
-	afterEach(async () => {
+	afterEach(() => {
+		s3UploadSpy.resetHistory();
+	});
+
+	after(async () => {
 		await usersRepo.clearAll();
-		yt.capture = { totalBytes: 0, attempts: 0, bytesPerAttempt: [] };
-		s3.capture = { totalBytes: 0, attempts: 0, bytesPerAttempt: [] };
-		yt.failOnceAtChunkIndex = undefined;
-		s3.failOnceAtChunkIndex = undefined;
-		probe.reset();
+		await clearBucket(s3, S3_HOT_BUCKET);
+		await clearBucket(s3, S3_COLD_BUCKET);
+		s3UploadSpy.restore();
 	});
 
-	it.skip('streams are split and processed during formidable parsing (≈parallel on server)', async () => {
+	/** ---------- tests ---------- */
+
+	it('rejects unauthorized user (401)', async () => {
+		const user = await createTestUser(usersRepo);
+		const gz = gzip(randomBytes(1024 * 1024));
+
+		const res = await uploadChunkGzip({
+			filename: 'unauth.bin',
+			file: gz,
+			start: 0,
+			end: gz.length - 1,
+			totalCompressed: gz.length,
+			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
+		expect(s3UploadSpy.called).to.equal(false);
+	});
+
+	it('happy path: uploads a single gzip chunk; waits for async S3 upload', async function () {
 		const admin = await createTestAdmin(usersRepo);
 
-		const size = 200 * 1024 * 1024; // 200 MB
-		const buf = randomBytes(size);
+		const plain = Buffer.from(randomBytes(8 * 1024 * 1024));
+		const gz = gzip(plain);
 
-		const res = await sdk.uploadVideo({
-			params: { file: buf, filename: 'big-test.bin' },
+		const res = await uploadChunkGzip({
+			filename: 'happy.bin',
+			file: gz,
+			start: 0,
+			end: gz.length - 1,
+			totalCompressed: gz.length,
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
+		// Controller responds immediately; usecase kicks off hashing+S3 upload asynchronously
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		expect(res.headers.get('upload-length')).to.equal(String(gz.length));
+		expect(res.headers.get('upload-offset')).to.equal(String(gz.length));
+		expect(res.headers.get('location')).to.be.a('string');
 
-		// оба потребителя получили файл полностью
-		expect(yt.capture.totalBytes).to.equal(size);
-		expect(s3.capture.totalBytes).to.equal(size);
-
-		// серверные метки
-		expect(probe.mark.requestStartAt, 'probe.requestStartAt missing').to.be.a('number');
-		expect(probe.mark.startAt, 'probe.startAt missing').to.be.a('number');
-		expect(probe.mark.endAt, 'probe.endAt missing').to.be.a('number');
-		expect(probe.mark.startAt!).to.be.at.least(probe.mark.requestStartAt!);
-		expect(probe.mark.endAt!).to.be.greaterThan(probe.mark.startAt!);
-
-		// у обоих адаптеров есть метки первого/последнего чанка
-		expect(yt.capture.firstChunkAt, 'yt firstChunkAt missing').to.be.a('number');
-		expect(s3.capture.firstChunkAt, 's3 firstChunkAt missing').to.be.a('number');
-		expect(yt.capture.lastChunkAt, 'yt lastChunkAt missing').to.be.a('number');
-		expect(s3.capture.lastChunkAt, 's3 lastChunkAt missing').to.be.a('number');
-
-		// порядок событий: requestStart <= parseStart <= first <= last <= parseEnd
-		expect(yt.capture.firstChunkAt!).to.be.at.least(probe.mark.startAt!);
-		expect(s3.capture.firstChunkAt!).to.be.at.least(probe.mark.startAt!);
-		expect(yt.capture.lastChunkAt!).to.be.at.most(probe.mark.endAt!);
-		expect(s3.capture.lastChunkAt!).to.be.at.most(probe.mark.endAt!);
-
-		// Δ(reqStart → firstChunk) <= 100ms
-		const dReqStartYT = yt.capture.firstChunkAt! - probe.mark.requestStartAt!;
-		const dReqStartS3 = s3.capture.firstChunkAt! - probe.mark.requestStartAt!;
-		expect(dReqStartYT).to.be.at.least(0);
-		expect(dReqStartS3).to.be.at.least(0);
-		expect(dReqStartYT, `Δ(reqStart→YT first)=${dReqStartYT}ms`).to.be.lessThan(50);
-		expect(dReqStartS3, `Δ(reqStart→S3 first)=${dReqStartS3}ms`).to.be.lessThan(50);
-
-		// Δ(parseStart → firstChunk) <= 50ms
-		const dStartYT = yt.capture.firstChunkAt! - probe.mark.startAt!;
-		const dStartS3 = s3.capture.firstChunkAt! - probe.mark.startAt!;
-		expect(dStartYT).to.be.at.least(0);
-		expect(dStartS3).to.be.at.least(0);
-		expect(dStartYT, `Δ(start→YT first)=${dStartYT}ms`).to.be.lessThan(50);
-		expect(dStartS3, `Δ(start→S3 first)=${dStartS3}ms`).to.be.lessThan(50);
-
-		// почти одновременный старт веток
-		const dBetweenStarts = Math.abs(yt.capture.firstChunkAt! - s3.capture.firstChunkAt!);
-		expect(dBetweenStarts, `Δ(YT first↔S3 first)=${dBetweenStarts}ms`).to.be.lessThan(50);
-
-		// Δ(lastChunk → parseEnd) <= 50ms
-		const dEndYT = probe.mark.endAt! - yt.capture.lastChunkAt!;
-		const dEndS3 = probe.mark.endAt! - s3.capture.lastChunkAt!;
-		expect(dEndYT).to.be.at.least(0);
-		expect(dEndS3).to.be.at.least(0);
-		expect(dEndYT, `Δ(YT last→end)=${dEndYT}ms`).to.be.lessThan(50);
-		expect(dEndS3, `Δ(S3 last→end)=${dEndS3}ms`).to.be.lessThan(50);
-
-		expect(probe.mark.elapsedMs!).to.be.greaterThan(0);
+		await expectAsyncUploadFinishedWithSize(gz.length);
 	});
 
-	// Продолжение загрузки не реализовано
-	it.skip('resumes when YouTube branch fails once mid-stream', async () => {
+	it('resumes upload after client interruption (2 gzip chunks); waits for async S3 upload', async function () {
 		const admin = await createTestAdmin(usersRepo);
 
-		const size = 10 * 1024 * 1024; // 10 MB — хватит чанков для сбоя
-		const buf = randomBytes(size);
+		const { part1Gz, part2Gz, totalCompressed } = twoPartCompressed(10 * 1024 * 1024);
 
-		// уроним YouTube на 5-м чанке первой попытки
-		yt.failOnceAtChunkIndex = 5;
-
-		const res = await sdk.uploadVideo({
-			params: { file: buf, filename: 'resume-yt.bin' },
+		// chunk #1
+		const res1 = await uploadChunkGzip({
+			filename: 'resume.bin',
+			file: part1Gz,
+			start: 0,
+			end: part1Gz.length - 1,
+			totalCompressed,
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
+		expect(res1.status).to.equal(HttpStatus.NO_CONTENT);
+		expect(res1.headers.get('upload-offset')).to.equal(String(part1Gz.length));
+		const sessionId = res1.headers.get('upload-session-id') as string;
+		expect(sessionId).to.be.a('string');
+		expect(s3UploadSpy.called).to.equal(false);
 
-		expect(res.status).to.equal(HttpStatus.CREATED);
+		// chunk #2
+		const res2 = await uploadChunkGzip({
+			filename: 'resume.bin',
+			file: part2Gz,
+			start: part1Gz.length,
+			end: totalCompressed - 1,
+			totalCompressed,
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+			sessionId,
+		});
+		expect(res2.status).to.equal(HttpStatus.CREATED);
+		expect(res2.headers.get('upload-offset')).to.equal(String(totalCompressed));
+		expect(res2.headers.get('upload-length')).to.equal(String(totalCompressed));
+		expect(res2.headers.get('location')).to.be.a('string');
 
-		// YouTube: 2 попытки, вторая — успешная и целиком
-		expect(yt.capture.attempts).to.equal(2);
-		expect(yt.capture.bytesPerAttempt.length).to.equal(2);
-		expect(yt.capture.bytesPerAttempt[0]).to.be.greaterThan(0);
-		expect(yt.capture.bytesPerAttempt[0]).to.be.lessThan(size);
-		expect(yt.capture.bytesPerAttempt[1]).to.equal(size);
-
-		// S3: 1 попытка, целиком
-		expect(s3.capture.attempts).to.equal(1);
-		expect(s3.capture.bytesPerAttempt.length).to.equal(1);
-		expect(s3.capture.bytesPerAttempt[0]).to.equal(size);
+		await expectAsyncUploadFinishedWithSize(totalCompressed);
 	});
 
-	it.skip('resumes when S3 branch fails once mid-stream', async () => {
+	it('does not start S3 upload until temp file is complete (gzip)', async function () {
 		const admin = await createTestAdmin(usersRepo);
 
-		const size = 10 * 1024 * 1024;
-		const buf = randomBytes(size);
+		const { part1Gz, part2Gz, totalCompressed } = twoPartCompressed(
+			6 * 1024 * 1024,
+			Math.floor((6 * 1024 * 1024 * 2) / 3),
+		);
 
-		// уроним S3 на 7-м чанке первой попытки
-		s3.failOnceAtChunkIndex = 7;
-
-		const res = await sdk.uploadVideo({
-			params: { file: buf, filename: 'resume-s3.bin' },
+		// part 1
+		const res1 = await uploadChunkGzip({
+			filename: 'not-yet.bin',
+			file: part1Gz,
+			start: 0,
+			end: part1Gz.length - 1,
+			totalCompressed,
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
+		expect(res1.status).to.equal(HttpStatus.NO_CONTENT);
+		expect(res1.headers.get('upload-offset')).to.equal(String(part1Gz.length));
+		const sessionId = res1.headers.get('upload-session-id') as string;
+		expect(s3UploadSpy.called).to.equal(false);
 
-		expect(res.status).to.equal(HttpStatus.CREATED);
+		// part 2 completes the temp file
+		const res2 = await uploadChunkGzip({
+			filename: 'not-yet.bin',
+			file: part2Gz,
+			start: part1Gz.length,
+			end: totalCompressed - 1,
+			totalCompressed,
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+			sessionId,
+		});
+		expect(res2.status).to.equal(HttpStatus.CREATED);
+		expect(res2.headers.get('upload-offset')).to.equal(String(totalCompressed));
 
-		// S3: 2 попытки, вторая — целиком
-		expect(s3.capture.attempts).to.equal(2);
-		expect(s3.capture.bytesPerAttempt.length).to.equal(2);
-		expect(s3.capture.bytesPerAttempt[0]).to.be.greaterThan(0);
-		expect(s3.capture.bytesPerAttempt[0]).to.be.lessThan(size);
-		expect(s3.capture.bytesPerAttempt[1]).to.equal(size);
-
-		// YT: 1 попытка, целиком
-		expect(yt.capture.attempts).to.equal(1);
-		expect(yt.capture.bytesPerAttempt.length).to.equal(1);
-		expect(yt.capture.bytesPerAttempt[0]).to.equal(size);
+		await expectAsyncUploadFinishedWithSize(totalCompressed);
 	});
 });

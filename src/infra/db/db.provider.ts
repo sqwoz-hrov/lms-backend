@@ -3,6 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { Kysely, Dialect } from 'kysely';
 import { dbConfig } from '../../config';
 import { DIALECT_FACTORY_KEY } from '../../infra/db/db.const';
+import { JsonbFixPlugin } from './jsonb-fix.kysely-plugin';
 
 @Injectable()
 export class DatabaseProvider {
@@ -24,6 +25,7 @@ export class DatabaseProvider {
 			dialect: dialectFactory({
 				...config,
 			}),
+			plugins: [new JsonbFixPlugin([{ table: 'video', column: 'uploaded_ranges' }])],
 		});
 	}
 

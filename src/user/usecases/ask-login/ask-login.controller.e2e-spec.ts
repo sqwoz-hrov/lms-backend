@@ -3,7 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { createTestUser } from '../../../../test/fixtures/user.fixture';
 import { TestHttpClient } from '../../../../test/test.http-client';
-import { ISharedContext } from '../../../../test/test.app-setup';
+import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../test-utils/test.repo';

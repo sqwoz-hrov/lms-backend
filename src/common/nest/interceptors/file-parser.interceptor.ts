@@ -43,7 +43,7 @@ export class FileParserInterceptor implements NestInterceptor {
 				throw new BadRequestException('Uploaded file is not valid');
 			});
 
-		(req as any)['parsed-file'] = { stream: fileStream, formParsePromise };
+		req['parsed-file'] = { stream: fileStream, formParsePromise };
 		return next.handle();
 	}
 }

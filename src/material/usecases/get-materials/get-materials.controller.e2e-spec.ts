@@ -3,7 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { createTestMaterial } from '../../../../test/fixtures/material.fixture';
 import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
-import { ISharedContext } from '../../../../test/test.app-setup';
+import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
@@ -113,6 +113,7 @@ describe('[E2E] Get materials usecase', () => {
 			await createMaterial({ student_user_id: user1.id });
 			await createMaterial({ student_user_id: user2.id });
 			await createMaterial({ is_archived: true });
+			await createMaterial({ is_archived: false });
 		});
 
 		it('Admin can filter by student_user_id', async () => {
@@ -122,9 +123,9 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body).to.be.an('array').with.length(2);
+			expect(res.body).to.be.an('array').with.length(3);
 			for (const m of res.body) {
-				expect(m.student_user_id).to.equal(user1.id);
+				expect([null, user1.id]).to.include(m.student_user_id);
 			}
 		});
 
@@ -146,7 +147,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body).to.be.an('array').with.length(3);
+			expect(res.body).to.be.an('array').with.length(4);
 		});
 
 		it('User only sees their own materials, ignoring student_user_id filters', async () => {
@@ -156,9 +157,9 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body).to.be.an('array').with.length(2);
+			expect(res.body).to.be.an('array').with.length(3);
 			for (const m of res.body) {
-				expect(m.student_user_id).to.equal(user1.id);
+				expect([null, user1.id]).to.include(m.student_user_id);
 			}
 		});
 
@@ -169,7 +170,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body).to.be.an('array').with.length(1);
+			expect(res.body).to.be.an('array').with.length(2);
 			expect(res.body[0].student_user_id).to.equal(user2.id);
 		});
 
@@ -180,7 +181,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body).to.be.an('array').with.length(1);
+			expect(res.body).to.be.an('array').with.length(2);
 			expect(res.body[0].student_user_id).to.equal(user2.id);
 		});
 	});

@@ -4,7 +4,7 @@ import { expect } from 'chai';
 import { randomWord } from '../../../../test/fixtures/common.fixture';
 import { createTestTask } from '../../../../test/fixtures/task.fixture';
 import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
-import { ISharedContext } from '../../../../test/test.app-setup';
+import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';

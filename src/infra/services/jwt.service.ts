@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { sign, verify, decode } from 'jsonwebtoken';
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { jwtConfig } from '../../config';
 
