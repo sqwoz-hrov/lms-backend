@@ -27,7 +27,6 @@ export class UploadVideoController {
 		@Headers('upload-session-id') sessionIdHeader?: string,
 		@Headers('content-range') contentRangeHeader?: string,
 		@Headers('upload-chunk-size') chunkSizeHeader?: string,
-		@Headers('content-encoding') contentEncodingHeader?: string,
 	): Promise<VideoResponseDto | void> {
 		if (!contentRangeHeader) {
 			throw new BadRequestException('Content-Range header is required');
@@ -40,17 +39,6 @@ export class UploadVideoController {
 		const chunkSize = chunkSizeHeader ? Number(chunkSizeHeader) : undefined;
 		if (chunkSizeHeader && (!Number.isFinite(chunkSize!) || chunkSize! <= 0)) {
 			throw new BadRequestException('Upload-Chunk-Size must be a positive number');
-		}
-
-		const encoding = (contentEncodingHeader || '').toLowerCase().trim();
-		const allowedEncodings = new Set(['gzip']);
-		if (!encoding) {
-			throw new BadRequestException(
-				'Content-Encoding is required and must be "gzip" or "deflate" (server does not accept uncompressed chunks).',
-			);
-		}
-		if (!allowedEncodings.has(encoding)) {
-			throw new BadRequestException(`Unsupported Content-Encoding "${contentEncodingHeader}". Allowed: gzip, deflate.`);
 		}
 
 		const user = req.user;
@@ -79,7 +67,6 @@ export class UploadVideoController {
 			formParsePromise: file.formParsePromise,
 			filename: 'test',
 			mimeType: 'video/mp4',
-			contentEncoding: encoding,
 		});
 
 		res.setHeader('Upload-Session-Id', result.sessionId);

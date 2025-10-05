@@ -6,20 +6,22 @@ import {
 	Logger,
 	NotFoundException,
 } from '@nestjs/common';
-import * as crypto from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
 import type { Readable } from 'stream';
+import * as fs from 'fs';
 import { VideoResponseDto } from '../../dto/base-video.dto';
 import { ChunkUploadService } from '../../services/chunk-upload.service';
 import { VideoStorageService } from '../../services/video-storage.service';
-import { sha256File } from '../../utils/sha-256-file';
 import { VideoRepository } from '../../video.repoistory';
+import { UploadedRange, Video } from '../../video.entity';
+import { calcOffsetFromRanges } from '../../utils/calc-offset-from-ranges';
 import { hasConflictingOverlap } from '../../utils/has-conflicting-overlap';
 import { isRangeAlreadyCovered } from '../../utils/is-range-already-covered';
-import { calcOffsetFromRanges } from '../../utils/calc-offset-from-ranges';
 import { mergeRanges } from '../../utils/merge-ranges';
-import { UploadedRange, Video } from '../../video.entity';
+import { sha256File } from '../../utils/sha-256-file';
+import { allocateTmpPath } from '../../utils/allocate-tmp-path';
+import { allocateGzipTmpPath } from '../../utils/allocate-gzip-tmp-path';
+import { ensureGzipTmpPath } from '../../utils/ensure-gzip-tmp-path';
+import { compressToGzip } from '../../utils/compress-to-gzip';
 
 type ExecuteInput = {
 	userId: string;
@@ -34,7 +36,6 @@ type ExecuteInput = {
 	formParsePromise: Promise<any>;
 	filename: string;
 	mimeType: string;
-	contentEncoding: string;
 };
 
 type ExecuteResult = {
@@ -45,8 +46,6 @@ type ExecuteResult = {
 	location?: string;
 	video?: VideoResponseDto;
 };
-
-const DEFAULT_TMP_DIR = path.resolve(process.cwd(), 'data', 'tmp');
 
 @Injectable()
 export class UploadVideoUsecase {
@@ -61,6 +60,8 @@ export class UploadVideoUsecase {
 	async execute(input: ExecuteInput): Promise<ExecuteResult> {
 		let videoId = input.sessionId;
 		if (!videoId) {
+			const tmpPath = allocateTmpPath();
+			const gzipTmpPath = allocateGzipTmpPath();
 			const { id } = await this.videoRepo.save({
 				user_id: input.userId,
 				filename: input.filename,
@@ -69,7 +70,8 @@ export class UploadVideoUsecase {
 				chunk_size: String(
 					input.chunk.chunkSize ?? Math.min(64 * 1024 * 1024, Math.max(1 * 1024 * 1024, input.chunk.length)),
 				),
-				tmp_path: this.allocateTmpPath(),
+				tmp_path: tmpPath,
+				gzip_tmp_path: gzipTmpPath,
 				phase: 'receiving',
 			});
 			videoId = id;
@@ -78,9 +80,7 @@ export class UploadVideoUsecase {
 		let video = await this.videoRepo.findById(videoId);
 		if (!video) throw new BadRequestException('Video upload not found');
 
-		if (video.total_size !== String(input.chunk.totalSize)) {
-			throw new BadRequestException('Total size mismatch');
-		}
+		if (video.total_size !== String(input.chunk.totalSize)) throw new BadRequestException('Total size mismatch');
 
 		const { start, end } = input.chunk.range;
 
@@ -95,9 +95,8 @@ export class UploadVideoUsecase {
 			};
 		}
 
-		if (hasConflictingOverlap(video.uploaded_ranges, start, end)) {
+		if (hasConflictingOverlap(video.uploaded_ranges, start, end))
 			throw new ConflictException('Range overlaps existing data');
-		}
 
 		await this.chunks.writeChunkAt({
 			body: input.stream,
@@ -126,8 +125,8 @@ export class UploadVideoUsecase {
 		const fresh = await this.videoRepo.findById(videoId);
 		if (!fresh) throw new NotFoundException('Upload session lost');
 
-		this.hasnAndSaveToS3(fresh, input.contentEncoding).catch(e => {
-			this.logger.fatal(e, `Failed to hash and save video to s3, video id ${fresh.id}`);
+		this.hashCompressAndSaveToS3(fresh).catch(e => {
+			this.logger.fatal(e, `Failed to finalize video (hash/compress/upload), video id ${fresh.id}`);
 		});
 
 		return {
@@ -138,9 +137,6 @@ export class UploadVideoUsecase {
 		};
 	}
 
-	/**
-	 * Статус теперь — ответственность usecase/репозитория, а не файлового сервиса.
-	 */
 	async getStatus(sessionId: string) {
 		const s = await this.videoRepo.findById(sessionId);
 		if (!s) throw new NotFoundException('Upload session not found');
@@ -153,50 +149,46 @@ export class UploadVideoUsecase {
 		};
 	}
 
-	private allocateTmpPath(): string {
-		const baseDir = process.env.VIDEO_UPLOAD_TMP_DIR || DEFAULT_TMP_DIR;
-		fs.mkdirSync(baseDir, { recursive: true });
-		const p = path.join(baseDir, `${crypto.randomUUID()}.part`);
-		fs.closeSync(fs.openSync(p, 'w'));
-		return p;
-	}
-
-	private async hasnAndSaveToS3(video: Video, contentEncoding: string): Promise<void> {
-		const sha256 = await sha256File(video.tmp_path); // base64
-		await this.videoRepo.setChecksum(video.id, sha256);
-
-		await this.videoRepo.setPhase(video.id, 'uploading_s3');
-
-		const storeRes = await this.storage.findOrUploadByChecksum({
-			localPath: video.tmp_path,
-			filename: video.filename,
-			contentType: video.mime_type ?? 'application/octet-stream',
-			contentLength: Number(video.total_size),
-			checksumBase64: sha256,
-			metadata: { userId: video.user_id },
-			contentEncoding,
-		});
-
-		const updated = await this.videoRepo.update(video.id, {
-			user_id: video.user_id,
-			filename: video.filename,
-			mime_type: video.mime_type,
-			total_size: video.total_size,
-			storage_key: storeRes.storageKey,
-			checksum_sha256_base64: sha256,
-		});
-
-		if (!updated) {
-			throw new InternalServerErrorException('Video is being uploaded by another request');
-		}
-
+	private async hashCompressAndSaveToS3(video: Video): Promise<void> {
 		try {
-			fs.unlinkSync(video.tmp_path);
-		} catch {
-			this.logger.debug(`Failed to delete file ${video.tmp_path}`);
-		}
+			const sha256 = await sha256File(video.tmp_path);
+			await this.videoRepo.setChecksum(video.id, sha256);
+			await this.videoRepo.setPhase(video.id, 'compressing');
 
-		await this.videoRepo.setPhase(video.id, 'completed');
-		console.log('complete');
+			const gzPath = await ensureGzipTmpPath(video.gzip_tmp_path, async newPath => {
+				await this.videoRepo.update(video.id, { gzip_tmp_path: newPath });
+			});
+			const gzSize = await compressToGzip(video.tmp_path, gzPath);
+
+			await this.videoRepo.setPhase(video.id, 'uploading_s3');
+
+			const storeRes = await this.storage.findOrUploadByChecksum({
+				localPath: gzPath,
+				filename: video.filename,
+				contentType: video.mime_type ?? 'application/octet-stream',
+				contentLength: gzSize,
+				checksumBase64: sha256,
+				metadata: { userId: video.user_id },
+			});
+
+			const updated = await this.videoRepo.update(video.id, {
+				user_id: video.user_id,
+				filename: video.filename,
+				mime_type: video.mime_type,
+				total_size: video.total_size,
+				storage_key: storeRes.storageKey,
+				checksum_sha256_base64: sha256,
+			});
+			if (!updated) throw new InternalServerErrorException('Video is being uploaded by another request');
+
+			if (video.tmp_path) fs.unlinkSync(video.tmp_path);
+			if (gzPath) fs.unlinkSync(gzPath);
+
+			await this.videoRepo.setPhase(video.id, 'completed');
+		} catch (err) {
+			this.logger.error(`Finalize failed for video ${video.id}: ${(err as Error).message}`, (err as Error).stack);
+			await this.videoRepo.setPhase(video.id, 'failed');
+			throw err;
+		}
 	}
 }

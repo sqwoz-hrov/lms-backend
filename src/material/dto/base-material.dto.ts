@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { MaterialType } from '../material.entity';
+import { Transform } from 'class-transformer';
+import { strictToBoolean } from '../../common/nest/transform-pipes/transform-boolean';
 
 const MaterialTypes: MaterialType[] = ['article', 'video', 'other'];
 
@@ -47,6 +49,7 @@ export class BaseMaterialDto {
 
 	@ApiProperty()
 	@IsBoolean()
+	@Transform(strictToBoolean)
 	is_archived: boolean;
 }
 

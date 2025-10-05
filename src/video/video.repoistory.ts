@@ -15,13 +15,7 @@ export class VideoRepository {
 			const res = await trx
 				.insertInto('video')
 				.values({
-					user_id: data.user_id,
-					filename: data.filename,
-					mime_type: data.mime_type ?? null,
-					total_size: data.total_size,
-					chunk_size: data.chunk_size,
-					tmp_path: data.tmp_path,
-					phase: data.phase ?? 'receiving',
+					...data,
 					uploaded_ranges: [],
 					upload_offset: String(0),
 				})

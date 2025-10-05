@@ -1,6 +1,6 @@
 import { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
 
-export type UploadPhase = 'receiving' | 'hashing' | 'uploading_s3' | 'completed' | 'failed';
+export type UploadPhase = 'receiving' | 'hashing' | 'compressing' | 'uploading_s3' | 'completed' | 'failed';
 
 export type UploadedRange = { start: number; end: number };
 
@@ -12,6 +12,7 @@ export type VideoTable = {
 	total_size: string;
 	chunk_size: string;
 	tmp_path: string;
+	gzip_tmp_path: string;
 	phase: UploadPhase;
 	uploaded_ranges: UploadedRange[];
 	upload_offset: Generated<string>;

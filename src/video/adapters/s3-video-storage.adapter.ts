@@ -63,8 +63,8 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 				Body: input.stream,
 				Metadata: input.metadata,
 				ACL: 'private',
-				ContentEncoding: input.contentEncoding,
 				ContentType: input.contentType,
+				ContentEncoding: 'gzip',
 			},
 		});
 
@@ -87,8 +87,8 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 				Body: input.stream,
 				Metadata: input.metadata,
 				ACL: 'private',
-				ContentEncoding: input.contentEncoding,
 				ContentType: input.contentType,
+				ContentEncoding: 'gzip',
 			},
 		});
 

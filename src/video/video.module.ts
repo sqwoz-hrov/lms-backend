@@ -8,6 +8,7 @@ import { UploadVideoController } from './usecase/upload-video/upload-video.contr
 import { UploadVideoUsecase } from './usecase/upload-video/upload-video.usecase';
 import { VideoRepository } from './video.repoistory';
 import { FormidableTimingProbe } from '../common/testing/formidable-timing-probe';
+import { ResumeUploadsUsecase } from './usecase/resume-uploads/resume-uploads.usecase';
 
 @Module({
 	controllers: [GetVideoController, UploadVideoController],
@@ -16,6 +17,7 @@ import { FormidableTimingProbe } from '../common/testing/formidable-timing-probe
 		ChunkUploadService,
 		VideoStorageService,
 		GetVideoUsecase,
+		ResumeUploadsUsecase,
 		UploadVideoUsecase,
 		VideoRepository,
 		FormidableTimingProbe,

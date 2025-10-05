@@ -15,11 +15,16 @@ interface JsonbArrayColumn {
 	column: string;
 }
 
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+	if (v === null || typeof v !== 'object') return false;
+	const proto = Object.getPrototypeOf(v);
+	return proto === Object.prototype || proto === null;
+}
+
 export class JsonbFixPlugin implements KyselyPlugin {
 	private jsonbArrayColumns: Set<string>;
 
 	constructor(jsonbArrayColumns: JsonbArrayColumn[] = []) {
-		// Store as "table.column" format for quick lookup
 		this.jsonbArrayColumns = new Set(jsonbArrayColumns.map(col => `${col.table}.${col.column}`));
 	}
 
@@ -35,44 +40,36 @@ export class JsonbFixPlugin implements KyselyPlugin {
 	}
 
 	private fixJsonbInRow(row: any): any {
-		if (!row || typeof row !== 'object') {
-			return row;
-		}
+		if (!isPlainObject(row)) return row;
 
 		const fixed: any = {};
-
 		for (const [key, value] of Object.entries(row)) {
-			// Check if this is a known JSONB array column
 			if (this.shouldBeArray(key, value)) {
 				fixed[key] = [];
 			} else {
 				fixed[key] = this.fixJsonbValue(value);
 			}
 		}
-
 		return fixed;
 	}
 
 	private shouldBeArray(columnName: string, value: any): boolean {
 		return (
-			value &&
-			typeof value === 'object' &&
-			!Array.isArray(value) &&
+			isPlainObject(value) &&
 			Object.keys(value).length === 0 &&
-			// Check if this column is registered as a JSONB array
 			Array.from(this.jsonbArrayColumns).some(col => col.endsWith(`.${columnName}`))
 		);
 	}
 
 	private fixJsonbValue(value: any): any {
-		if (value && typeof value === 'object' && !Array.isArray(value)) {
-			return this.fixJsonbInRow(value);
-		}
-
 		if (Array.isArray(value)) {
 			return value.map(item => this.fixJsonbValue(item));
 		}
-
+		// Only recurse into plain JSON-like objects.
+		if (isPlainObject(value)) {
+			return this.fixJsonbInRow(value);
+		}
+		// Dates, Buffers, Uint8Arrays, BigInts wrapped, etc. are returned as-is.
 		return value;
 	}
 }
