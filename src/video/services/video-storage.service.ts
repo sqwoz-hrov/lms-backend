@@ -9,7 +9,6 @@ export type UploadLocalFileInput = {
 	contentType: string;
 	contentLength: number;
 	checksumBase64?: string;
-	contentEncoding: string;
 	metadata?: Record<string, string>;
 };
 
@@ -54,7 +53,6 @@ export class VideoStorageService {
 			contentLength: input.contentLength,
 			checksumBase64: input.checksumBase64,
 			metadata: input.metadata,
-			contentEncoding: input.contentEncoding,
 		});
 
 		const coldUpload = this.s3Storage.uploadStreamToCold({
@@ -64,7 +62,6 @@ export class VideoStorageService {
 			contentLength: input.contentLength,
 			checksumBase64: input.checksumBase64,
 			metadata: input.metadata,
-			contentEncoding: input.contentEncoding,
 		});
 
 		try {

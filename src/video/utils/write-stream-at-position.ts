@@ -12,7 +12,7 @@ export async function writeStreamAtPosition(
 	filePath: string,
 	offset: number,
 	expectedLength: number,
-): Promise<number> {
+) {
 	const fd = await fs.promises.open(filePath, 'r+');
 	let written = 0;
 
@@ -39,9 +39,4 @@ export async function writeStreamAtPosition(
 	} finally {
 		await fd.close();
 	}
-
-	if (written !== expectedLength) {
-		throw new Error(`Written length mismatch: ${written} != ${expectedLength}`);
-	}
-	return written;
 }

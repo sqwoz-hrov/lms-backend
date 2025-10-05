@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Readable } from 'stream';
 import { writeStreamAtPosition } from '../utils/write-stream-at-position';
 
@@ -11,13 +11,9 @@ export type FileChunkWriteInput = {
 	length?: number;
 };
 
-export type FileChunkWriteResult = {
-	writtenBytes: number;
-};
-
 @Injectable()
 export class ChunkUploadService {
-	async writeChunkAt(input: FileChunkWriteInput): Promise<FileChunkWriteResult> {
+	async writeChunkAt(input: FileChunkWriteInput) {
 		const { body, tmpPath, start, end, totalSize, length } = input;
 
 		if (!(end >= start)) throw new BadRequestException('Invalid range (end < start)');
@@ -28,7 +24,6 @@ export class ChunkUploadService {
 			throw new BadRequestException('Chunk length mismatch');
 		}
 
-		const written = await writeStreamAtPosition(body, tmpPath, start, expectedLen);
-		return { writtenBytes: written };
+		await writeStreamAtPosition(body, tmpPath, start, expectedLen);
 	}
 }
