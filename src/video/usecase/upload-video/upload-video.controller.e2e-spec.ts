@@ -13,7 +13,7 @@ import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { UploadChunkHeaders, VideosTestSdk } from '../../test-utils/test.sdk';
 import { VideoStorageService } from '../../services/video-storage.service';
 
-describe.only('[E2E] Upload Video — resumable via MinIO (async S3, no compression)', () => {
+describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
 	let videoTestSdk: VideosTestSdk;
@@ -59,20 +59,40 @@ describe.only('[E2E] Upload Video — resumable via MinIO (async S3, no compress
 		return h;
 	}
 
-	async function headObjectSize(s3: S3Client, bucket: string, key?: string): Promise<number | undefined> {
+	type LocatedS3Object = {
+		key: string;
+		size: number;
+		contentType?: string;
+	};
+
+	async function headObjectInfo(s3: S3Client, bucket: string, key?: string): Promise<LocatedS3Object | undefined> {
 		if (!key) return undefined;
 		const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-		return head.ContentLength ?? undefined;
+		const size = typeof head.ContentLength === 'number' ? head.ContentLength : Number(head.ContentLength ?? 0);
+		return {
+			key,
+			size,
+			contentType: head.ContentType ?? undefined,
+		};
 	}
 
-	async function findObjectOfSize(bucket: string, size: number): Promise<number | undefined> {
+	async function findObjectOfSize(bucket: string, size: number): Promise<LocatedS3Object | undefined> {
 		const res = await s3.send(new ListObjectsV2Command({ Bucket: bucket }));
 		if (!res.Contents?.length) return undefined;
 		for (const o of res.Contents) {
-			const sizeFromHead = await headObjectSize(s3, bucket, o.Key);
-			if (sizeFromHead === size) return sizeFromHead;
+			const info = await headObjectInfo(s3, bucket, o.Key);
+			if (info?.size === size) return info;
 		}
 		return undefined;
+	}
+
+	function sanitizeExpectedFilename(filename: string): string {
+		const stripped = filename.replace(/[/\\]+/g, '_').replace(/\.\.+/g, '.');
+		const normalized = stripped
+			.replace(/[^\w.-]+/g, '_')
+			.replace(/_+/g, '_')
+			.replace(/^_+|_+$/g, '');
+		return normalized.toLowerCase();
 	}
 
 	async function clearBucket(s3: S3Client, bucket: string): Promise<void> {
@@ -130,25 +150,33 @@ describe.only('[E2E] Upload Video — resumable via MinIO (async S3, no compress
 	}
 
 	/** Wait for async S3 path to trigger, then assert both hot/cold contain object with expected size */
-	async function expectAsyncUploadFinishedWithSize(expectedSize: number) {
+	async function expectAsyncUploadFinishedWithSize(expected: { size: number; filename: string }) {
 		await waitFor(() => s3UploadSpy.callCount >= 1);
-		let hot: number | undefined;
-		let cold: number | undefined;
+		let hot: LocatedS3Object | undefined;
+		let cold: LocatedS3Object | undefined;
 
 		await waitFor(
 			async () => {
 				[hot, cold] = await Promise.all([
-					findObjectOfSize(S3_HOT_BUCKET, expectedSize),
-					findObjectOfSize(S3_COLD_BUCKET, expectedSize),
+					findObjectOfSize(S3_HOT_BUCKET, expected.size),
+					findObjectOfSize(S3_COLD_BUCKET, expected.size),
 				]);
-				return hot === expectedSize && cold === expectedSize;
+				return Boolean(hot && cold);
 			},
 			25_000,
 			200,
 		);
 
-		expect(hot, 'hot object size').to.equal(expectedSize);
-		expect(cold, 'cold object size').to.equal(expectedSize);
+		const expectedFilename = sanitizeExpectedFilename(expected.filename);
+		const hotFilename = hot?.key.split('/').pop();
+		const coldFilename = cold?.key.split('/').pop();
+
+		expect(hot?.size, 'hot object size').to.equal(expected.size);
+		expect(cold?.size, 'cold object size').to.equal(expected.size);
+		expect(hot?.contentType, 'hot object mime type').to.equal('application/octet-stream');
+		expect(cold?.contentType, 'cold object mime type').to.equal('application/octet-stream');
+		expect(hotFilename, 'hot object filename').to.equal(expectedFilename);
+		expect(coldFilename, 'cold object filename').to.equal(expectedFilename);
 	}
 
 	/** Split random buffer into 2 parts (no compression) */
@@ -242,7 +270,7 @@ describe.only('[E2E] Upload Video — resumable via MinIO (async S3, no compress
 		expect(res.headers.get('upload-offset')).to.equal(String(plain.length));
 		expect(res.headers.get('location')).to.be.a('string');
 
-		await expectAsyncUploadFinishedWithSize(plain.length);
+		await expectAsyncUploadFinishedWithSize({ size: plain.length, filename: 'happy.bin' });
 	});
 
 	it('resumes upload after client interruption (2 raw chunks); waits for async S3 upload', async function () {
@@ -280,7 +308,7 @@ describe.only('[E2E] Upload Video — resumable via MinIO (async S3, no compress
 		expect(res2.headers.get('upload-length')).to.equal(String(total));
 		expect(res2.headers.get('location')).to.be.a('string');
 
-		await expectAsyncUploadFinishedWithSize(total);
+		await expectAsyncUploadFinishedWithSize({ size: total, filename: 'resume.bin' });
 	});
 
 	it('does not start S3 upload until temp file is complete (raw)', async function () {
@@ -315,6 +343,6 @@ describe.only('[E2E] Upload Video — resumable via MinIO (async S3, no compress
 		expect(res2.status).to.equal(HttpStatus.CREATED);
 		expect(res2.headers.get('upload-offset')).to.equal(String(total));
 
-		await expectAsyncUploadFinishedWithSize(total);
+		await expectAsyncUploadFinishedWithSize({ size: total, filename: 'not-yet.bin' });
 	});
 });
