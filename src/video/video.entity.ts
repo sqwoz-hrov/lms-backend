@@ -12,7 +12,6 @@ export type VideoTable = {
 	total_size: string;
 	chunk_size: string;
 	tmp_path: string;
-	gzip_tmp_path: string;
 	phase: UploadPhase;
 	uploaded_ranges: UploadedRange[];
 	upload_offset: Generated<string>;

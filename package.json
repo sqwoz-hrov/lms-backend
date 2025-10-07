@@ -37,6 +37,7 @@
     "class-validator": "^0.14.1",
     "cookie-parser": "^1.4.7",
     "env-var": "^7.5.0",
+    "file-type": "^21.0.0",
     "formidable": "^3.5.4",
     "google-auth-library": "^9.15.1",
     "got": "^14.4.9",

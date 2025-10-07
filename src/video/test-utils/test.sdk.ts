@@ -18,7 +18,6 @@ export interface UploadChunkHeaders {
 	'content-range': string;
 	'upload-session-id'?: string;
 	'upload-chunk-size'?: string;
-	'content-encoding': string;
 }
 
 export interface UploadOptions<T = UploadVideoParams> {
@@ -47,8 +46,9 @@ export class VideosTestSdk implements ValidateSDK<VideosTestSdk> {
 	async uploadChunk({ params, userMeta, headers }: UploadOptions<UploadChunkParams>) {
 		const { start, end, file, filename } = params;
 
-		// Extract only the bytes for this chunk
-		const chunkBuffer = file.subarray(start, end + 1);
+		// Accept either the full source buffer or the already-sliced chunk buffer
+		const expectedChunkLength = end - start + 1;
+		const chunkBuffer = file.length === expectedChunkLength ? file : file.subarray(start, end + 1);
 		const form = this.createFormData(chunkBuffer, filename);
 
 		// Build headers with proper types

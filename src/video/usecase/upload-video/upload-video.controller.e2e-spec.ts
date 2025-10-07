@@ -3,7 +3,6 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { randomBytes } from 'crypto';
-import * as zlib from 'zlib';
 import * as sinon from 'sinon';
 import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
@@ -14,7 +13,7 @@ import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { UploadChunkHeaders, VideosTestSdk } from '../../test-utils/test.sdk';
 import { VideoStorageService } from '../../services/video-storage.service';
 
-describe.skip('[E2E] Upload Video — resumable via MinIO (gzip, async S3)', () => {
+describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
 	let videoTestSdk: VideosTestSdk;
@@ -28,14 +27,18 @@ describe.skip('[E2E] Upload Video — resumable via MinIO (gzip, async S3)', () 
 	let s3UploadSpy: sinon.SinonSpy;
 
 	/** ---------- generic helpers ---------- */
-	const gzip = (buf: Buffer) => zlib.gzipSync(buf);
 	const rangeHeader = (start: number, end: number, total: number) => `bytes ${start}-${end}/${total}`;
 
-	async function waitFor(predicate: () => boolean, timeoutMs = 15_000, intervalMs = 50): Promise<void> {
+	async function waitFor(
+		predicate: () => boolean | Promise<boolean>,
+		timeoutMs = 15_000,
+		intervalMs = 50,
+	): Promise<void> {
 		const start = Date.now();
 
 		while (true) {
-			if (predicate()) return;
+			const result = await predicate();
+			if (result) return;
 			if (Date.now() - start > timeoutMs) throw new Error('Timed out waiting for condition');
 			await new Promise(r => setTimeout(r, intervalMs));
 		}
@@ -47,31 +50,49 @@ describe.skip('[E2E] Upload Video — resumable via MinIO (gzip, async S3)', () 
 		total: number;
 		chunkSize: number;
 		sessionId?: string | null;
-		encoding?: 'gzip';
 	}) {
 		const h: UploadChunkHeaders = {
 			'content-range': rangeHeader(args.start, args.end, args.total),
 			'upload-chunk-size': String(args.chunkSize),
-			'content-encoding': args.encoding ?? 'gzip',
 		};
 		if (args.sessionId) h['upload-session-id'] = args.sessionId;
 		return h;
 	}
 
-	async function headObjectSize(s3: S3Client, bucket: string, key?: string): Promise<number | undefined> {
+	type LocatedS3Object = {
+		key: string;
+		size: number;
+		contentType?: string;
+	};
+
+	async function headObjectInfo(s3: S3Client, bucket: string, key?: string): Promise<LocatedS3Object | undefined> {
 		if (!key) return undefined;
 		const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-		return head.ContentLength ?? undefined;
+		const size = typeof head.ContentLength === 'number' ? head.ContentLength : Number(head.ContentLength ?? 0);
+		return {
+			key,
+			size,
+			contentType: head.ContentType ?? undefined,
+		};
 	}
 
-	async function findObjectOfSize(bucket: string, size: number): Promise<number | undefined> {
+	async function findObjectOfSize(bucket: string, size: number): Promise<LocatedS3Object | undefined> {
 		const res = await s3.send(new ListObjectsV2Command({ Bucket: bucket }));
 		if (!res.Contents?.length) return undefined;
 		for (const o of res.Contents) {
-			const sizeFromHead = await headObjectSize(s3, bucket, o.Key);
-			if (sizeFromHead === size) return sizeFromHead;
+			const info = await headObjectInfo(s3, bucket, o.Key);
+			if (info?.size === size) return info;
 		}
 		return undefined;
+	}
+
+	function sanitizeExpectedFilename(filename: string): string {
+		const stripped = filename.replace(/[/\\]+/g, '_').replace(/\.\.+/g, '.');
+		const normalized = stripped
+			.replace(/[^\w.-]+/g, '_')
+			.replace(/_+/g, '_')
+			.replace(/^_+|_+$/g, '');
+		return normalized.toLowerCase();
 	}
 
 	async function clearBucket(s3: S3Client, bucket: string): Promise<void> {
@@ -99,13 +120,13 @@ describe.skip('[E2E] Upload Video — resumable via MinIO (gzip, async S3)', () 
 		}
 	}
 
-	/** Upload one compressed chunk with consistent headers */
-	async function uploadChunkGzip(opts: {
+	/** Upload one raw (uncompressed) chunk with consistent headers */
+	async function uploadChunkRaw(opts: {
 		filename: string;
-		file: Buffer; // already gzipped
+		file: Buffer;
 		start: number;
 		end: number;
-		totalCompressed: number;
+		total: number;
 		userMeta: { userId: string; isAuth: boolean; isWrongAccessJwt: boolean };
 		sessionId?: string | null;
 	}) {
@@ -115,13 +136,13 @@ describe.skip('[E2E] Upload Video — resumable via MinIO (gzip, async S3)', () 
 				filename: opts.filename,
 				start: opts.start,
 				end: opts.end,
-				totalSize: opts.totalCompressed,
+				totalSize: opts.total,
 			},
 			userMeta: opts.userMeta,
 			headers: buildHeaders({
 				start: opts.start,
 				end: opts.end,
-				total: opts.totalCompressed,
+				total: opts.total,
 				chunkSize: opts.file.length,
 				sessionId: opts.sessionId,
 			}),
@@ -129,28 +150,45 @@ describe.skip('[E2E] Upload Video — resumable via MinIO (gzip, async S3)', () 
 	}
 
 	/** Wait for async S3 path to trigger, then assert both hot/cold contain object with expected size */
-	async function expectAsyncUploadFinishedWithSize(expectedSize: number) {
-		console.log('waiting');
-		await waitFor(() => s3UploadSpy.calledOnce);
-		console.log('finish waiting');
-		const hot = await findObjectOfSize(S3_HOT_BUCKET, expectedSize);
-		const cold = await findObjectOfSize(S3_COLD_BUCKET, expectedSize);
-		expect(hot, 'hot object size').to.equal(expectedSize);
-		expect(cold, 'cold object size').to.equal(expectedSize);
+	async function expectAsyncUploadFinishedWithSize(expected: { size: number; filename: string }) {
+		await waitFor(() => s3UploadSpy.callCount >= 1);
+		let hot: LocatedS3Object | undefined;
+		let cold: LocatedS3Object | undefined;
+
+		await waitFor(
+			async () => {
+				[hot, cold] = await Promise.all([
+					findObjectOfSize(S3_HOT_BUCKET, expected.size),
+					findObjectOfSize(S3_COLD_BUCKET, expected.size),
+				]);
+				return Boolean(hot && cold);
+			},
+			25_000,
+			200,
+		);
+
+		const expectedFilename = sanitizeExpectedFilename(expected.filename);
+		const hotFilename = hot?.key.split('/').pop();
+		const coldFilename = cold?.key.split('/').pop();
+
+		expect(hot?.size, 'hot object size').to.equal(expected.size);
+		expect(cold?.size, 'cold object size').to.equal(expected.size);
+		expect(hot?.contentType, 'hot object mime type').to.equal('application/octet-stream');
+		expect(cold?.contentType, 'cold object mime type').to.equal('application/octet-stream');
+		expect(hotFilename, 'hot object filename').to.equal(expectedFilename);
+		expect(coldFilename, 'cold object filename').to.equal(expectedFilename);
 	}
 
-	/** Split random buffer into 2 parts, compress both, and return sizes */
-	function twoPartCompressed(size: number, splitAt?: number) {
+	/** Split random buffer into 2 parts (no compression) */
+	function twoPartPlain(size: number, splitAt?: number) {
 		const plain = randomBytes(size);
 		const m = splitAt ?? Math.floor(size / 2);
-		const p1 = plain.subarray(0, m);
-		const p2 = plain.subarray(m);
-		const gz1 = gzip(p1);
-		const gz2 = gzip(p2);
+		const part1 = plain.subarray(0, m);
+		const part2 = plain.subarray(m);
 		return {
-			part1Gz: gz1,
-			part2Gz: gz2,
-			totalCompressed: gz1.length + gz2.length,
+			part1,
+			part2,
+			total: plain.length,
 		};
 	}
 
@@ -197,14 +235,14 @@ describe.skip('[E2E] Upload Video — resumable via MinIO (gzip, async S3)', () 
 
 	it('rejects unauthorized user (401)', async () => {
 		const user = await createTestUser(usersRepo);
-		const gz = gzip(randomBytes(1024 * 1024));
+		const buf = randomBytes(1024 * 1024);
 
-		const res = await uploadChunkGzip({
+		const res = await uploadChunkRaw({
 			filename: 'unauth.bin',
-			file: gz,
+			file: buf,
 			start: 0,
-			end: gz.length - 1,
-			totalCompressed: gz.length,
+			end: buf.length - 1,
+			total: buf.length,
 			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
 		});
 
@@ -212,103 +250,99 @@ describe.skip('[E2E] Upload Video — resumable via MinIO (gzip, async S3)', () 
 		expect(s3UploadSpy.called).to.equal(false);
 	});
 
-	it('happy path: uploads a single gzip chunk; waits for async S3 upload', async function () {
+	it('happy path: uploads a single raw chunk; waits for async S3 upload', async function () {
 		const admin = await createTestAdmin(usersRepo);
 
 		const plain = Buffer.from(randomBytes(8 * 1024 * 1024));
-		const gz = gzip(plain);
 
-		const res = await uploadChunkGzip({
+		const res = await uploadChunkRaw({
 			filename: 'happy.bin',
-			file: gz,
+			file: plain,
 			start: 0,
-			end: gz.length - 1,
-			totalCompressed: gz.length,
+			end: plain.length - 1,
+			total: plain.length,
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		// Controller responds immediately; usecase kicks off hashing+S3 upload asynchronously
 		expect(res.status).to.equal(HttpStatus.CREATED);
-		expect(res.headers.get('upload-length')).to.equal(String(gz.length));
-		expect(res.headers.get('upload-offset')).to.equal(String(gz.length));
+		expect(res.headers.get('upload-length')).to.equal(String(plain.length));
+		expect(res.headers.get('upload-offset')).to.equal(String(plain.length));
 		expect(res.headers.get('location')).to.be.a('string');
 
-		await expectAsyncUploadFinishedWithSize(gz.length);
+		await expectAsyncUploadFinishedWithSize({ size: plain.length, filename: 'happy.bin' });
 	});
 
-	it('resumes upload after client interruption (2 gzip chunks); waits for async S3 upload', async function () {
+	it('resumes upload after client interruption (2 raw chunks); waits for async S3 upload', async function () {
 		const admin = await createTestAdmin(usersRepo);
 
-		const { part1Gz, part2Gz, totalCompressed } = twoPartCompressed(10 * 1024 * 1024);
+		const { part1, part2, total } = twoPartPlain(10 * 1024 * 1024);
 
 		// chunk #1
-		const res1 = await uploadChunkGzip({
+		const res1 = await uploadChunkRaw({
 			filename: 'resume.bin',
-			file: part1Gz,
+			file: part1,
 			start: 0,
-			end: part1Gz.length - 1,
-			totalCompressed,
+			end: part1.length - 1,
+			total,
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 		expect(res1.status).to.equal(HttpStatus.NO_CONTENT);
-		expect(res1.headers.get('upload-offset')).to.equal(String(part1Gz.length));
+		expect(res1.headers.get('upload-offset')).to.equal(String(part1.length));
 		const sessionId = res1.headers.get('upload-session-id') as string;
 		expect(sessionId).to.be.a('string');
 		expect(s3UploadSpy.called).to.equal(false);
 
 		// chunk #2
-		const res2 = await uploadChunkGzip({
+		const res2 = await uploadChunkRaw({
 			filename: 'resume.bin',
-			file: part2Gz,
-			start: part1Gz.length,
-			end: totalCompressed - 1,
-			totalCompressed,
+			file: part2,
+			start: part1.length,
+			end: total - 1,
+			total,
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			sessionId,
 		});
 		expect(res2.status).to.equal(HttpStatus.CREATED);
-		expect(res2.headers.get('upload-offset')).to.equal(String(totalCompressed));
-		expect(res2.headers.get('upload-length')).to.equal(String(totalCompressed));
+		expect(res2.headers.get('upload-offset')).to.equal(String(total));
+		expect(res2.headers.get('upload-length')).to.equal(String(total));
 		expect(res2.headers.get('location')).to.be.a('string');
 
-		await expectAsyncUploadFinishedWithSize(totalCompressed);
+		await expectAsyncUploadFinishedWithSize({ size: total, filename: 'resume.bin' });
 	});
 
-	it('does not start S3 upload until temp file is complete (gzip)', async function () {
+	it('does not start S3 upload until temp file is complete (raw)', async function () {
 		const admin = await createTestAdmin(usersRepo);
 
-		const { part1Gz, part2Gz, totalCompressed } = twoPartCompressed(
-			6 * 1024 * 1024,
-			Math.floor((6 * 1024 * 1024 * 2) / 3),
-		);
+		const { part1, part2, total } = twoPartPlain(6 * 1024 * 1024, Math.floor((6 * 1024 * 1024 * 2) / 3));
 
 		// part 1
-		const res1 = await uploadChunkGzip({
+		const res1 = await uploadChunkRaw({
 			filename: 'not-yet.bin',
-			file: part1Gz,
+			file: part1,
 			start: 0,
-			end: part1Gz.length - 1,
-			totalCompressed,
+			end: part1.length - 1,
+			total,
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 		expect(res1.status).to.equal(HttpStatus.NO_CONTENT);
-		expect(res1.headers.get('upload-offset')).to.equal(String(part1Gz.length));
+		expect(res1.headers.get('upload-offset')).to.equal(String(part1.length));
 		const sessionId = res1.headers.get('upload-session-id') as string;
 		expect(s3UploadSpy.called).to.equal(false);
 
 		// part 2 completes the temp file
-		const res2 = await uploadChunkGzip({
+		const res2 = await uploadChunkRaw({
 			filename: 'not-yet.bin',
-			file: part2Gz,
-			start: part1Gz.length,
-			end: totalCompressed - 1,
-			totalCompressed,
+			file: part2,
+			start: part1.length,
+			end: total - 1,
+			total,
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			sessionId,
 		});
 		expect(res2.status).to.equal(HttpStatus.CREATED);
-		expect(res2.headers.get('upload-offset')).to.equal(String(totalCompressed));
+		expect(res2.headers.get('upload-offset')).to.equal(String(total));
 
-		await expectAsyncUploadFinishedWithSize(totalCompressed);
+		await expectAsyncUploadFinishedWithSize({ size: total, filename: 'not-yet.bin' });
 	});
 });

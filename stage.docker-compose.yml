@@ -25,11 +25,6 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - type: bind
-        source: ${VIDEO_GZIP_TMP_HOST_DIR}
-        target: ${VIDEO_GZIP_TMP_DIR}
-        bind:
-          create_host_path: true
-      - type: bind
         source: ${VIDEO_UPLOAD_TMP_HOST_DIR}
         target: ${VIDEO_UPLOAD_TMP_DIR}
         bind:
