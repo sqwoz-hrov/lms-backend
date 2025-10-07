@@ -19,9 +19,6 @@ import { isRangeAlreadyCovered } from '../../utils/is-range-already-covered';
 import { mergeRanges } from '../../utils/merge-ranges';
 import { sha256File } from '../../utils/sha-256-file';
 import { allocateTmpPath } from '../../utils/allocate-tmp-path';
-import { allocateGzipTmpPath } from '../../utils/allocate-gzip-tmp-path';
-import { ensureGzipTmpPath } from '../../utils/ensure-gzip-tmp-path';
-import { compressToGzip } from '../../utils/compress-to-gzip';
 
 type ExecuteInput = {
 	userId: string;
@@ -61,7 +58,6 @@ export class UploadVideoUsecase {
 		let videoId = input.sessionId;
 		if (!videoId) {
 			const tmpPath = allocateTmpPath();
-			const gzipTmpPath = allocateGzipTmpPath();
 			const { id } = await this.videoRepo.save({
 				user_id: input.userId,
 				filename: input.filename,
@@ -71,7 +67,6 @@ export class UploadVideoUsecase {
 					input.chunk.chunkSize ?? Math.min(64 * 1024 * 1024, Math.max(1 * 1024 * 1024, input.chunk.length)),
 				),
 				tmp_path: tmpPath,
-				gzip_tmp_path: gzipTmpPath,
 				phase: 'receiving',
 			});
 			videoId = id;
@@ -125,8 +120,8 @@ export class UploadVideoUsecase {
 		const fresh = await this.videoRepo.findById(videoId);
 		if (!fresh) throw new NotFoundException('Upload session lost');
 
-		this.hashCompressAndSaveToS3(fresh).catch(e => {
-			this.logger.fatal(e, `Failed to finalize video (hash/compress/upload), video id ${fresh.id}`);
+		this.hashAndSaveToS3(fresh).catch(e => {
+			this.logger.fatal(e, `Failed to finalize video (hash/upload), video id ${fresh.id}`);
 		});
 
 		return {
@@ -149,24 +144,20 @@ export class UploadVideoUsecase {
 		};
 	}
 
-	private async hashCompressAndSaveToS3(video: Video): Promise<void> {
+	private async hashAndSaveToS3(video: Video): Promise<void> {
 		try {
 			const sha256 = await sha256File(video.tmp_path);
 			await this.videoRepo.setChecksum(video.id, sha256);
-			await this.videoRepo.setPhase(video.id, 'compressing');
-
-			const gzPath = await ensureGzipTmpPath(video.gzip_tmp_path, async newPath => {
-				await this.videoRepo.update(video.id, { gzip_tmp_path: newPath });
-			});
-			const gzSize = await compressToGzip(video.tmp_path, gzPath);
 
 			await this.videoRepo.setPhase(video.id, 'uploading_s3');
 
+			const fileSize = fs.statSync(video.tmp_path).size;
+
 			const storeRes = await this.storage.findOrUploadByChecksum({
-				localPath: gzPath,
+				localPath: video.tmp_path,
 				filename: video.filename,
 				contentType: video.mime_type ?? 'application/octet-stream',
-				contentLength: gzSize,
+				contentLength: fileSize,
 				checksumBase64: sha256,
 				metadata: { userId: video.user_id },
 			});
@@ -182,7 +173,6 @@ export class UploadVideoUsecase {
 			if (!updated) throw new InternalServerErrorException('Video is being uploaded by another request');
 
 			if (video.tmp_path) fs.unlinkSync(video.tmp_path);
-			if (gzPath) fs.unlinkSync(gzPath);
 
 			await this.videoRepo.setPhase(video.id, 'completed');
 		} catch (err) {

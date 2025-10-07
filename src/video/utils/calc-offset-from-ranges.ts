@@ -3,7 +3,6 @@ import { mergeRanges } from './merge-ranges';
 
 export function calcOffsetFromRanges(ranges: UploadedRange[]): number {
 	if (!ranges.length) return 0;
-	// оффсет — длина непрерывного префикса, начинающегося с 0
 	const merged = mergeRanges(ranges);
 	if (merged[0].start !== 0) return 0;
 	let end = merged[0].end;
