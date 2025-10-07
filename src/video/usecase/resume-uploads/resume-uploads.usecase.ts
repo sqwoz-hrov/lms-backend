@@ -5,6 +5,8 @@ import { Video } from '../../video.entity';
 import { VideoRepository } from '../../video.repoistory';
 import { VideoStorageService } from '../../services/video-storage.service';
 import { calcOffsetFromRanges } from '../../utils/calc-offset-from-ranges';
+import { detectVideoMime } from '../../utils/detect-video-mimetype';
+import { ensureFilenameExt } from '../../utils/ensure-filename-extension';
 
 @Injectable()
 export class ResumeUploadsUsecase implements OnModuleInit {
@@ -86,34 +88,36 @@ export class ResumeUploadsUsecase implements OnModuleInit {
 		await this.videoRepo.setChecksum(video.id, checksum);
 		await this.videoRepo.setPhase(video.id, 'uploading_s3');
 
+		const { finalMime, finalFilename, freshVideo } = await this.resolveFinalMimeAndFilename(video, video.tmp_path);
+
 		const size = fs.statSync(video.tmp_path).size;
 
 		const storeRes = await this.storage.findOrUploadByChecksum({
 			localPath: video.tmp_path,
-			filename: video.filename,
-			contentType: video.mime_type ?? 'application/octet-stream',
+			filename: finalFilename,
+			contentType: finalMime,
 			contentLength: size,
 			checksumBase64: checksum,
-			metadata: { userId: video.user_id },
+			metadata: { userId: freshVideo.user_id },
 		});
 
-		const updated = await this.videoRepo.update(video.id, {
-			user_id: video.user_id,
-			filename: video.filename,
-			mime_type: video.mime_type,
-			total_size: video.total_size,
+		const updated = await this.videoRepo.update(freshVideo.id, {
+			user_id: freshVideo.user_id,
+			filename: finalFilename,
+			mime_type: finalMime,
+			total_size: freshVideo.total_size,
 			storage_key: storeRes.storageKey,
 			checksum_sha256_base64: checksum,
 		});
 		if (!updated) {
-			this.logger.error(`Concurrent update race for video ${video.id} while resuming upload.`);
+			this.logger.error(`Concurrent update race for video ${freshVideo.id} while resuming upload.`);
 			return;
 		}
 
-		if (video.tmp_path) fs.unlinkSync(video.tmp_path);
+		if (freshVideo.tmp_path) fs.unlinkSync(freshVideo.tmp_path);
 
-		await this.videoRepo.setPhase(video.id, 'completed');
-		this.logger.log(`Video ${video.id} resumed and completed.`);
+		await this.videoRepo.setPhase(freshVideo.id, 'completed');
+		this.logger.log(`Video ${freshVideo.id} resumed and completed.`);
 	}
 
 	private async ensureUploaded(video: Video): Promise<void> {
@@ -137,33 +141,71 @@ export class ResumeUploadsUsecase implements OnModuleInit {
 			await this.videoRepo.setChecksum(video.id, checksum);
 		}
 
+		const { finalMime, finalFilename, freshVideo } = await this.resolveFinalMimeAndFilename(video, video.tmp_path);
+
 		const size = fs.statSync(video.tmp_path).size;
 
 		const storeRes = await this.storage.findOrUploadByChecksum({
 			localPath: video.tmp_path,
-			filename: video.filename,
-			contentType: video.mime_type ?? 'application/octet-stream',
+			filename: finalFilename,
+			contentType: finalMime,
 			contentLength: size,
 			checksumBase64: checksum,
-			metadata: { userId: video.user_id },
+			metadata: { userId: freshVideo.user_id },
 		});
 
-		const updated = await this.videoRepo.update(video.id, {
-			user_id: video.user_id,
-			filename: video.filename,
-			mime_type: video.mime_type,
-			total_size: video.total_size,
+		const updated = await this.videoRepo.update(freshVideo.id, {
+			user_id: freshVideo.user_id,
+			filename: finalFilename,
+			mime_type: finalMime,
+			total_size: freshVideo.total_size,
 			storage_key: storeRes.storageKey,
 			checksum_sha256_base64: checksum,
 		});
 		if (!updated) {
-			this.logger.error(`Concurrent update race for video ${video.id} while finalizing upload.`);
+			this.logger.error(`Concurrent update race for video ${freshVideo.id} while finalizing upload.`);
 			return;
 		}
 
-		if (video.tmp_path) fs.unlinkSync(video.tmp_path);
+		if (freshVideo.tmp_path) fs.unlinkSync(freshVideo.tmp_path);
 
-		await this.videoRepo.setPhase(video.id, 'completed');
-		this.logger.log(`Video ${video.id} finalized and completed from 'uploading_s3'.`);
+		await this.videoRepo.setPhase(freshVideo.id, 'completed');
+		this.logger.log(`Video ${freshVideo.id} finalized and completed from 'uploading_s3'.`);
+	}
+
+	private async resolveFinalMimeAndFilename(
+		video: Video,
+		localPath: string,
+	): Promise<{
+		finalMime: string;
+		finalFilename: string;
+		freshVideo: Video;
+	}> {
+		const detected = await detectVideoMime(localPath); // null | { mime, ext }
+		const desiredMime = detected?.mime ?? (video.mime_type || 'application/octet-stream');
+		const desiredFilename = detected?.ext ? ensureFilenameExt(video.filename, detected.ext) : video.filename;
+
+		const mimeChanged = desiredMime !== (video.mime_type || '');
+		const nameChanged = desiredFilename !== video.filename;
+
+		if (mimeChanged || nameChanged) {
+			const ok = await this.videoRepo.update(video.id, {
+				user_id: video.user_id,
+				filename: desiredFilename,
+				mime_type: desiredMime,
+				total_size: video.total_size,
+			});
+			if (!ok) {
+				this.logger.warn(`Lost update while normalizing mime/filename for video ${video.id}; reloading row.`);
+			}
+		}
+
+		const fresh = (await this.videoRepo.findById(video.id)) || video;
+
+		return {
+			finalMime: desiredMime,
+			finalFilename: desiredFilename,
+			freshVideo: fresh,
+		};
 	}
 }

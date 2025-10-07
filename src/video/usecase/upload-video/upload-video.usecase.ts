@@ -19,6 +19,8 @@ import { isRangeAlreadyCovered } from '../../utils/is-range-already-covered';
 import { mergeRanges } from '../../utils/merge-ranges';
 import { sha256File } from '../../utils/sha-256-file';
 import { allocateTmpPath } from '../../utils/allocate-tmp-path';
+import { detectVideoMime } from '../../utils/detect-video-mimetype';
+import { ensureFilenameExt } from '../../utils/ensure-filename-extension';
 
 type ExecuteInput = {
 	userId: string;
@@ -32,7 +34,6 @@ type ExecuteInput = {
 	};
 	formParsePromise: Promise<any>;
 	filename: string;
-	mimeType: string;
 };
 
 type ExecuteResult = {
@@ -61,7 +62,6 @@ export class UploadVideoUsecase {
 			const { id } = await this.videoRepo.save({
 				user_id: input.userId,
 				filename: input.filename,
-				mime_type: input.mimeType,
 				total_size: String(input.chunk.totalSize),
 				chunk_size: String(
 					input.chunk.chunkSize ?? Math.min(64 * 1024 * 1024, Math.max(1 * 1024 * 1024, input.chunk.length)),
@@ -148,15 +148,30 @@ export class UploadVideoUsecase {
 		try {
 			const sha256 = await sha256File(video.tmp_path);
 			await this.videoRepo.setChecksum(video.id, sha256);
-
 			await this.videoRepo.setPhase(video.id, 'uploading_s3');
+
+			const detected = await detectVideoMime(video.tmp_path);
+
+			const finalMime = detected?.mime ?? video.mime_type ?? 'application/octet-stream';
+
+			const finalFilename = detected?.ext ? ensureFilenameExt(video.filename, detected.ext) : video.filename;
+
+			if (finalMime !== (video.mime_type ?? '')) {
+				await this.videoRepo.update(video.id, {
+					user_id: video.user_id,
+					filename: finalFilename,
+					mime_type: finalMime,
+					total_size: video.total_size,
+				});
+				video = (await this.videoRepo.findById(video.id)) ?? video;
+			}
 
 			const fileSize = fs.statSync(video.tmp_path).size;
 
 			const storeRes = await this.storage.findOrUploadByChecksum({
 				localPath: video.tmp_path,
-				filename: video.filename,
-				contentType: video.mime_type ?? 'application/octet-stream',
+				filename: finalFilename,
+				contentType: finalMime,
 				contentLength: fileSize,
 				checksumBase64: sha256,
 				metadata: { userId: video.user_id },
@@ -164,8 +179,8 @@ export class UploadVideoUsecase {
 
 			const updated = await this.videoRepo.update(video.id, {
 				user_id: video.user_id,
-				filename: video.filename,
-				mime_type: video.mime_type,
+				filename: finalFilename,
+				mime_type: finalMime,
 				total_size: video.total_size,
 				storage_key: storeRes.storageKey,
 				checksum_sha256_base64: sha256,
@@ -173,7 +188,6 @@ export class UploadVideoUsecase {
 			if (!updated) throw new InternalServerErrorException('Video is being uploaded by another request');
 
 			if (video.tmp_path) fs.unlinkSync(video.tmp_path);
-
 			await this.videoRepo.setPhase(video.id, 'completed');
 		} catch (err) {
 			this.logger.error(`Finalize failed for video ${video.id}: ${(err as Error).message}`, (err as Error).stack);

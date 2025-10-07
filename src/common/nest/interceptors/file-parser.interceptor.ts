@@ -66,12 +66,10 @@ export class FileParserInterceptor implements NestInterceptor {
 		};
 		form.on('file', (_fieldName, file) => {
 			parsedFile.filename = file.originalFilename ?? undefined;
-			parsedFile.mimeType = file.mimetype ?? undefined;
 			markMetadataReady();
 		});
 		form.on('fileBegin', (_fieldName, file) => {
 			parsedFile.filename = file.originalFilename ?? parsedFile.filename;
-			parsedFile.mimeType = file.mimetype ?? parsedFile.mimeType;
 			markMetadataReady();
 		});
 		form.on('error', err => {

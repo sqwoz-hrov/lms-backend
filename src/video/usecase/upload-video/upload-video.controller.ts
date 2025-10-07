@@ -54,7 +54,6 @@ export class UploadVideoController {
 		}
 
 		const filename = file.filename;
-		const mimeType = file.mimeType ?? 'application/octet-stream';
 		if (!filename) {
 			throw new BadRequestException('Filename is required');
 		}
@@ -78,7 +77,6 @@ export class UploadVideoController {
 			},
 			formParsePromise: file.formParsePromise,
 			filename,
-			mimeType,
 		});
 
 		res.setHeader('Upload-Session-Id', result.sessionId);
