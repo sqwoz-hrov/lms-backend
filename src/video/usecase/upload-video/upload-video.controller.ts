@@ -46,6 +46,18 @@ export class UploadVideoController {
 		if (!file?.stream) {
 			throw new BadRequestException('File stream is missing');
 		}
+		try {
+			await file.metadataPromise;
+		} catch (err) {
+			if (err instanceof Error) throw err;
+			throw new BadRequestException('Uploaded file is not valid');
+		}
+
+		const filename = file.filename;
+		const mimeType = file.mimeType ?? 'application/octet-stream';
+		if (!filename) {
+			throw new BadRequestException('Filename is required');
+		}
 
 		const declaredLength = cr.end - cr.start + 1;
 		if (chunkSize && chunkSize !== declaredLength) {
@@ -65,8 +77,8 @@ export class UploadVideoController {
 				chunkSize,
 			},
 			formParsePromise: file.formParsePromise,
-			filename: 'test',
-			mimeType: 'video/mp4',
+			filename,
+			mimeType,
 		});
 
 		res.setHeader('Upload-Session-Id', result.sessionId);
