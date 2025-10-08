@@ -1,28 +1,17 @@
-import {
-	BadRequestException,
-	ConflictException,
-	Injectable,
-	InternalServerErrorException,
-	Logger,
-	NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Readable } from 'stream';
-import * as fs from 'fs';
-import { VideoResponseDto } from '../../dto/base-video.dto';
 import { ChunkUploadService } from '../../services/chunk-upload.service';
-import { VideoStorageService } from '../../services/video-storage.service';
 import { VideoRepository } from '../../video.repoistory';
-import { UploadedRange, Video } from '../../video.entity';
 import { calcOffsetFromRanges } from '../../utils/calc-offset-from-ranges';
 import { hasConflictingOverlap } from '../../utils/has-conflicting-overlap';
 import { isRangeAlreadyCovered } from '../../utils/is-range-already-covered';
 import { mergeRanges } from '../../utils/merge-ranges';
-import { sha256File } from '../../utils/sha-256-file';
 import { allocateTmpPath } from '../../utils/allocate-tmp-path';
-import { detectVideoMime } from '../../utils/detect-video-mimetype';
-import { ensureFilenameExt } from '../../utils/ensure-filename-extension';
+import type { UploadedRange, Video } from '../../video.entity';
+import { WorkflowRunnerService } from '../../services/workflow-runner.service';
+import type { VideoResponseDto } from '../../dto/base-video.dto';
 
-type ExecuteInput = {
+export type UploadExecuteInput = {
 	userId: string;
 	sessionId?: string;
 	stream: Readable;
@@ -36,7 +25,7 @@ type ExecuteInput = {
 	filename: string;
 };
 
-type ExecuteResult = {
+export type UploadExecuteResult = {
 	sessionId: string;
 	offset: number;
 	totalSize: number;
@@ -51,47 +40,49 @@ export class UploadVideoUsecase {
 
 	constructor(
 		private readonly chunks: ChunkUploadService,
-		private readonly storage: VideoStorageService,
 		private readonly videoRepo: VideoRepository,
+		private readonly runner: WorkflowRunnerService,
 	) {}
 
-	async execute(input: ExecuteInput): Promise<ExecuteResult> {
+	async execute(input: UploadExecuteInput): Promise<UploadExecuteResult> {
 		let videoId = input.sessionId;
+
 		if (!videoId) {
 			const tmpPath = allocateTmpPath();
-			const { id } = await this.videoRepo.save({
+			const chunkSize = String(
+				input.chunk.chunkSize ?? Math.min(64 * 1024 * 1024, Math.max(1 * 1024 * 1024, input.chunk.length)),
+			);
+
+			const created = await this.videoRepo.save({
 				user_id: input.userId,
 				filename: input.filename,
 				total_size: String(input.chunk.totalSize),
-				chunk_size: String(
-					input.chunk.chunkSize ?? Math.min(64 * 1024 * 1024, Math.max(1 * 1024 * 1024, input.chunk.length)),
-				),
+				chunk_size: chunkSize,
 				tmp_path: tmpPath,
 				phase: 'receiving',
 			});
-			videoId = id;
+			videoId = created.id;
 		}
 
 		let video = await this.videoRepo.findById(videoId);
 		if (!video) throw new BadRequestException('Video upload not found');
 
-		if (video.total_size !== String(input.chunk.totalSize)) throw new BadRequestException('Total size mismatch');
+		if (video.total_size !== String(input.chunk.totalSize)) {
+			throw new BadRequestException('Total size mismatch');
+		}
 
 		const { start, end } = input.chunk.range;
 
 		if (isRangeAlreadyCovered(video.uploaded_ranges, start, end)) {
 			const nextOffset = calcOffsetFromRanges(video.uploaded_ranges);
-			return {
-				sessionId: videoId,
-				offset: nextOffset,
-				totalSize: Number(video.total_size),
-				isComplete: String(nextOffset) === video.total_size,
-				location: `/videos/uploads/${videoId}`,
-			};
+			const base = this.baseResult(videoId, video, nextOffset);
+			if (base.isComplete) this.safeAdvance(videoId);
+			return base;
 		}
 
-		if (hasConflictingOverlap(video.uploaded_ranges, start, end))
+		if (hasConflictingOverlap(video.uploaded_ranges, start, end)) {
 			throw new ConflictException('Range overlaps existing data');
+		}
 
 		await this.chunks.writeChunkAt({
 			body: input.stream,
@@ -106,30 +97,19 @@ export class UploadVideoUsecase {
 		const nextOffset = calcOffsetFromRanges(merged);
 		video = await this.videoRepo.advanceProgress(video.id, nextOffset, merged);
 
-		const base: ExecuteResult = {
-			sessionId: videoId,
-			offset: Number(video.upload_offset),
-			totalSize: Number(video.total_size),
-			isComplete: video.upload_offset === video.total_size,
-			location: `/videos/uploads/${videoId}`,
-		};
+		const base = this.baseResult(videoId, video, nextOffset);
 
-		if (!base.isComplete) return base;
+		if (base.isComplete) {
+			this.safeAdvance(videoId);
+			const fresh = await this.videoRepo.findById(videoId);
+			return {
+				...base,
+				video: fresh,
+				location: fresh?.phase === 'completed' ? `/videos/${videoId}` : `/videos/uploads/${videoId}`,
+			};
+		}
 
-		await this.videoRepo.setPhase(videoId, 'hashing');
-		const fresh = await this.videoRepo.findById(videoId);
-		if (!fresh) throw new NotFoundException('Upload session lost');
-
-		this.hashAndSaveToS3(fresh).catch(e => {
-			this.logger.fatal(e, `Failed to finalize video (hash/upload), video id ${fresh.id}`);
-		});
-
-		return {
-			...base,
-			isComplete: true,
-			video: fresh,
-			location: `/videos/${fresh.id}`,
-		};
+		return base;
 	}
 
 	async getStatus(sessionId: string) {
@@ -144,55 +124,19 @@ export class UploadVideoUsecase {
 		};
 	}
 
-	private async hashAndSaveToS3(video: Video): Promise<void> {
-		try {
-			const sha256 = await sha256File(video.tmp_path);
-			await this.videoRepo.setChecksum(video.id, sha256);
-			await this.videoRepo.setPhase(video.id, 'uploading_s3');
+	private baseResult(videoId: string, video: Video, nextOffset: number): UploadExecuteResult {
+		return {
+			sessionId: videoId,
+			offset: nextOffset,
+			totalSize: Number(video.total_size),
+			isComplete: String(nextOffset) === video.total_size,
+			location: `/videos/uploads/${videoId}`,
+		};
+	}
 
-			const detected = await detectVideoMime(video.tmp_path);
-
-			const finalMime = detected?.mime ?? video.mime_type ?? 'application/octet-stream';
-
-			const finalFilename = detected?.ext ? ensureFilenameExt(video.filename, detected.ext) : video.filename;
-
-			if (finalMime !== (video.mime_type ?? '')) {
-				await this.videoRepo.update(video.id, {
-					user_id: video.user_id,
-					filename: finalFilename,
-					mime_type: finalMime,
-					total_size: video.total_size,
-				});
-				video = (await this.videoRepo.findById(video.id)) ?? video;
-			}
-
-			const fileSize = fs.statSync(video.tmp_path).size;
-
-			const storeRes = await this.storage.findOrUploadByChecksum({
-				localPath: video.tmp_path,
-				filename: finalFilename,
-				contentType: finalMime,
-				contentLength: fileSize,
-				checksumBase64: sha256,
-				metadata: { userId: video.user_id },
-			});
-
-			const updated = await this.videoRepo.update(video.id, {
-				user_id: video.user_id,
-				filename: finalFilename,
-				mime_type: finalMime,
-				total_size: video.total_size,
-				storage_key: storeRes.storageKey,
-				checksum_sha256_base64: sha256,
-			});
-			if (!updated) throw new InternalServerErrorException('Video is being uploaded by another request');
-
-			if (video.tmp_path) fs.unlinkSync(video.tmp_path);
-			await this.videoRepo.setPhase(video.id, 'completed');
-		} catch (err) {
-			this.logger.error(`Finalize failed for video ${video.id}: ${(err as Error).message}`, (err as Error).stack);
-			await this.videoRepo.setPhase(video.id, 'failed');
-			throw err;
-		}
+	private safeAdvance(videoId: string) {
+		this.runner.advance(videoId).catch(e => {
+			this.logger.error(`advance() failed for ${videoId}: ${(e as Error).message}`);
+		});
 	}
 }

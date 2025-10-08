@@ -13,7 +13,7 @@ import {
 	ValidateNested,
 } from 'class-validator';
 
-export const UploadPhaseEnum = ['receiving', 'hashing', 'compressing', 'uploading_s3', 'completed', 'failed'] as const;
+export const UploadPhaseEnum = ['receiving', 'converting', 'hashing', 'uploading_s3', 'completed', 'failed'] as const;
 export type UploadPhase = (typeof UploadPhaseEnum)[number];
 
 // Reusable numeric-string validator: only non-negative integers in decimal form
