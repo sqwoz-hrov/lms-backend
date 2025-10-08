@@ -16,6 +16,8 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 
+RUN apk add --no-cache ffmpeg
+
 COPY package*.json ./
 
 ENV NODE_ENV=production
