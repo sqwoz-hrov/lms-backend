@@ -2,20 +2,22 @@ import { DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command, S3Client 
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
-import { randomBytes } from 'crypto';
 import * as sinon from 'sinon';
 import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import { extFor, makeRealVideoBuffer, twoPartReal } from '../../../../test/fixtures/video.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig, s3Config } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { UploadChunkHeaders, VideosTestSdk } from '../../test-utils/test.sdk';
 import { VideoStorageService } from '../../services/video-storage.service';
+import { VideosTestRepository } from '../../test-utils/test.repo';
+import { UploadChunkHeaders, VideosTestSdk } from '../../test-utils/test.sdk';
 
 describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
+	let videoTestRepo: VideosTestRepository;
 	let videoTestSdk: VideosTestSdk;
 	let jwtConf: ConfigType<typeof jwtConfig>;
 
@@ -26,23 +28,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 	let storageSvc: VideoStorageService;
 	let s3UploadSpy: sinon.SinonSpy;
 
-	/** ---------- generic helpers ---------- */
 	const rangeHeader = (start: number, end: number, total: number) => `bytes ${start}-${end}/${total}`;
-
-	async function waitFor(
-		predicate: () => boolean | Promise<boolean>,
-		timeoutMs = 15_000,
-		intervalMs = 50,
-	): Promise<void> {
-		const start = Date.now();
-
-		while (true) {
-			const result = await predicate();
-			if (result) return;
-			if (Date.now() - start > timeoutMs) throw new Error('Timed out waiting for condition');
-			await new Promise(r => setTimeout(r, intervalMs));
-		}
-	}
 
 	function buildHeaders(args: {
 		start: number;
@@ -76,23 +62,19 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		};
 	}
 
-	async function findObjectOfSize(bucket: string, size: number): Promise<LocatedS3Object | undefined> {
-		const res = await s3.send(new ListObjectsV2Command({ Bucket: bucket }));
-		if (!res.Contents?.length) return undefined;
-		for (const o of res.Contents) {
-			const info = await headObjectInfo(s3, bucket, o.Key);
-			if (info?.size === size) return info;
-		}
-		return undefined;
-	}
+	async function waitForStorageKey(videoId: string, opts?: { timeoutMs?: number; intervalMs?: number }) {
+		const timeoutMs = opts?.timeoutMs ?? 15_000;
+		const intervalMs = opts?.intervalMs ?? 250;
+		const startedAt = Date.now();
 
-	function sanitizeExpectedFilename(filename: string): string {
-		const stripped = filename.replace(/[/\\]+/g, '_').replace(/\.\.+/g, '.');
-		const normalized = stripped
-			.replace(/[^\w.-]+/g, '_')
-			.replace(/_+/g, '_')
-			.replace(/^_+|_+$/g, '');
-		return normalized.toLowerCase();
+		for (;;) {
+			const video = await videoTestRepo.findById(videoId);
+			if (video?.storage_key) return video;
+			if (Date.now() - startedAt > timeoutMs) {
+				throw new Error(`Timed out waiting for storage_key on video ${videoId}`);
+			}
+			await new Promise(resolve => setTimeout(resolve, intervalMs));
+		}
 	}
 
 	async function clearBucket(s3: S3Client, bucket: string): Promise<void> {
@@ -108,7 +90,6 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 					try {
 						await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: o.Key }));
 					} catch (e) {
-						// don't fail teardown on a single delete error
 						console.warn(`Failed to delete object ${o.Key}:`, e);
 					}
 				}
@@ -149,55 +130,12 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		});
 	}
 
-	/** Wait for async S3 path to trigger, then assert both hot/cold contain object with expected size */
-	async function expectAsyncUploadFinishedWithSize(expected: { size: number; filename: string }) {
-		await waitFor(() => s3UploadSpy.callCount >= 1);
-		let hot: LocatedS3Object | undefined;
-		let cold: LocatedS3Object | undefined;
-
-		await waitFor(
-			async () => {
-				[hot, cold] = await Promise.all([
-					findObjectOfSize(S3_HOT_BUCKET, expected.size),
-					findObjectOfSize(S3_COLD_BUCKET, expected.size),
-				]);
-				return Boolean(hot && cold);
-			},
-			25_000,
-			200,
-		);
-
-		const expectedFilename = sanitizeExpectedFilename(expected.filename);
-		const hotFilename = hot?.key.split('/').pop();
-		const coldFilename = cold?.key.split('/').pop();
-
-		expect(hot?.size, 'hot object size').to.equal(expected.size);
-		expect(cold?.size, 'cold object size').to.equal(expected.size);
-		expect(hot?.contentType, 'hot object mime type').to.equal('application/octet-stream');
-		expect(cold?.contentType, 'cold object mime type').to.equal('application/octet-stream');
-		expect(hotFilename, 'hot object filename').to.equal(expectedFilename);
-		expect(coldFilename, 'cold object filename').to.equal(expectedFilename);
-	}
-
-	/** Split random buffer into 2 parts (no compression) */
-	function twoPartPlain(size: number, splitAt?: number) {
-		const plain = randomBytes(size);
-		const m = splitAt ?? Math.floor(size / 2);
-		const part1 = plain.subarray(0, m);
-		const part2 = plain.subarray(m);
-		return {
-			part1,
-			part2,
-			total: plain.length,
-		};
-	}
-
-	/** ---------- mocha lifecycle ---------- */
 	before(function (this: ISharedContext) {
 		app = this.app;
 
 		const kysely = app.get(DatabaseProvider);
 		usersRepo = new UsersTestRepository(kysely);
+		videoTestRepo = new VideosTestRepository(kysely);
 
 		jwtConf = app.get(jwtConfig.KEY);
 		videoTestSdk = new VideosTestSdk(new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }, jwtConf));
@@ -215,7 +153,6 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 			},
 		});
 
-		// spy on the service that triggers S3 upload (async after HTTP response)
 		storageSvc = app.get(VideoStorageService);
 		s3UploadSpy = sinon.spy(storageSvc, 'findOrUploadByChecksum');
 	});
@@ -226,19 +163,18 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 
 	after(async () => {
 		await usersRepo.clearAll();
+		await videoTestRepo.clearAll();
 		await clearBucket(s3, S3_HOT_BUCKET);
 		await clearBucket(s3, S3_COLD_BUCKET);
 		s3UploadSpy.restore();
 	});
 
-	/** ---------- tests ---------- */
-
 	it('rejects unauthorized user (401)', async () => {
 		const user = await createTestUser(usersRepo);
-		const buf = randomBytes(1024 * 1024);
 
+		const buf = makeRealVideoBuffer('mkv');
 		const res = await uploadChunkRaw({
-			filename: 'unauth.bin',
+			filename: 'unauth' + extFor('mkv'),
 			file: buf,
 			start: 0,
 			end: buf.length - 1,
@@ -253,10 +189,9 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 	it('happy path: uploads a single raw chunk; waits for async S3 upload', async function () {
 		const admin = await createTestAdmin(usersRepo);
 
-		const plain = Buffer.from(randomBytes(8 * 1024 * 1024));
-
+		const plain = makeRealVideoBuffer('mp4');
 		const res = await uploadChunkRaw({
-			filename: 'happy.bin',
+			filename: 'happy' + extFor('mp4'),
 			file: plain,
 			start: 0,
 			end: plain.length - 1,
@@ -264,38 +199,46 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
-		// Controller responds immediately; usecase kicks off hashing+S3 upload asynchronously
 		expect(res.status).to.equal(HttpStatus.CREATED);
 		expect(res.headers.get('upload-length')).to.equal(String(plain.length));
 		expect(res.headers.get('upload-offset')).to.equal(String(plain.length));
 		expect(res.headers.get('location')).to.be.a('string');
 
-		await expectAsyncUploadFinishedWithSize({ size: plain.length, filename: 'happy.bin' });
+		const createdId = res.body.id;
+		expect(createdId).to.be.a('string');
+
+		const storedVideo = await waitForStorageKey(createdId);
+		expect(storedVideo).to.be.an('object');
+
+		const storageKey = storedVideo?.storage_key ?? undefined;
+		expect(storageKey).to.be.a('string');
+
+		const hotObject = await headObjectInfo(s3, S3_HOT_BUCKET, storageKey);
+		expect(hotObject).to.be.an('object');
+		expect(hotObject?.contentType).to.equal('video/mp4');
 	});
 
 	it('resumes upload after client interruption (2 raw chunks); waits for async S3 upload', async function () {
 		const admin = await createTestAdmin(usersRepo);
 
-		const { part1, part2, total } = twoPartPlain(10 * 1024 * 1024);
-
-		// chunk #1
+		const { part1, part2, total } = twoPartReal('mkv');
 		const res1 = await uploadChunkRaw({
-			filename: 'resume.bin',
+			filename: 'resume' + extFor('mkv'),
 			file: part1,
 			start: 0,
 			end: part1.length - 1,
 			total,
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
+
 		expect(res1.status).to.equal(HttpStatus.NO_CONTENT);
 		expect(res1.headers.get('upload-offset')).to.equal(String(part1.length));
 		const sessionId = res1.headers.get('upload-session-id') as string;
 		expect(sessionId).to.be.a('string');
 		expect(s3UploadSpy.called).to.equal(false);
 
-		// chunk #2
 		const res2 = await uploadChunkRaw({
-			filename: 'resume.bin',
+			filename: 'resume' + extFor('mkv'),
 			file: part2,
 			start: part1.length,
 			end: total - 1,
@@ -308,17 +251,26 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		expect(res2.headers.get('upload-length')).to.equal(String(total));
 		expect(res2.headers.get('location')).to.be.a('string');
 
-		await expectAsyncUploadFinishedWithSize({ size: total, filename: 'resume.bin' });
+		const createdId = res2.body.id;
+		expect(createdId).to.be.a('string');
+
+		const storedVideo = await waitForStorageKey(createdId);
+		expect(storedVideo).to.be.an('object');
+
+		const storageKey = storedVideo?.storage_key ?? undefined;
+		expect(storageKey).to.be.a('string');
+
+		const hotObject = await headObjectInfo(s3, S3_HOT_BUCKET, storageKey);
+		expect(hotObject).to.be.an('object');
+		expect(hotObject?.contentType).to.equal('video/mp4');
 	});
 
 	it('does not start S3 upload until temp file is complete (raw)', async function () {
 		const admin = await createTestAdmin(usersRepo);
 
-		const { part1, part2, total } = twoPartPlain(6 * 1024 * 1024, Math.floor((6 * 1024 * 1024 * 2) / 3));
-
-		// part 1
+		const { part1, part2, total } = twoPartReal('mkv');
 		const res1 = await uploadChunkRaw({
-			filename: 'not-yet.bin',
+			filename: 'resume' + extFor('mkv'),
 			file: part1,
 			start: 0,
 			end: part1.length - 1,
@@ -330,9 +282,8 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		const sessionId = res1.headers.get('upload-session-id') as string;
 		expect(s3UploadSpy.called).to.equal(false);
 
-		// part 2 completes the temp file
 		const res2 = await uploadChunkRaw({
-			filename: 'not-yet.bin',
+			filename: 'resume' + extFor('mkv'),
 			file: part2,
 			start: part1.length,
 			end: total - 1,
@@ -343,6 +294,17 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		expect(res2.status).to.equal(HttpStatus.CREATED);
 		expect(res2.headers.get('upload-offset')).to.equal(String(total));
 
-		await expectAsyncUploadFinishedWithSize({ size: total, filename: 'not-yet.bin' });
+		const createdId = res2.body.id;
+		expect(createdId).to.be.a('string');
+
+		const storedVideo = await waitForStorageKey(createdId);
+		expect(storedVideo).to.be.an('object');
+
+		const storageKey = storedVideo?.storage_key ?? undefined;
+		expect(storageKey).to.be.a('string');
+
+		const hotObject = await headObjectInfo(s3, S3_HOT_BUCKET, storageKey);
+		expect(hotObject).to.be.an('object');
+		expect(hotObject?.contentType).to.equal('video/mp4');
 	});
 });

@@ -1,3 +1,4 @@
+import { fileTypeFromFile } from 'file-type';
 import * as fs from 'fs';
 
 export type DetectedMime = {
@@ -9,7 +10,6 @@ export async function detectVideoMime(localPath: string): Promise<DetectedMime |
 	const stat = fs.statSync(localPath);
 	if (!stat.isFile() || stat.size <= 0) return null;
 
-	const { fileTypeFromFile } = await import('file-type');
 	const type = await fileTypeFromFile(localPath);
 	if (type?.mime?.startsWith('video/')) {
 		return { mime: type.mime, ext: type.ext };

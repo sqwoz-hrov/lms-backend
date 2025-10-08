@@ -2,7 +2,7 @@
 import { Kysely, sql } from 'kysely';
 
 const OLD_PHASES = ['receiving', 'hashing', 'uploading_s3', 'completed', 'failed'] as const;
-const NEW_PHASES = ['receiving', 'compressing', 'hashing', 'uploading_s3', 'completed', 'failed'] as const;
+const NEW_PHASES = ['receiving', 'converting', 'hashing', 'uploading_s3', 'completed', 'failed'] as const;
 
 export async function up(db: Kysely<any>): Promise<void> {
 	await sql`
@@ -25,11 +25,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 	await sql`ALTER TABLE "video" ALTER COLUMN "phase" SET DEFAULT 'receiving'::upload_phase;`.execute(db);
 
-	await db.schema.alterTable('video').addColumn('gzip_tmp_path', 'varchar(256)').execute();
+	await db.schema.alterTable('video').addColumn('converted_tmp_path', 'varchar(256)').execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-	await db.schema.alterTable('video').dropColumn('gzip_tmp_path').execute();
+	await db.schema.alterTable('video').dropColumn('converted_tmp_path').execute();
 
 	await sql`
 		CREATE TYPE upload_phase_old AS ENUM (${sql.join(
@@ -45,7 +45,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 		ALTER COLUMN "phase" TYPE upload_phase_old
 		USING (
 			CASE
-				WHEN "phase"::text = 'compressing' THEN 'hashing'
+				WHEN "phase"::text = 'converting' THEN 'hashing'
 				ELSE "phase"::text
 			END::upload_phase_old
 		);
