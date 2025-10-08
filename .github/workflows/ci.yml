@@ -20,6 +20,11 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - name: 🎬 Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: 📦 Install dependencies
         run: npm ci
 
