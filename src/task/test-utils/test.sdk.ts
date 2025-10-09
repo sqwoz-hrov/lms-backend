@@ -6,6 +6,7 @@ import { CreateTaskDto } from '../dto/create-task.dto';
 import { DeleteTaskDto } from '../dto/delete-task.dto';
 import { GetTasksDto } from '../dto/get-tasks.dto';
 import { UpdateTaskDto } from '../dto/update-task.dto';
+import { CreateTaskForMultipleUsersDto } from '../dto/create-task-for-multiple-users.dto';
 
 export class TasksTestSdk implements ValidateSDK<TasksTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -22,6 +23,21 @@ export class TasksTestSdk implements ValidateSDK<TasksTestSdk> {
 	public async createTask({ params, userMeta }: { params: CreateTaskDto; userMeta: UserMeta }) {
 		return this.testClient.request<TaskResponseDto>({
 			path: '/tasks',
+			method: 'POST',
+			userMeta,
+			body: params,
+		});
+	}
+
+	public async createTasksForMultipleStudents({
+		params,
+		userMeta,
+	}: {
+		params: CreateTaskForMultipleUsersDto;
+		userMeta: UserMeta;
+	}) {
+		return this.testClient.request<TaskResponseDto[]>({
+			path: '/tasks/create-for-multiple-students',
 			method: 'POST',
 			userMeta,
 			body: params,
