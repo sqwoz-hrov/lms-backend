@@ -13,11 +13,14 @@ import { GetTaskInfoController } from './usecases/get-task-info/get-task-info.co
 import { GetTaskInfoUsecase } from './usecases/get-task-info/get-task-info.usecase';
 import { GetTasksController } from './usecases/get-tasks/get-tasks.controller';
 import { GetTasksUsecase } from './usecases/get-tasks/get-tasks.usecase';
+import { CreateTaskForMultipleStudentsController } from './usecases/create-for-multiple-students/create-for-multiple-students.controller';
+import { CreateTaskForMultipleStudentsUsecase } from './usecases/create-for-multiple-students/create-for-multiple-students.usecase';
 
 @Module({
 	imports: [UserModule],
 	controllers: [
 		ChangeTaskStatusController,
+		CreateTaskForMultipleStudentsController,
 		CreateTaskController,
 		DeleteTaskController,
 		EditTaskController,
@@ -26,6 +29,7 @@ import { GetTasksUsecase } from './usecases/get-tasks/get-tasks.usecase';
 	],
 	providers: [
 		ChangeTaskStatusUsecase,
+		CreateTaskForMultipleStudentsUsecase,
 		CreateTaskUsecase,
 		DeleteTaskUsecase,
 		EditTaskUsecase,

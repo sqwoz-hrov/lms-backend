@@ -8,10 +8,26 @@ import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
 import { createTestAdmin, createTestUser } from './user.fixture';
 import { User } from '../../src/user/user.entity';
 import { CreateTaskDto } from '../../src/task/dto/create-task.dto';
+import { CreateTaskForMultipleUsersDto } from '../../src/task/dto/create-task-for-multiple-users.dto';
 
 export const createTestTaskDto = (studentId: string, mentorId: string = studentId): CreateTaskDto => {
 	return {
 		student_user_id: studentId,
+		mentor_user_id: mentorId,
+		summary: randomWord(),
+		markdown_content: '# Sample Content',
+		deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // +7 days
+		priority: 1,
+		status: 'todo',
+	};
+};
+
+export const createTestTaskForMultipleUsersDto = (
+	studentIds: string[],
+	mentorId: string = studentIds[0],
+): CreateTaskForMultipleUsersDto => {
+	return {
+		student_user_ids: studentIds,
 		mentor_user_id: mentorId,
 		summary: randomWord(),
 		markdown_content: '# Sample Content',
