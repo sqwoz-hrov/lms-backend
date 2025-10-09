@@ -61,12 +61,10 @@ export class FeedbackAggregateBuilder {
 
 export const createTestFeedbackDto = (
 	interviewId: string,
-	markdownContentId: string,
 	overrides: Partial<CreateFeedbackDto> = {},
 ): CreateFeedbackDto => {
 	return {
 		interview_id: interviewId,
-		markdown_content_id: markdownContentId,
 		markdown_content: randomWord(),
 		...overrides,
 	};
