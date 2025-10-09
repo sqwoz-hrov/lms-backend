@@ -52,4 +52,20 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 			body: params,
 		});
 	}
+
+	public async getUserById({ params, userMeta }: { params: { id: string }; userMeta: UserMeta }) {
+		return this.testClient.request<UserResponseDto>({
+			path: `/users/${params.id}`,
+			method: 'GET',
+			userMeta,
+		});
+	}
+
+	public async getUsers({ userMeta }: { userMeta: UserMeta }) {
+		return this.testClient.request<UserResponseDto[]>({
+			path: '/users',
+			method: 'GET',
+			userMeta,
+		});
+	}
 }

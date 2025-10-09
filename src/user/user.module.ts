@@ -19,12 +19,15 @@ import { RefreshTokensUsecase } from './usecases/refresh-tokens/refresh-tokens.u
 import { RefreshTokenRedisStorage } from './adapters/refresh-tokens-storage.adapter';
 import { LogoutController } from './usecases/logout/logout.controller';
 import { RefreshTokensController } from './usecases/refresh-tokens/refresh-tokens.controller';
+import { GetUserController } from './usecases/get-user/get-user.controller';
+import { GetUserUsecase } from './usecases/get-user/get-user.usecase';
 
 @Module({
 	controllers: [
 		AskForLoginController,
 		FinishLoginController,
 		GetMeController,
+		GetUserController,
 		GetUsersController,
 		LogoutController,
 		RefreshTokensController,
@@ -39,6 +42,7 @@ import { RefreshTokensController } from './usecases/refresh-tokens/refresh-token
 		AskForLoginUsecase,
 		FinishLoginUsecase,
 		GetMeUsecase,
+		GetUserUsecase,
 		GetUsersUsecase,
 		LogoutUsecase,
 		RefreshTokensUsecase,
