@@ -66,10 +66,7 @@ describe('[E2E] Get user by id usecase', () => {
 	});
 
 	it('User cannot access other user', async () => {
-		const [user, otherUser] = await Promise.all([
-			createTestUser(utilRepository),
-			createTestUser(utilRepository),
-		]);
+		const [user, otherUser] = await Promise.all([createTestUser(utilRepository), createTestUser(utilRepository)]);
 
 		const res = await userTestSdk.getUserById({
 			params: { id: otherUser.id },
