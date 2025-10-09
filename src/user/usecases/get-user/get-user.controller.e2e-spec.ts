@@ -137,7 +137,7 @@ describe('[E2E] Get user by id usecase', () => {
 		const admin = await createTestAdmin(utilRepository);
 
 		const res = await userTestSdk.getUserById({
-			params: { id: 'non-existing-id' },
+			params: { id: '00000000-0000-0000-0000-000000000000' },
 			userMeta: {
 				userId: admin.id,
 				isAuth: true,
