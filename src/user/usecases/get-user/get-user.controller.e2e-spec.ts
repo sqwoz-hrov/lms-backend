@@ -1,7 +1,12 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import {
+	createTestAdmin,
+	createTestSubscriber,
+	createTestSubscriptionTier,
+	createTestUser,
+} from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
@@ -80,8 +85,11 @@ describe('[E2E] Get user by id usecase', () => {
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('User can access self', async () => {
-		const user = await createTestUser(utilRepository);
+	it('User can access self and receives all user fields', async () => {
+		const user = await createTestUser(utilRepository, {
+			is_billable: false,
+			is_archived: true,
+		});
 
 		const res = await userTestSdk.getUserById({
 			params: { id: user.id },
@@ -94,7 +102,13 @@ describe('[E2E] Get user by id usecase', () => {
 
 		expect(res.status).to.equal(HttpStatus.OK);
 		expect(res.body.id).to.equal(user.id);
+		expect(res.body.role).to.equal('user');
+		expect(res.body.name).to.equal(user.name);
 		expect(res.body.email).to.equal(user.email);
+		expect(res.body.telegram_id).to.equal(user.telegram_id);
+		expect(res.body.telegram_username).to.equal(user.telegram_username);
+		expect(res.body.is_billable).to.equal(false);
+		expect(res.body.is_archived).to.equal(true);
 	});
 
 	it('User can access admin', async () => {
@@ -117,7 +131,15 @@ describe('[E2E] Get user by id usecase', () => {
 
 	it('Admin can access any user', async () => {
 		const admin = await createTestAdmin(utilRepository);
-		const user = await createTestUser(utilRepository);
+		const subscriptionTier = await createTestSubscriptionTier(utilRepository, {
+			permissions: ['view_dashboard'],
+		});
+		const activeUntil = new Date('2035-01-01T00:00:00.000Z');
+		const user = await createTestSubscriber(utilRepository, {
+			subscription_tier_id: subscriptionTier.id,
+			active_until: activeUntil,
+			is_billable: true,
+		});
 
 		const res = await userTestSdk.getUserById({
 			params: { id: user.id },
@@ -130,7 +152,16 @@ describe('[E2E] Get user by id usecase', () => {
 
 		expect(res.status).to.equal(HttpStatus.OK);
 		expect(res.body.id).to.equal(user.id);
-		expect(res.body.email).to.equal(user.email);
+		expect(res.body.role).to.equal('subscriber');
+		expect(res.body.subscription_tier_id).to.equal(subscriptionTier.id);
+		expect(res.body.subscription_tier).to.deep.equal({
+			id: subscriptionTier.id,
+			tier: subscriptionTier.tier,
+			permissions: subscriptionTier.permissions ?? [],
+		});
+		expect(new Date(res.body.active_until!).toISOString()).to.equal(activeUntil.toISOString());
+		expect(res.body.is_billable).to.equal(true);
+		expect(res.body.is_archived).to.equal(user.is_archived);
 	});
 
 	it('Returns 404 when user not found', async () => {

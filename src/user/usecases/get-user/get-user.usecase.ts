@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserRepository } from '../../user.repository';
-import { UserResponseDto } from '../../dto/signup.dto';
+import { UserResponseDto, toUserResponseDto } from '../../dto/user.dto';
 import { User } from '../../user.entity';
 
 @Injectable()
@@ -9,7 +9,7 @@ export class GetUserUsecase implements UsecaseInterface {
 	constructor(private readonly userRepository: UserRepository) {}
 
 	async execute({ id, requester }: { id: string; requester: User }): Promise<UserResponseDto> {
-		const user = await this.userRepository.findById(id);
+		const user = await this.userRepository.findByIdWithSubscriptionTier(id);
 
 		if (!user) {
 			throw new NotFoundException('Пользователь не найден');
@@ -23,6 +23,6 @@ export class GetUserUsecase implements UsecaseInterface {
 			throw new UnauthorizedException('Недостаточно прав для просмотра пользователя');
 		}
 
-		return user;
+		return toUserResponseDto(user);
 	}
 }

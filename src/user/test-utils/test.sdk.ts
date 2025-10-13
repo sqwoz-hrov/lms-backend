@@ -3,7 +3,7 @@ import { TestHttpClient } from '../../../test/test.http-client';
 import { AskLoginDto, AskLoginResponseDto } from '../dto/ask-login.dto';
 import { FinishLoginDto, FinishLoginResponseDto } from '../dto/finish-login.dto';
 import { LogoutDto } from '../dto/refresh-tokens.dto';
-import { CreateUserDto, UserResponseDto } from '../dto/signup.dto';
+import { CreateUserDto, UserResponseDto } from '../dto/user.dto';
 
 export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -64,6 +64,14 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 	public async getUsers({ userMeta }: { userMeta: UserMeta }) {
 		return this.testClient.request<UserResponseDto[]>({
 			path: '/users',
+			method: 'GET',
+			userMeta,
+		});
+	}
+
+	public async getMe({ userMeta }: { userMeta: UserMeta }) {
+		return this.testClient.request<UserResponseDto>({
+			path: '/users/get-me',
 			method: 'GET',
 			userMeta,
 		});

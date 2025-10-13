@@ -2,7 +2,13 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { randomWord } from '../../../../test/fixtures/common.fixture';
-import { createEmail, createName, createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import {
+	createEmail,
+	createName,
+	createTestAdmin,
+	createTestSubscriptionTier,
+	createTestUser,
+} from '../../../../test/fixtures/user.fixture';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { jwtConfig } from '../../../config';
@@ -150,6 +156,79 @@ describe('[E2E] Signup usecase', () => {
 		expect(res.body.role).to.equal(user.role);
 		expect(res.body.telegram_username).to.equal(user.telegram_username);
 		expect(res.body.name).to.equal(user.name);
+	});
+
+	it('Admin can create subscriber with billing details', async () => {
+		const requestAuthor = await createTestAdmin(utilRepository);
+		const subscriptionTier = await createTestSubscriptionTier(utilRepository);
+		const subscriber = {
+			role: 'subscriber' as const,
+			name: createName(),
+			email: createEmail(),
+			telegram_username: randomWord(),
+			subscription_tier_id: subscriptionTier.id,
+			active_until: new Date('2032-01-01T00:00:00.000Z').toISOString(),
+			is_billable: true,
+		};
+
+		const res = await userTestSdk.signUp({
+			params: subscriber,
+			userMeta: {
+				userId: requestAuthor.id,
+				isWrongAccessJwt: false,
+				isAuth: true,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.CREATED);
+		expect(res.body.role).to.equal('subscriber');
+		expect(res.body.subscription_tier_id).to.equal(subscriptionTier.id);
+		expect(new Date(res.body.active_until!).toISOString()).to.equal(new Date(subscriber.active_until).toISOString());
+		expect(res.body.is_billable).to.equal(true);
+		expect(res.body.subscription_tier?.id).to.equal(subscriptionTier.id);
+	});
+
+	it('Returns 400 when subscriber lacks billing details', async () => {
+		const requestAuthor = await createTestAdmin(utilRepository);
+		const subscriber = {
+			role: 'subscriber' as const,
+			name: createName(),
+			email: createEmail(),
+			telegram_username: randomWord(),
+		};
+
+		const res = await userTestSdk.signUp({
+			params: subscriber,
+			userMeta: {
+				userId: requestAuthor.id,
+				isWrongAccessJwt: false,
+				isAuth: true,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+	});
+
+	it('Returns 400 when non-subscriber marked billable', async () => {
+		const requestAuthor = await createTestAdmin(utilRepository);
+		const user = {
+			role: 'user' as const,
+			name: createName(),
+			email: createEmail(),
+			telegram_username: randomWord(),
+			is_billable: true,
+		};
+
+		const res = await userTestSdk.signUp({
+			params: user,
+			userMeta: {
+				userId: requestAuthor.id,
+				isWrongAccessJwt: false,
+				isAuth: true,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 
 	it('Returns 400 when trying to sign up with duplicate email', async () => {
