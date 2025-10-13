@@ -2,7 +2,12 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { createTestMaterial } from '../../../../test/fixtures/material.fixture';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import {
+	createTestAdmin,
+	createTestSubscriber,
+	createTestSubscriptionTier,
+	createTestUser,
+} from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
@@ -13,6 +18,7 @@ import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { User } from '../../../user/user.entity';
 import { MaterialsTestRepository } from '../../test-utils/test.repo';
 import { MaterialsTestSdk } from '../../test-utils/test.sdk';
+import { Material } from '../../material.entity';
 
 describe('[E2E] Get materials usecase', () => {
 	let app: INestApplication;
@@ -30,7 +36,7 @@ describe('[E2E] Get materials usecase', () => {
 		student_user_id?: string;
 		is_archived?: boolean;
 	}) => {
-		await createTestMaterial(
+		return await createTestMaterial(
 			userUtilRepository,
 			markdownContentUtilRepository,
 			subjectUtilRepository,
@@ -183,6 +189,91 @@ describe('[E2E] Get materials usecase', () => {
 			expect(res.status).to.equal(HttpStatus.OK);
 			expect(res.body).to.be.an('array').with.length(2);
 			expect(res.body[0].student_user_id).to.equal(user2.id);
+		});
+	});
+
+	describe('Subscriber access tests', () => {
+		let admin: User;
+		let student: User;
+		let subscriber: User;
+		let accessibleMaterial: Material;
+		let restrictedMaterial: Material;
+		let assignedMaterial: Material;
+		let hiddenMaterial: Material;
+
+		beforeEach(async () => {
+			admin = await createTestAdmin(userUtilRepository);
+			student = await createTestUser(userUtilRepository);
+			subscriber = await createTestSubscriber(userUtilRepository);
+
+			const otherTier = await createTestSubscriptionTier(userUtilRepository);
+
+			expect(subscriber.subscription_tier_id).to.be.a('string');
+
+			accessibleMaterial = await createMaterial({});
+			restrictedMaterial = await createMaterial({});
+			assignedMaterial = await createMaterial({ student_user_id: student.id });
+			hiddenMaterial = await createMaterial({ is_archived: true });
+
+			const allowRes = await materialTestSdk.openMaterialForTiers({
+				materialId: accessibleMaterial.id,
+				params: { tier_ids: [subscriber.subscription_tier_id!] },
+				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			const restrictRes = await materialTestSdk.openMaterialForTiers({
+				materialId: restrictedMaterial.id,
+				params: { tier_ids: [otherTier.id] },
+				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(allowRes.status).to.equal(HttpStatus.CREATED);
+			expect(restrictRes.status).to.equal(HttpStatus.CREATED);
+		});
+
+		it('Subscriber only sees materials available for their tier', async () => {
+			const res = await materialTestSdk.getMaterials({
+				params: {},
+				userMeta: { userId: subscriber.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			expect(res.body).to.be.an('array').with.length(1);
+			expect(res.body[0].id).to.equal(accessibleMaterial.id);
+			expect(res.body.map(material => material.id)).to.not.include(restrictedMaterial.id);
+			expect(res.body.map(material => material.id)).to.not.include(hiddenMaterial.id);
+		});
+
+		it('Subscriber cannot reveal restricted materials using subject_id filter', async () => {
+			const res = await materialTestSdk.getMaterials({
+				params: { subject_id: restrictedMaterial.subject_id },
+				userMeta: { userId: subscriber.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			expect(res.body).to.be.an('array').with.length(0);
+		});
+
+		it('Subscriber cannot reveal restricted materials using student_user_id filter', async () => {
+			expect(assignedMaterial.student_user_id).to.be.a('string');
+
+			const res = await materialTestSdk.getMaterials({
+				params: { student_user_id: assignedMaterial.student_user_id! },
+				userMeta: { userId: subscriber.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			expect(res.body).to.be.an('array').with.length(1); // will ignore student_user_id filter and return available materials
+		});
+
+		it('Subscriber cannot reveal restricted materials using is_archived filter', async () => {
+			const res = await materialTestSdk.getMaterials({
+				params: { is_archived: true },
+				userMeta: { userId: subscriber.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			expect(res.body).to.be.an('array').with.length(1); // will ignore is_archived filter and return available materials
 		});
 	});
 });

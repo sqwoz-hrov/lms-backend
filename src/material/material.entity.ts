@@ -17,6 +17,15 @@ export type Material = Selectable<MaterialTable>;
 export type NewMaterial = Insertable<MaterialTable>;
 export type MaterialUpdate = Updateable<MaterialTable>;
 
+export interface MaterialTierTable {
+	tier_id: string;
+	material_id: string;
+}
+
+export type MaterialTier = Selectable<MaterialTierTable>;
+export type NewMaterialTier = Insertable<MaterialTierTable>;
+
 export interface MaterialAggregation {
 	material: MaterialTable;
+	material_tier: MaterialTierTable;
 }

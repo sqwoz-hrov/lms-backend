@@ -9,7 +9,7 @@ import { GetMaterialsUsecase } from './get-materials.usecase';
 
 @ApiTags('Materials')
 @Controller('materials')
-@Roles('admin', 'user')
+@Roles('admin', 'user', 'subscriber')
 export class GetMaterialsController {
 	constructor(private readonly getMaterialsUsecase: GetMaterialsUsecase) {}
 

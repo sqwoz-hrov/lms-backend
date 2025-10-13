@@ -14,12 +14,30 @@ export class GetMaterialsUsecase implements UsecaseInterface {
 	) {}
 
 	async execute({ user, params }: { user: User; params: GetMaterialsDto }): Promise<MaterialResponseDto[]> {
+		const filters: {
+			subject_id?: string;
+			student_user_id?: string;
+			is_archived?: boolean;
+		} = { ...params };
+
 		if (user.role === 'user') {
-			params.student_user_id = user.id;
-			delete params.is_archived;
+			filters.student_user_id = user.id;
+			delete filters.is_archived;
 		}
 
-		const materials = await this.materialRepository.find(params);
+		let subscriptionTierId: string | undefined;
+
+		if (user.role === 'subscriber') {
+			subscriptionTierId = user.subscription_tier_id ?? undefined;
+			delete filters.is_archived;
+			delete filters.student_user_id;
+
+			if (!subscriptionTierId) {
+				return [];
+			}
+		}
+
+		const materials = await this.materialRepository.find({ ...filters, subscription_tier_id: subscriptionTierId });
 
 		const enrichedMaterials = await Promise.all(
 			materials.map(async material => {

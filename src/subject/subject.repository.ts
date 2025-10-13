@@ -42,4 +42,25 @@ export class SubjectRepository {
 		}
 		return await query.execute();
 	}
+
+	async findBySubscriptionTier(tierId: string): Promise<Subject[]> {
+		return await this.connection
+			.selectFrom('subject')
+			.innerJoin('subject_tier', 'subject_tier.subject_id', 'subject.id')
+			.selectAll('subject')
+			.where('subject_tier.tier_id', '=', tierId)
+			.execute();
+	}
+
+	async openForTiers(subjectId: string, tierIds: string[]): Promise<void> {
+		if (!tierIds.length) {
+			return;
+		}
+
+		await this.connection
+			.insertInto('subject_tier')
+			.values(tierIds.map(tierId => ({ subject_id: subjectId, tier_id: tierId })))
+			.onConflict(oc => oc.columns(['subject_id', 'tier_id']).doNothing())
+			.execute();
+	}
 }

@@ -16,6 +16,7 @@ export class SubjectsTestRepository {
 	}
 
 	async clearAll(): Promise<void> {
+		await this._connection.deleteFrom('subject_tier').execute();
 		await this._connection.deleteFrom('subject').execute();
 	}
 }
