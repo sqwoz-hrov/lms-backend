@@ -41,7 +41,7 @@ export class UserRepository {
 	}
 
 	public async findById(id: string): Promise<User | undefined> {
-		const user = await this.connection.selectFrom('user').selectAll().where('id', '=', id).executeTakeFirst();
+		const user = await this.connection.selectFrom('user').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 
 		return user;
 	}
@@ -57,6 +57,7 @@ export class UserRepository {
 				'subscription_tier.permissions as subscription_tier__permissions',
 			])
 			.where('user.id', '=', id)
+			.limit(1)
 			.executeTakeFirst();
 
 		if (!row) {
@@ -85,13 +86,19 @@ export class UserRepository {
 			.selectFrom('user')
 			.selectAll()
 			.where('telegram_username', '=', telegramUsername)
+			.limit(1)
 			.executeTakeFirst();
 
 		return user;
 	}
 
 	public async findByEmail(email: string): Promise<User | undefined> {
-		const user = await this.connection.selectFrom('user').selectAll().where('email', '=', email).executeTakeFirst();
+		const user = await this.connection
+			.selectFrom('user')
+			.selectAll()
+			.where('email', '=', email)
+			.limit(1)
+			.executeTakeFirst();
 
 		return user;
 	}

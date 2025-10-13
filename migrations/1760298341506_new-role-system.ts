@@ -9,9 +9,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('tier', 'text', col => col.notNull().unique())
 		.addColumn('permissions', sql<string[]>`text[]`, col => col.notNull().defaultTo(sql`'{}'::text[]`))
 		.execute();
+
 	await sql`BEGIN`.execute(db);
 	await sql`ALTER TYPE user_role ADD VALUE 'subscriber';`.execute(db);
 	await sql`COMMIT`.execute(db);
+
 	await db.schema
 		.alterTable('user')
 		.addColumn('subscription_tier_id', 'uuid')

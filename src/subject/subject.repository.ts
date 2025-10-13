@@ -32,7 +32,7 @@ export class SubjectRepository {
 	}
 
 	async findById(id: string) {
-		return await this.connection.selectFrom('subject').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection.selectFrom('subject').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
 	async find(filter: Partial<Subject> = {}): Promise<Subject[]> {

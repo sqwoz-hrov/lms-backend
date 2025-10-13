@@ -21,7 +21,7 @@ export class TaskRepository {
 	}
 
 	async findById(id: string) {
-		return await this.connection.selectFrom('task').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection.selectFrom('task').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
 	async find(filter: Partial<Task> = {}) {

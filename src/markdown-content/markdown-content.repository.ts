@@ -20,6 +20,7 @@ export class MarkdownContentRespository {
 			.selectFrom('markdown_content')
 			.selectAll()
 			.where('id', '=', id)
+			.limit(1)
 			.executeTakeFirst();
 
 		return markdownContent;
@@ -45,6 +46,11 @@ export class MarkdownContentRespository {
 	}
 
 	public async delete(id: string): Promise<MarkDownContent | undefined> {
-		return this.connection.deleteFrom('markdown_content').where('id', '=', id).returningAll().executeTakeFirst();
+		return this.connection
+			.deleteFrom('markdown_content')
+			.where('id', '=', id)
+			.returningAll()
+			.limit(1)
+			.executeTakeFirst();
 	}
 }

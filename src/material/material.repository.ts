@@ -32,7 +32,7 @@ export class MaterialRepository {
 	}
 
 	async findById(id: string): Promise<Material | undefined> {
-		return await this.connection.selectFrom('material').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection.selectFrom('material').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
 	async find(

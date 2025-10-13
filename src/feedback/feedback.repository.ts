@@ -22,7 +22,7 @@ export class FeedbackRepository {
 	}
 
 	async findById(id: string): Promise<Feedback | undefined> {
-		return await this.connection.selectFrom('feedback').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection.selectFrom('feedback').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
 	async find(filter: Partial<Feedback> = {}, userId?: string): Promise<Feedback[]> {

@@ -25,7 +25,12 @@ export class JournalRecordRepository {
 	}
 
 	async findById(id: string): Promise<JournalRecord | undefined> {
-		return await this.connection.selectFrom('journal_record').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection
+			.selectFrom('journal_record')
+			.selectAll()
+			.where('id', '=', id)
+			.limit(1)
+			.executeTakeFirst();
 	}
 
 	async find(filter: Partial<JournalRecord> = {}): Promise<JournalRecord[]> {

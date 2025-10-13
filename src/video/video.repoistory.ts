@@ -27,8 +27,13 @@ export class VideoRepository {
 
 	async update(id: string, updates: VideoUpdate): Promise<Video | undefined> {
 		return await this.connection.transaction().execute(async trx => {
-			// Acquire pessimistic lock
-			const locked = await trx.selectFrom('video').selectAll().where('id', '=', id).forUpdate().executeTakeFirst();
+			const locked = await trx
+				.selectFrom('video')
+				.selectAll()
+				.where('id', '=', id)
+				.forUpdate()
+				.limit(1)
+				.executeTakeFirst();
 
 			if (!locked) {
 				return undefined;
@@ -46,6 +51,7 @@ export class VideoRepository {
 				})
 				.where('id', '=', id)
 				.returningAll()
+				.limit(1)
 				.executeTakeFirst();
 
 			return res;
@@ -55,13 +61,25 @@ export class VideoRepository {
 	async setPhase(id: string, phase: VideoTable['phase']): Promise<Video> {
 		return await this.connection.transaction().execute(async trx => {
 			// Acquire pessimistic lock
-			const existing = await trx.selectFrom('video').selectAll().where('id', '=', id).forUpdate().executeTakeFirst();
+			const existing = await trx
+				.selectFrom('video')
+				.selectAll()
+				.where('id', '=', id)
+				.forUpdate()
+				.limit(1)
+				.executeTakeFirst();
 
 			if (!existing) {
 				throw new Error('Session not found');
 			}
 
-			const res = await trx.updateTable('video').set({ phase }).where('id', '=', id).returningAll().executeTakeFirst();
+			const res = await trx
+				.updateTable('video')
+				.set({ phase })
+				.where('id', '=', id)
+				.returningAll()
+				.limit(1)
+				.executeTakeFirst();
 
 			if (!res) {
 				throw new Error('Concurrent update (phase)');
@@ -74,7 +92,13 @@ export class VideoRepository {
 	async setChecksum(id: string, checksum_sha256_base64: VideoTable['checksum_sha256_base64']): Promise<Video> {
 		return await this.connection.transaction().execute(async trx => {
 			// Acquire pessimistic lock
-			const existing = await trx.selectFrom('video').selectAll().where('id', '=', id).forUpdate().executeTakeFirst();
+			const existing = await trx
+				.selectFrom('video')
+				.selectAll()
+				.where('id', '=', id)
+				.forUpdate()
+				.limit(1)
+				.executeTakeFirst();
 
 			if (!existing) {
 				throw new Error('Session not found');
@@ -85,6 +109,7 @@ export class VideoRepository {
 				.set({ checksum_sha256_base64 })
 				.where('id', '=', id)
 				.returningAll()
+				.limit(1)
 				.executeTakeFirst();
 
 			if (!res) {
@@ -105,7 +130,13 @@ export class VideoRepository {
 	async advanceProgress(id: string, nextOffset: number, mergedRanges: UploadedRange[]): Promise<Video> {
 		return await this.connection.transaction().execute(async trx => {
 			// Acquire pessimistic lock
-			const existing = await trx.selectFrom('video').selectAll().where('id', '=', id).forUpdate().executeTakeFirst();
+			const existing = await trx
+				.selectFrom('video')
+				.selectAll()
+				.where('id', '=', id)
+				.forUpdate()
+				.limit(1)
+				.executeTakeFirst();
 
 			if (!existing) {
 				throw new Error('Session not found');
@@ -123,6 +154,7 @@ export class VideoRepository {
 				})
 				.where('id', '=', id)
 				.returningAll()
+				.limit(1)
 				.executeTakeFirst();
 
 			if (!res) {
@@ -134,7 +166,7 @@ export class VideoRepository {
 	}
 
 	async findById(id: string): Promise<Video | undefined> {
-		return await this.connection.selectFrom('video').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection.selectFrom('video').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
 	async find(filter: Partial<Video> = {}): Promise<Video[]> {
