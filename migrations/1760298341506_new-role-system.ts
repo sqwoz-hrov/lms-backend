@@ -7,7 +7,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable('subscription_tier')
 		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
-		.addColumn('tier', 'varchar(64)', col => col.notNull().unique())
+		.addColumn('tier', 'text', col => col.notNull().unique())
 		.addColumn('permissions', sql<string[]>`text[]`, col => col.notNull().defaultTo(sql`'{}'::text[]`))
 		.execute();
 
