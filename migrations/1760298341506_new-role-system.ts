@@ -1,7 +1,6 @@
 import { sql, type Kysely } from 'kysely';
 
 const USER_ROLE_OLD_VALUES = ['admin', 'user'] as const;
-const USER_ROLE_NEW_VALUES = [...USER_ROLE_OLD_VALUES, 'subscriber'] as const;
 
 export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
@@ -10,23 +9,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('tier', 'text', col => col.notNull().unique())
 		.addColumn('permissions', sql<string[]>`text[]`, col => col.notNull().defaultTo(sql`'{}'::text[]`))
 		.execute();
-
-	await sql`
-		CREATE TYPE user_role_new AS ENUM (${sql.join(
-			USER_ROLE_NEW_VALUES.map(role => sql.lit(role)),
-			sql`, `,
-		)});
-	`.execute(db);
-
-	await sql`
-		ALTER TABLE "user"
-		ALTER COLUMN "role" TYPE user_role_new
-		USING ("role"::text::user_role_new);
-	`.execute(db);
-
-	await sql`DROP TYPE user_role;`.execute(db);
-	await sql`ALTER TYPE user_role_new RENAME TO user_role;`.execute(db);
-
+	await sql`BEGIN`.execute(db);
+	await sql`ALTER TYPE user_role ADD VALUE 'subscriber';`.execute(db);
+	await sql`COMMIT`.execute(db);
 	await db.schema
 		.alterTable('user')
 		.addColumn('subscription_tier_id', 'uuid')

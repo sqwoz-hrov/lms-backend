@@ -11,6 +11,12 @@ import { SubjectRepository } from './subject.repository';
 
 @Module({
 	controllers: [CreateSubjectController, EditSubjectController, GetSubjectsController, OpenSubjectForTiersController],
-	providers: [CreateSubjectUsecase, EditSubjectUsecase, GetSubjectsUsecase, OpenSubjectForTiersUsecase, SubjectRepository],
+	providers: [
+		CreateSubjectUsecase,
+		EditSubjectUsecase,
+		GetSubjectsUsecase,
+		OpenSubjectForTiersUsecase,
+		SubjectRepository,
+	],
 })
 export class SubjectModule {}
