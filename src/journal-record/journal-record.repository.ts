@@ -6,14 +6,16 @@ import {
 	NewJournalRecord,
 	JournalRecordUpdate,
 	JournalRecordAggregation,
+	JournalRecordWithContent,
 } from './journal-record.entity';
+import { MarkDownContentAggregation } from '../markdown-content/markdown-content.entity';
 
 @Injectable()
 export class JournalRecordRepository {
-	private readonly connection: Kysely<JournalRecordAggregation>;
+	private readonly connection: Kysely<JournalRecordAggregation & MarkDownContentAggregation>;
 
 	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
-		this.connection = dbProvider.getDatabase<JournalRecordAggregation>();
+		this.connection = dbProvider.getDatabase<JournalRecordAggregation & MarkDownContentAggregation>();
 	}
 
 	async save(data: NewJournalRecord): Promise<JournalRecord> {
@@ -33,12 +35,18 @@ export class JournalRecordRepository {
 			.executeTakeFirst();
 	}
 
-	async find(filter: Partial<JournalRecord> = {}): Promise<JournalRecord[]> {
-		let query = this.connection.selectFrom('journal_record').selectAll();
+	async find(filter: Partial<JournalRecord> = {}): Promise<JournalRecordWithContent[]> {
+		let query = this.connection
+			.selectFrom('journal_record')
+			.innerJoin('markdown_content', 'markdown_content.id', 'journal_record.markdown_content_id')
+			.selectAll('journal_record')
+			.select(eb => [eb.ref('markdown_content.content_text').as('markdown_content')]);
 		for (const key in filter) {
 			query = query.where(key as keyof typeof filter, '=', filter[key as keyof typeof filter]!);
 		}
-		return await query.execute();
+		const journalRecords: JournalRecordWithContent[] = await query.execute();
+
+		return journalRecords;
 	}
 
 	async update(id: string, updates: JournalRecordUpdate): Promise<JournalRecord> {

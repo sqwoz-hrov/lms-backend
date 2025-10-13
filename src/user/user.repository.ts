@@ -1,6 +1,6 @@
 import { Kysely } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
-import { SubscriptionTier, User, UserAggregation, UserWithSubscriptionTier } from './user.entity';
+import { NewUser, SubscriptionTier, User, UserAggregation, UserWithSubscriptionTier } from './user.entity';
 import { Inject } from '@nestjs/common';
 
 export class UserRepository {
@@ -107,7 +107,7 @@ export class UserRepository {
 		await this.connection.updateTable('user').set(user).where('id', '=', user.id).execute();
 	}
 
-	public async save(user: Omit<User, 'telegram_id' | 'id'>): Promise<User | undefined> {
+	public async save(user: Omit<NewUser, 'telegram_id' | 'id'>): Promise<User | undefined> {
 		const res = await this.connection
 			.insertInto('user')
 			.values({

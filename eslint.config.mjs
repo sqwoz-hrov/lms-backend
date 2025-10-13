@@ -41,12 +41,12 @@ export default tseslint.config(
         'error',
         {
           selector:
-            "CallExpression[callee.property.name='executeTakeFirstOrThrow']:has(CallExpression[callee.property.name='selectFrom'])[callee.object.callee.property.name!='limit'][callee.object.callee.property.name!='returning']",
+            "CallExpression[callee.property.name='executeTakeFirstOrThrow']:has(CallExpression[callee.property.name='selectFrom'])[callee.object.callee.property.name!='limit'][callee.object.callee.property.name!='returning'][callee.object.callee.property.name!='returningAll']",
           message: 'You must call .limit(1) before executeTakeFirstOrThrow().',
         },
         {
           selector:
-            "CallExpression[callee.property.name='executeTakeFirst']:has(CallExpression[callee.property.name='selectFrom'])[callee.object.callee.property.name!='limit'][callee.object.callee.property.name!='returning']",
+            "CallExpression[callee.property.name='executeTakeFirst']:has(CallExpression[callee.property.name='selectFrom'])[callee.object.callee.property.name!='limit'][callee.object.callee.property.name!='returning'][callee.object.callee.property.name!='returningAll']",
           message: 'You must call .limit(1) before executeTakeFirst().',
         },
       ],

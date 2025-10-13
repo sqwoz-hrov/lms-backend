@@ -1,13 +1,14 @@
 import { Kysely } from 'kysely';
 import { Inject } from '@nestjs/common';
 import { DatabaseProvider } from '../infra/db/db.provider';
-import { Material, MaterialAggregation, MaterialUpdate, NewMaterial } from './material.entity';
+import { Material, MaterialAggregation, MaterialUpdate, NewMaterial, MaterialWithContent } from './material.entity';
+import { MarkDownContentAggregation } from '../markdown-content/markdown-content.entity';
 
 export class MaterialRepository {
-	private readonly connection: Kysely<MaterialAggregation>;
+	private readonly connection: Kysely<MaterialAggregation & MarkDownContentAggregation>;
 
 	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
-		this.connection = dbProvider.getDatabase<MaterialAggregation>();
+		this.connection = dbProvider.getDatabase<MaterialAggregation & MarkDownContentAggregation>();
 	}
 
 	async save(data: NewMaterial): Promise<Material> {
@@ -42,8 +43,12 @@ export class MaterialRepository {
 			is_archived?: boolean;
 			subscription_tier_id?: string;
 		} = {},
-	): Promise<Material[]> {
-		let q = this.connection.selectFrom('material').selectAll();
+	): Promise<MaterialWithContent[]> {
+		let q = this.connection
+			.selectFrom('material')
+			.leftJoin('markdown_content', 'markdown_content.id', 'material.markdown_content_id')
+			.selectAll('material')
+			.select(eb => [eb.ref('markdown_content.content_text').as('markdown_content')]);
 
 		if (filter.subscription_tier_id) {
 			q = q
@@ -63,7 +68,13 @@ export class MaterialRepository {
 		const isArchived = filter.is_archived ?? false;
 		q = q.where('is_archived', '=', isArchived);
 
-		return q.execute();
+		type MaterialRow = Material & { markdown_content: string | null };
+		const materials: MaterialRow[] = await q.execute();
+
+		return materials.map(material => ({
+			...material,
+			markdown_content: material.markdown_content ?? undefined,
+		}));
 	}
 
 	async openForTiers(materialId: string, tierIds: string[]): Promise<void> {

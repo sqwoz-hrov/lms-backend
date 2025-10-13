@@ -29,3 +29,7 @@ export interface MaterialAggregation {
 	material: MaterialTable;
 	material_tier: MaterialTierTable;
 }
+
+export type MaterialWithContent = Material & {
+	markdown_content?: string;
+};

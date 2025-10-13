@@ -197,9 +197,10 @@ describe('[E2E] Get materials usecase', () => {
 		let student: User;
 		let subscriber: User;
 		let accessibleMaterial: Material;
-		let restrictedMaterial: Material;
+		let materialForAnotherTier: Material;
 		let assignedMaterial: Material;
 		let hiddenMaterial: Material;
+		let materialNotMeantForSubscribers: Material;
 
 		beforeEach(async () => {
 			admin = await createTestAdmin(userUtilRepository);
@@ -211,9 +212,10 @@ describe('[E2E] Get materials usecase', () => {
 			expect(subscriber.subscription_tier_id).to.be.a('string');
 
 			accessibleMaterial = await createMaterial({});
-			restrictedMaterial = await createMaterial({});
+			materialForAnotherTier = await createMaterial({});
 			assignedMaterial = await createMaterial({ student_user_id: student.id });
 			hiddenMaterial = await createMaterial({ is_archived: true });
+			materialNotMeantForSubscribers = await createMaterial({});
 
 			const allowRes = await materialTestSdk.openMaterialForTiers({
 				materialId: accessibleMaterial.id,
@@ -222,7 +224,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			const restrictRes = await materialTestSdk.openMaterialForTiers({
-				materialId: restrictedMaterial.id,
+				materialId: materialForAnotherTier.id,
 				params: { tier_ids: [otherTier.id] },
 				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
@@ -238,15 +240,17 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body).to.be.an('array').with.length(1);
-			expect(res.body[0].id).to.equal(accessibleMaterial.id);
-			expect(res.body.map(material => material.id)).to.not.include(restrictedMaterial.id);
-			expect(res.body.map(material => material.id)).to.not.include(hiddenMaterial.id);
+			const materialIds = res.body.map(material => material.id);
+			expect(materialIds).to.have.length(1);
+			expect(materialIds).to.include(accessibleMaterial.id);
+			expect(materialIds).to.not.include(materialNotMeantForSubscribers.id);
+			expect(materialIds).to.not.include(materialForAnotherTier.id);
+			expect(materialIds).to.not.include(hiddenMaterial.id);
 		});
 
 		it('Subscriber cannot reveal restricted materials using subject_id filter', async () => {
 			const res = await materialTestSdk.getMaterials({
-				params: { subject_id: restrictedMaterial.subject_id },
+				params: { subject_id: materialForAnotherTier.subject_id },
 				userMeta: { userId: subscriber.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
@@ -263,7 +267,12 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body).to.be.an('array').with.length(1); // will ignore student_user_id filter and return available materials
+			const materialIds = res.body.map(material => material.id);
+			expect(materialIds).to.have.length(1); // ignores student_user_id filter and returns available materials
+			expect(materialIds).to.include(accessibleMaterial.id);
+			expect(materialIds).to.not.include(materialNotMeantForSubscribers.id);
+			expect(materialIds).to.not.include(materialForAnotherTier.id);
+			expect(materialIds).to.not.include(hiddenMaterial.id);
 		});
 
 		it('Subscriber cannot reveal restricted materials using is_archived filter', async () => {
@@ -273,7 +282,12 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body).to.be.an('array').with.length(1); // will ignore is_archived filter and return available materials
+			const materialIds = res.body.map(material => material.id);
+			expect(materialIds).to.have.length(1); // ignores is_archived filter and returns available materials
+			expect(materialIds).to.include(accessibleMaterial.id);
+			expect(materialIds).to.not.include(materialNotMeantForSubscribers.id);
+			expect(materialIds).to.not.include(materialForAnotherTier.id);
+			expect(materialIds).to.not.include(hiddenMaterial.id);
 		});
 	});
 });

@@ -76,7 +76,7 @@ export class BaseUserDto {
 	is_archived?: boolean;
 }
 
-export class CreateUserDto extends OmitType(BaseUserDto, ['id', 'telegram_id']) {}
+export class CreateUserDto extends OmitType(BaseUserDto, ['id', 'telegram_id', 'active_until', 'is_archived']) {}
 
 export class UpdateUserDto extends OmitType(BaseUserDto, ['id']) {}
 

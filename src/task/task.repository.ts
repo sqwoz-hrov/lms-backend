@@ -1,13 +1,14 @@
 import { Kysely } from 'kysely';
-import { NewTask, Task, TaskAggregation, TaskUpdate } from './task.entity';
+import { NewTask, Task, TaskAggregation, TaskUpdate, TaskWithMarkdown } from './task.entity';
 import { Inject } from '@nestjs/common';
 import { DatabaseProvider } from '../infra/db/db.provider';
+import { MarkDownContentAggregation } from '../markdown-content/markdown-content.entity';
 
 export class TaskRepository {
-	private readonly connection: Kysely<TaskAggregation>;
+	private readonly connection: Kysely<TaskAggregation & MarkDownContentAggregation>;
 
 	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
-		this.connection = dbProvider.getDatabase<TaskAggregation>();
+		this.connection = dbProvider.getDatabase<TaskAggregation & MarkDownContentAggregation>();
 	}
 
 	async save(data: NewTask) {
@@ -24,12 +25,18 @@ export class TaskRepository {
 		return await this.connection.selectFrom('task').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
-	async find(filter: Partial<Task> = {}) {
-		let query = this.connection.selectFrom('task').selectAll();
+	async find(filter: Partial<Task> = {}): Promise<TaskWithMarkdown[]> {
+		let query = this.connection
+			.selectFrom('task')
+			.innerJoin('markdown_content', 'markdown_content.id', 'task.markdown_content_id')
+			.selectAll('task')
+			.select(eb => [eb.ref('markdown_content.content_text').as('markdown_content')]);
 		for (const key in filter) {
 			query = query.where(key as keyof typeof filter, '=', filter[key as keyof typeof filter]!);
 		}
-		return await query.execute();
+		const tasks: TaskWithMarkdown[] = await query.execute();
+
+		return tasks;
 	}
 
 	async update(id: string, updates: TaskUpdate) {

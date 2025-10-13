@@ -11,14 +11,34 @@ import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
+import { UserResponseDto } from '../../dto/user.dto';
 import { UsersTestRepository } from '../../test-utils/test.repo';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
+import { UserWithSubscriptionTier } from '../../user.entity';
 
 describe('[E2E] Get user by id usecase', () => {
 	let app: INestApplication;
 
 	let utilRepository: UsersTestRepository;
 	let userTestSdk: UsersTestSdk;
+
+	const toExpectedUserResponse = (
+		user: UserWithSubscriptionTier,
+		overrides: Partial<UserResponseDto> = {},
+	): UserResponseDto => ({
+		id: user.id,
+		role: user.role,
+		name: user.name,
+		email: user.email,
+		telegram_id: user.telegram_id ?? undefined,
+		telegram_username: user.telegram_username,
+		subscription_tier_id: user.subscription_tier_id ?? null,
+		active_until: user.active_until ? new Date(user.active_until).toISOString() : null,
+		is_billable: user.is_billable ?? false,
+		is_archived: user.is_archived ?? false,
+		subscription_tier: user.subscription_tier ?? null,
+		...overrides,
+	});
 
 	before(function (this: ISharedContext) {
 		app = this.app;
@@ -101,14 +121,7 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
-		expect(res.body.id).to.equal(user.id);
-		expect(res.body.role).to.equal('user');
-		expect(res.body.name).to.equal(user.name);
-		expect(res.body.email).to.equal(user.email);
-		expect(res.body.telegram_id).to.equal(user.telegram_id);
-		expect(res.body.telegram_username).to.equal(user.telegram_username);
-		expect(res.body.is_billable).to.equal(false);
-		expect(res.body.is_archived).to.equal(true);
+		expect(res.body).to.deep.equal(toExpectedUserResponse(user));
 	});
 
 	it('User can access admin', async () => {
@@ -125,19 +138,17 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
-		expect(res.body.id).to.equal(admin.id);
-		expect(res.body.role).to.equal('admin');
+		expect(res.body).to.deep.equal(toExpectedUserResponse(admin));
 	});
 
-	it('Admin can access any user', async () => {
+	it('Admin can access subscriber with billing details', async () => {
 		const admin = await createTestAdmin(utilRepository);
 		const subscriptionTier = await createTestSubscriptionTier(utilRepository, {
 			permissions: ['view_dashboard'],
 		});
-		const activeUntil = new Date('2035-01-01T00:00:00.000Z');
 		const user = await createTestSubscriber(utilRepository, {
 			subscription_tier_id: subscriptionTier.id,
-			active_until: activeUntil,
+			active_until: new Date('2035-01-01T00:00:00.000Z'),
 			is_billable: true,
 		});
 
@@ -151,17 +162,34 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
-		expect(res.body.id).to.equal(user.id);
-		expect(res.body.role).to.equal('subscriber');
-		expect(res.body.subscription_tier_id).to.equal(subscriptionTier.id);
-		expect(res.body.subscription_tier).to.deep.equal({
-			id: subscriptionTier.id,
-			tier: subscriptionTier.tier,
-			permissions: subscriptionTier.permissions ?? [],
+		expect(res.body).to.deep.equal(
+			toExpectedUserResponse(user, {
+				subscription_tier: {
+					id: subscriptionTier.id,
+					tier: subscriptionTier.tier,
+					permissions: subscriptionTier.permissions ?? [],
+				},
+			}),
+		);
+	});
+
+	it('Admin can access non-billable subscriber', async () => {
+		const admin = await createTestAdmin(utilRepository);
+		const subscriber = await createTestSubscriber(utilRepository, {
+			is_billable: true,
 		});
-		expect(new Date(res.body.active_until!).toISOString()).to.equal(activeUntil.toISOString());
-		expect(res.body.is_billable).to.equal(true);
-		expect(res.body.is_archived).to.equal(user.is_archived);
+
+		const res = await userTestSdk.getUserById({
+			params: { id: subscriber.id },
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.OK);
+		expect(res.body).to.deep.equal(toExpectedUserResponse(subscriber));
 	});
 
 	it('Returns 404 when user not found', async () => {

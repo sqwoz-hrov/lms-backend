@@ -51,7 +51,6 @@ export class VideoRepository {
 				})
 				.where('id', '=', id)
 				.returningAll()
-				.limit(1)
 				.executeTakeFirst();
 
 			return res;
@@ -73,13 +72,7 @@ export class VideoRepository {
 				throw new Error('Session not found');
 			}
 
-			const res = await trx
-				.updateTable('video')
-				.set({ phase })
-				.where('id', '=', id)
-				.returningAll()
-				.limit(1)
-				.executeTakeFirst();
+			const res = await trx.updateTable('video').set({ phase }).where('id', '=', id).returningAll().executeTakeFirst();
 
 			if (!res) {
 				throw new Error('Concurrent update (phase)');
@@ -109,7 +102,6 @@ export class VideoRepository {
 				.set({ checksum_sha256_base64 })
 				.where('id', '=', id)
 				.returningAll()
-				.limit(1)
 				.executeTakeFirst();
 
 			if (!res) {
@@ -154,7 +146,6 @@ export class VideoRepository {
 				})
 				.where('id', '=', id)
 				.returningAll()
-				.limit(1)
 				.executeTakeFirst();
 
 			if (!res) {

@@ -55,7 +55,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.createTable('payment_event')
 		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
 		.addColumn('user_id', 'uuid', col => col.notNull())
-		.addColumn('event', 'varchar(128)', col => col.notNull())
+		.addColumn('event', 'jsonb', col => col.notNull())
 		.addColumn('created_at', 'timestamp', col => col.notNull().defaultTo(sql`now()`))
 		.addForeignKeyConstraint('payment_event_user_id_fkey', ['user_id'], 'user', ['id'], cb => cb.onDelete('cascade'))
 		.execute();

@@ -119,8 +119,10 @@ describe('[E2E] Get subjects usecase', () => {
 		let admin: User;
 		let subscriber: User;
 		let accessibleSubject: Subject;
-		let restrictedSubject: Subject;
+		let subjectForAnotherTier: Subject;
+		let assignedSubject: Subject;
 		let hiddenSubject: Subject;
+		let subjectNotMeantForSubscribers: Subject;
 
 		beforeEach(async () => {
 			admin = await createTestAdmin(userUtilRepository);
@@ -129,9 +131,26 @@ describe('[E2E] Get subjects usecase', () => {
 
 			expect(subscriber.subscription_tier_id).to.be.a('string');
 
-			accessibleSubject = await createTestSubject(subjectUtilRepository);
-			restrictedSubject = await createTestSubject(subjectUtilRepository);
-			hiddenSubject = await createTestSubject(subjectUtilRepository);
+			accessibleSubject = await createTestSubject(subjectUtilRepository, {
+				name: 'Accessible Subject',
+				color_code: '#AA0000',
+			});
+			subjectForAnotherTier = await createTestSubject(subjectUtilRepository, {
+				name: 'Other Tier Subject',
+				color_code: '#BB0000',
+			});
+			assignedSubject = await createTestSubject(subjectUtilRepository, {
+				name: 'Assigned Subject',
+				color_code: '#CC0000',
+			});
+			hiddenSubject = await createTestSubject(subjectUtilRepository, {
+				name: 'Hidden Subject',
+				color_code: '#DD0000',
+			});
+			subjectNotMeantForSubscribers = await createTestSubject(subjectUtilRepository, {
+				name: 'Not For Subscribers Subject',
+				color_code: '#EE0000',
+			});
 
 			const allowRes = await subjectTestSdk.openSubjectForTiers({
 				subjectId: accessibleSubject.id,
@@ -144,7 +163,7 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			const restrictRes = await subjectTestSdk.openSubjectForTiers({
-				subjectId: restrictedSubject.id,
+				subjectId: subjectForAnotherTier.id,
 				params: { tier_ids: [otherTier.id] },
 				userMeta: {
 					userId: admin.id,
@@ -167,10 +186,13 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body.length).to.equal(1);
-			expect(res.body[0].id).to.equal(accessibleSubject.id);
-			expect(res.body.map((s: BaseSubjectDto) => s.id)).to.not.include(restrictedSubject.id);
-			expect(res.body.map((s: BaseSubjectDto) => s.id)).to.not.include(hiddenSubject.id);
+			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			expect(subjectIds).to.have.length(1);
+			expect(subjectIds).to.include(accessibleSubject.id);
+			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
+			expect(subjectIds).to.not.include(assignedSubject.id);
+			expect(subjectIds).to.not.include(hiddenSubject.id);
+			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
 		});
 
 		it('Subscriber cannot reveal restricted subjects using id filter', async () => {
@@ -180,12 +202,17 @@ describe('[E2E] Get subjects usecase', () => {
 					isAuth: true,
 					isWrongAccessJwt: false,
 				},
-				query: { id: restrictedSubject.id },
+				query: { id: subjectForAnotherTier.id },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body.map((s: BaseSubjectDto) => s.id)).to.not.include(restrictedSubject.id);
-			expect(res.body.map((s: BaseSubjectDto) => s.id)).to.not.include(hiddenSubject.id);
+			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			expect(subjectIds).to.have.length(1);
+			expect(subjectIds).to.include(accessibleSubject.id);
+			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
+			expect(subjectIds).to.not.include(assignedSubject.id);
+			expect(subjectIds).to.not.include(hiddenSubject.id);
+			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
 		});
 
 		it('Subscriber cannot reveal restricted subjects using name filter', async () => {
@@ -195,12 +222,17 @@ describe('[E2E] Get subjects usecase', () => {
 					isAuth: true,
 					isWrongAccessJwt: false,
 				},
-				query: { name: restrictedSubject.name },
+				query: { name: assignedSubject.name },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body.map((s: BaseSubjectDto) => s.id)).to.not.include(restrictedSubject.id);
-			expect(res.body.map((s: BaseSubjectDto) => s.id)).to.not.include(hiddenSubject.id);
+			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			expect(subjectIds).to.have.length(1);
+			expect(subjectIds).to.include(accessibleSubject.id);
+			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
+			expect(subjectIds).to.not.include(assignedSubject.id);
+			expect(subjectIds).to.not.include(hiddenSubject.id);
+			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
 		});
 
 		it('Subscriber cannot reveal restricted subjects using color_code filter', async () => {
@@ -210,12 +242,17 @@ describe('[E2E] Get subjects usecase', () => {
 					isAuth: true,
 					isWrongAccessJwt: false,
 				},
-				query: { color_code: restrictedSubject.color_code },
+				query: { color_code: hiddenSubject.color_code },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-			expect(res.body.map((s: BaseSubjectDto) => s.id)).to.not.include(restrictedSubject.id);
-			expect(res.body.map((s: BaseSubjectDto) => s.id)).to.not.include(hiddenSubject.id);
+			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			expect(subjectIds).to.have.length(1);
+			expect(subjectIds).to.include(accessibleSubject.id);
+			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
+			expect(subjectIds).to.not.include(assignedSubject.id);
+			expect(subjectIds).to.not.include(hiddenSubject.id);
+			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
 		});
 	});
 });

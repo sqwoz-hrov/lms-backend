@@ -46,11 +46,6 @@ export class MarkdownContentRespository {
 	}
 
 	public async delete(id: string): Promise<MarkDownContent | undefined> {
-		return this.connection
-			.deleteFrom('markdown_content')
-			.where('id', '=', id)
-			.returningAll()
-			.limit(1)
-			.executeTakeFirst();
+		return this.connection.deleteFrom('markdown_content').where('id', '=', id).returningAll().executeTakeFirst();
 	}
 }

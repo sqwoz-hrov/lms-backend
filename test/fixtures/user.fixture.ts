@@ -1,5 +1,5 @@
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { SubscriptionTier, User } from '../../src/user/user.entity';
+import { SubscriptionTier, User, UserWithSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
 
 export const createName = () => {
@@ -70,16 +70,17 @@ export const createTestAdmin = async (
 export const createTestSubscriber = async (
 	userRepository: UsersTestRepository,
 	overrides: Partial<User> = {},
-): Promise<User> => {
+): Promise<UserWithSubscriptionTier> => {
 	const { subscription_tier_id, active_until, is_billable, is_archived, ...restOverrides } = overrides;
 
 	const billable = is_billable ?? true;
 	let resolvedTierId = subscription_tier_id ?? null;
 	let resolvedActiveUntil = active_until ?? null;
 
+	let subscriptionTier: SubscriptionTier | null = null;
 	if (billable) {
 		if (!resolvedTierId) {
-			const subscriptionTier = await createTestSubscriptionTier(userRepository);
+			subscriptionTier = await createTestSubscriptionTier(userRepository);
 			resolvedTierId = subscriptionTier.id;
 		}
 
@@ -88,7 +89,7 @@ export const createTestSubscriber = async (
 		}
 	}
 
-	return userRepository.connection
+	const user = await userRepository.connection
 		.insertInto('user')
 		.values({
 			role: 'subscriber',
@@ -104,4 +105,6 @@ export const createTestSubscriber = async (
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
+
+	return { ...user, ...{ subscription_tier: subscriptionTier } };
 };
