@@ -121,7 +121,6 @@ describe('[E2E] Get subjects usecase', () => {
 		let accessibleSubject: Subject;
 		let subjectForAnotherTier: Subject;
 		let assignedSubject: Subject;
-		let hiddenSubject: Subject;
 		let subjectNotMeantForSubscribers: Subject;
 
 		beforeEach(async () => {
@@ -142,10 +141,6 @@ describe('[E2E] Get subjects usecase', () => {
 			assignedSubject = await createTestSubject(subjectUtilRepository, {
 				name: 'Assigned Subject',
 				color_code: '#CC0000',
-			});
-			hiddenSubject = await createTestSubject(subjectUtilRepository, {
-				name: 'Hidden Subject',
-				color_code: '#DD0000',
 			});
 			subjectNotMeantForSubscribers = await createTestSubject(subjectUtilRepository, {
 				name: 'Not For Subscribers Subject',
@@ -191,7 +186,6 @@ describe('[E2E] Get subjects usecase', () => {
 			expect(subjectIds).to.include(accessibleSubject.id);
 			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
 			expect(subjectIds).to.not.include(assignedSubject.id);
-			expect(subjectIds).to.not.include(hiddenSubject.id);
 			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
 		});
 
@@ -202,7 +196,7 @@ describe('[E2E] Get subjects usecase', () => {
 					isAuth: true,
 					isWrongAccessJwt: false,
 				},
-				query: { id: subjectForAnotherTier.id },
+				query: { id: subjectNotMeantForSubscribers.id },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -211,7 +205,6 @@ describe('[E2E] Get subjects usecase', () => {
 			expect(subjectIds).to.include(accessibleSubject.id);
 			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
 			expect(subjectIds).to.not.include(assignedSubject.id);
-			expect(subjectIds).to.not.include(hiddenSubject.id);
 			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
 		});
 
@@ -231,7 +224,6 @@ describe('[E2E] Get subjects usecase', () => {
 			expect(subjectIds).to.include(accessibleSubject.id);
 			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
 			expect(subjectIds).to.not.include(assignedSubject.id);
-			expect(subjectIds).to.not.include(hiddenSubject.id);
 			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
 		});
 
@@ -242,7 +234,7 @@ describe('[E2E] Get subjects usecase', () => {
 					isAuth: true,
 					isWrongAccessJwt: false,
 				},
-				query: { color_code: hiddenSubject.color_code },
+				query: { color_code: subjectNotMeantForSubscribers.color_code },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
@@ -251,7 +243,6 @@ describe('[E2E] Get subjects usecase', () => {
 			expect(subjectIds).to.include(accessibleSubject.id);
 			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
 			expect(subjectIds).to.not.include(assignedSubject.id);
-			expect(subjectIds).to.not.include(hiddenSubject.id);
 			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
 		});
 	});

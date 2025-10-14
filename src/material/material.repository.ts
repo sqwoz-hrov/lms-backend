@@ -68,8 +68,7 @@ export class MaterialRepository {
 		const isArchived = filter.is_archived ?? false;
 		q = q.where('is_archived', '=', isArchived);
 
-		type MaterialRow = Material & { markdown_content: string | null };
-		const materials: MaterialRow[] = await q.execute();
+		const materials = await q.execute();
 
 		return materials.map(material => ({
 			...material,

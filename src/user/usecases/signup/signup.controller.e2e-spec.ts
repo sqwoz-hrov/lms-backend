@@ -234,7 +234,7 @@ describe('[E2E] Signup usecase', () => {
 		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 
-	it('Returns 400 when subscriber lacks billing details', async () => {
+	it('Returns 400 when trying to manually sign up a subscriber', async () => {
 		const requestAuthor = await createTestAdmin(utilRepository);
 		const subscriber = {
 			role: 'subscriber' as const,
