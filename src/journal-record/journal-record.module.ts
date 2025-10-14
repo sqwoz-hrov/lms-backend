@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { UserModule } from '../user/user.module';
 import { JournalRecordRepository } from './journal-record.repository';
 import { CreateJournalRecordController } from './usecases/create-journal-record/create-journal-record.controller';
 import { CreateJournalRecordUsecase } from './usecases/create-journal-record/create-journal-record.usecase';
@@ -13,7 +12,6 @@ import { GetJournalRecordsController } from './usecases/get-journal-records/get-
 import { GetJournalRecordsUsecase } from './usecases/get-journal-records/get-journal-records.usecase';
 
 @Module({
-	imports: [UserModule],
 	controllers: [
 		CreateJournalRecordController,
 		EditJournalRecordController,

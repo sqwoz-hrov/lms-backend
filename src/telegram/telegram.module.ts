@@ -5,7 +5,6 @@ import { TelegramService } from '../telegram/services/telegram.service';
 import { TelegramAdapter } from '../telegram/adapters/telegram.adapter';
 import { FakeTelegramAdapter } from './adapters/fake-telegram.adapter';
 import { TELEGRAM_ADAPTER } from './constants';
-import { UserModule } from '../user/user.module';
 
 @Module({})
 export class TelegramModule {
@@ -14,7 +13,6 @@ export class TelegramModule {
 			return {
 				module: TelegramModule,
 				global: true,
-				imports: [UserModule],
 				controllers: [TelegramWebhookController],
 				providers: [{ provide: TELEGRAM_ADAPTER, useClass: TelegramAdapter }, TelegramService, TelegramWebhookUsecase],
 				exports: [TELEGRAM_ADAPTER],

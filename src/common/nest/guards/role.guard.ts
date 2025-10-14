@@ -1,15 +1,14 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { Request } from 'express';
-import { DatabaseProvider } from '../../../infra/db/db.provider';
-import { JwtService } from '../../../infra/services/jwt.service';
-import { UserAggregation } from '../../../user/user.entity';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Request } from 'express';
+import { JwtService } from '../../../infra/services/jwt.service';
+import { UserRepository } from '../../../user/user.repository';
 
 @Injectable()
 export class RoleGuard implements CanActivate {
 	constructor(
 		private readonly jwtService: JwtService,
-		private readonly databaseProvider: DatabaseProvider,
+		private readonly userRepo: UserRepository,
 		private readonly reflector: Reflector,
 	) {}
 
@@ -36,8 +35,7 @@ export class RoleGuard implements CanActivate {
 			throw new UnauthorizedException('Refresh token cannot be used for access');
 		}
 
-		const conn = this.databaseProvider.getDatabase<UserAggregation>();
-		const user = await conn.selectFrom('user').selectAll().where('id', '=', result.data.userId).executeTakeFirst();
+		const user = await this.userRepo.findByIdWithSubscriptionTier(result.data.userId);
 
 		if (!user) {
 			throw new UnauthorizedException('User not found');

@@ -43,6 +43,9 @@ export const mochaHooks = {
 	async beforeAll(this: ISharedContext) {
 		console.time('whole');
 		process.env.REDIS_USERNAME = '';
+		const NO_SILENT_FLAG = '--no-silent';
+		const hasNoSilentFlag = process.argv.includes(NO_SILENT_FLAG) || process.env.npm_config_no_silent === 'true';
+		const shouldUseSilentLogger = !hasNoSilentFlag;
 
 		const testModule = await Test.createTestingModule({
 			imports: [
@@ -68,7 +71,9 @@ export const mochaHooks = {
 		}).compile();
 
 		const app = testModule.createNestApplication();
-		app.useLogger(new SilentLogger());
+		if (shouldUseSilentLogger) {
+			app.useLogger(new SilentLogger());
+		}
 		app.use(cookieParser());
 
 		const _dbConfig = app.get<ConfigType<typeof dbConfig>>(dbConfig.KEY);

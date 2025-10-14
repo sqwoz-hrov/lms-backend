@@ -15,3 +15,7 @@ export type JournalRecordUpdate = Updateable<JournalRecordTable>;
 export interface JournalRecordAggregation {
 	journal_record: JournalRecordTable;
 }
+
+export type JournalRecordWithContent = JournalRecord & {
+	markdown_content: string;
+};

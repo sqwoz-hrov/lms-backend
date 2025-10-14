@@ -21,7 +21,7 @@ export class InterviewRepository {
 	}
 
 	async findById(id: string): Promise<Interview | undefined> {
-		return await this.connection.selectFrom('interview').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection.selectFrom('interview').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
 	async find(filter: Partial<Interview> = {}, userId?: string): Promise<Interview[]> {

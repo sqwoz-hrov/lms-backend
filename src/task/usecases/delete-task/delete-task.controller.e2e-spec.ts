@@ -115,6 +115,7 @@ describe('[E2E] Delete task usecase', () => {
 			.selectFrom('task')
 			.selectAll()
 			.where('id', '=', task.id)
+			.limit(1)
 			.executeTakeFirst();
 		expect(found).to.equal(undefined);
 	});

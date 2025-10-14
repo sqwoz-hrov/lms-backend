@@ -20,7 +20,12 @@ export class HrConnectionRepository {
 	}
 
 	async findById(id: string): Promise<HrConnection | undefined> {
-		return await this.connection.selectFrom('hr_connection').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection
+			.selectFrom('hr_connection')
+			.selectAll()
+			.where('id', '=', id)
+			.limit(1)
+			.executeTakeFirst();
 	}
 
 	async find(filter: Partial<HrConnection> = {}): Promise<HrConnection[]> {

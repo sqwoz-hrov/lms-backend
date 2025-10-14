@@ -13,3 +13,7 @@ export type FeedbackUpdate = Updateable<FeedbackTable>;
 export interface FeedbackAggregation {
 	feedback: FeedbackTable;
 }
+
+export type FeedbackWithContent = Feedback & {
+	markdown_content: string;
+};

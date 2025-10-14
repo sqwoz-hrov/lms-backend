@@ -6,7 +6,6 @@ import { User } from '../../../user/user.entity';
 import { FeedbackRepository } from '../../feedback.repository';
 import { InterviewRepository } from '../../../interview/interview.repository';
 import { HrConnectionRepository } from '../../../hr-connection/hr-connection.repository';
-import { MarkdownContentService } from '../../../markdown-content/services/markdown-content.service';
 
 @Injectable()
 export class GetAllFeedbackUsecase implements UsecaseInterface {
@@ -14,7 +13,6 @@ export class GetAllFeedbackUsecase implements UsecaseInterface {
 		private readonly feedbackRepository: FeedbackRepository,
 		private readonly interviewRespository: InterviewRepository,
 		private readonly hrConnectionRespository: HrConnectionRepository,
-		private readonly markdownContentService: MarkdownContentService,
 	) {}
 
 	async execute({ params, user }: { params: GetAllFeedbackDto; user: User }): Promise<BaseFeedbackDto[]> {
@@ -30,17 +28,6 @@ export class GetAllFeedbackUsecase implements UsecaseInterface {
 			}
 		}
 
-		const feedbackRows = await this.feedbackRepository.find(params, user.role === 'admin' ? undefined : user.id);
-		const enrichedFeedbackRows = await Promise.all(
-			feedbackRows.map(async feedback => {
-				const markDownContent = await this.markdownContentService.getMarkdownContent(feedback.markdown_content_id);
-				return {
-					...feedback,
-					markdown_content: markDownContent.content_text,
-				};
-			}),
-		);
-
-		return enrichedFeedbackRows;
+		return await this.feedbackRepository.find(params, user.role === 'admin' ? undefined : user.id);
 	}
 }

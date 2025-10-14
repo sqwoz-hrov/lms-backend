@@ -20,6 +20,6 @@ export class VideosTestRepository {
 	}
 
 	async findById(id: string): Promise<Video | undefined> {
-		return this._connection.selectFrom('video').selectAll().where('id', '=', id).executeTakeFirst();
+		return this._connection.selectFrom('video').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 }

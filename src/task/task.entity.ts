@@ -21,3 +21,7 @@ export type TaskUpdate = Updateable<TaskTable>;
 export interface TaskAggregation {
 	task: TaskTable;
 }
+
+export type TaskWithMarkdown = Task & {
+	markdown_content: string;
+};

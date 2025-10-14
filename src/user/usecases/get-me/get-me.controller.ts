@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from '../../../common/interface/request-with-user.interface';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
-import { UserResponseDto } from '../../dto/signup.dto';
+import { UserResponseDto } from '../../dto/user.dto';
 import { GetMeUsecase } from './get-me.usecase';
 
 @ApiTags('Users')
@@ -18,7 +18,7 @@ export class GetMeController {
 	})
 	@Get()
 	@HttpCode(HttpStatus.OK)
-	get(@Req() req: RequestWithUser): UserResponseDto {
+	async get(@Req() req: RequestWithUser): Promise<UserResponseDto> {
 		const user = req['user'];
 
 		return this.getMeUsecase.execute({ user });

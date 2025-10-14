@@ -16,6 +16,7 @@ export class MaterialsTestRepository {
 	}
 
 	async clearAll(): Promise<void> {
+		await this._connection.deleteFrom('material_tier').execute();
 		await this._connection.deleteFrom('material').execute();
 	}
 }

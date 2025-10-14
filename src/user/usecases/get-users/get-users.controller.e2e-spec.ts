@@ -1,7 +1,12 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import {
+	createTestAdmin,
+	createTestSubscriber,
+	createTestSubscriptionTier,
+	createTestUser,
+} from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
@@ -65,6 +70,11 @@ describe('[E2E] Get users usecase', () => {
 		const anotherAdmin = await createTestAdmin(utilRepository);
 		const userOne = await createTestUser(utilRepository);
 		const userTwo = await createTestUser(utilRepository);
+		const subscriptionTier = await createTestSubscriptionTier(utilRepository);
+		const subscriber = await createTestSubscriber(utilRepository, {
+			subscription_tier_id: subscriptionTier.id,
+			active_until: new Date('2033-01-01T00:00:00.000Z'),
+		});
 
 		const res = await usersTestSdk.getUsers({
 			userMeta: {
@@ -79,7 +89,20 @@ describe('[E2E] Get users usecase', () => {
 
 		const returnedIds = res.body.map(user => user.id);
 
-		expect(returnedIds).to.have.members([admin.id, anotherAdmin.id, userOne.id, userTwo.id]);
+		expect(returnedIds).to.have.members([admin.id, anotherAdmin.id, userOne.id, userTwo.id, subscriber.id]);
+
+		const returnedSubscriber = res.body.find(user => user.id === subscriber.id);
+		expect(returnedSubscriber).to.be.an('object');
+		expect(returnedSubscriber?.subscription_tier_id).to.equal(subscriptionTier.id);
+		expect(new Date(returnedSubscriber?.active_until as string).toISOString()).to.equal(
+			new Date(subscriber.active_until!).toISOString(),
+		);
+		expect(returnedSubscriber?.is_billable).to.equal(true);
+		expect(returnedSubscriber?.subscription_tier).to.deep.equal({
+			id: subscriptionTier.id,
+			tier: subscriptionTier.tier,
+			permissions: subscriptionTier.permissions ?? [],
+		});
 	});
 
 	it('User sees self and admins only', async () => {
@@ -103,5 +126,33 @@ describe('[E2E] Get users usecase', () => {
 
 		expect(returnedIds).to.have.members([adminOne.id, adminTwo.id, requestingUser.id]);
 		expect(returnedIds).to.not.include(otherUser.id);
+	});
+
+	it('Subscriber sees only self', async () => {
+		await createTestUser(utilRepository);
+		const subscriptionTier = await createTestSubscriptionTier(utilRepository);
+		const subscriber = await createTestSubscriber(utilRepository, {
+			subscription_tier_id: subscriptionTier.id,
+			active_until: new Date('2034-05-01T00:00:00.000Z'),
+		});
+
+		const res = await usersTestSdk.getUsers({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.OK);
+		expect(res.body).to.be.an('array').with.lengthOf(1);
+		expect(res.body[0].id).to.equal(subscriber.id);
+		expect(res.body[0].role).to.equal('subscriber');
+		expect(res.body[0].subscription_tier_id).to.equal(subscriptionTier.id);
+		expect(res.body[0].subscription_tier?.id).to.equal(subscriptionTier.id);
+		expect(res.body[0].is_billable).to.equal(true);
+		expect(new Date(res.body[0].active_until as string).toISOString()).to.equal(
+			new Date(subscriber.active_until!).toISOString(),
+		);
 	});
 });

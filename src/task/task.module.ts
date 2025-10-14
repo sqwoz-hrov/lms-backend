@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { UserModule } from '../user/user.module';
 import { TaskRepository } from './task.repository';
 import { ChangeTaskStatusController } from './usecases/change-task-status/change-task-status.controller';
 import { ChangeTaskStatusUsecase } from './usecases/change-task-status/change-task-status.usecase';
@@ -17,7 +16,6 @@ import { CreateTaskForMultipleStudentsController } from './usecases/create-for-m
 import { CreateTaskForMultipleStudentsUsecase } from './usecases/create-for-multiple-students/create-for-multiple-students.usecase';
 
 @Module({
-	imports: [UserModule],
 	controllers: [
 		ChangeTaskStatusController,
 		CreateTaskForMultipleStudentsController,

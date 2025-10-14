@@ -32,7 +32,7 @@ export class SubjectRepository {
 	}
 
 	async findById(id: string) {
-		return await this.connection.selectFrom('subject').selectAll().where('id', '=', id).executeTakeFirst();
+		return await this.connection.selectFrom('subject').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
 	async find(filter: Partial<Subject> = {}): Promise<Subject[]> {
@@ -41,5 +41,26 @@ export class SubjectRepository {
 			query = query.where(key as keyof typeof filter, '=', filter[key as keyof typeof filter]!);
 		}
 		return await query.execute();
+	}
+
+	async findBySubscriptionTier(tierId: string): Promise<Subject[]> {
+		return await this.connection
+			.selectFrom('subject')
+			.innerJoin('subject_tier', 'subject_tier.subject_id', 'subject.id')
+			.selectAll('subject')
+			.where('subject_tier.tier_id', '=', tierId)
+			.execute();
+	}
+
+	async openForTiers(subjectId: string, tierIds: string[]): Promise<void> {
+		if (!tierIds.length) {
+			return;
+		}
+
+		await this.connection
+			.insertInto('subject_tier')
+			.values(tierIds.map(tierId => ({ subject_id: subjectId, tier_id: tierId })))
+			.onConflict(oc => oc.columns(['subject_id', 'tier_id']).doNothing())
+			.execute();
 	}
 }
