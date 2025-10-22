@@ -3,12 +3,12 @@ import { ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from '../../../common/interface/request-with-user.interface';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
-import { UserResponseDto } from '../../dto/signup.dto';
+import { UserResponseDto } from '../../dto/user.dto';
 import { GetUsersUsecase } from './get-users.usecase';
 
 @ApiTags('Users')
 @Controller('users')
-@Roles('admin', 'user')
+@Roles('admin', 'user', 'subscriber')
 export class GetUsersController {
 	constructor(private readonly getUsecase: GetUsersUsecase) {}
 

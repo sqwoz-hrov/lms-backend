@@ -20,6 +20,7 @@ export class MarkdownContentRespository {
 			.selectFrom('markdown_content')
 			.selectAll()
 			.where('id', '=', id)
+			.limit(1)
 			.executeTakeFirst();
 
 		return markdownContent;

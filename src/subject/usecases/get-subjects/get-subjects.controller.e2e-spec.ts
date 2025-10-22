@@ -2,13 +2,20 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { createTestSubject } from '../../../../test/fixtures/subject.fixture';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import {
+	createTestAdmin,
+	createTestSubscriber,
+	createTestSubscriptionTier,
+	createTestUser,
+} from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
+import { User } from '../../../user/user.entity';
 import { BaseSubjectDto } from '../../dto/base-subject.dto';
+import { Subject } from '../../subject.entity';
 import { SubjectsTestRepository } from '../../test-utils/test.repo';
 import { SubjectsTestSdk } from '../../test-utils/test.sdk';
 
@@ -106,5 +113,137 @@ describe('[E2E] Get subjects usecase', () => {
 		expect(res.body.length).to.equal(1);
 		expect(res.body[0].id).to.equal(subject.id);
 		expect(res.body[0].name).to.equal(subject.name);
+	});
+
+	describe('Subscriber access tests', () => {
+		let admin: User;
+		let subscriber: User;
+		let accessibleSubject: Subject;
+		let subjectForAnotherTier: Subject;
+		let assignedSubject: Subject;
+		let subjectNotMeantForSubscribers: Subject;
+
+		beforeEach(async () => {
+			admin = await createTestAdmin(userUtilRepository);
+			subscriber = await createTestSubscriber(userUtilRepository);
+			const otherTier = await createTestSubscriptionTier(userUtilRepository);
+
+			expect(subscriber.subscription_tier_id).to.be.a('string');
+
+			accessibleSubject = await createTestSubject(subjectUtilRepository, {
+				name: 'Accessible Subject',
+				color_code: '#AA0000',
+			});
+			subjectForAnotherTier = await createTestSubject(subjectUtilRepository, {
+				name: 'Other Tier Subject',
+				color_code: '#BB0000',
+			});
+			assignedSubject = await createTestSubject(subjectUtilRepository, {
+				name: 'Assigned Subject',
+				color_code: '#CC0000',
+			});
+			subjectNotMeantForSubscribers = await createTestSubject(subjectUtilRepository, {
+				name: 'Not For Subscribers Subject',
+				color_code: '#EE0000',
+			});
+
+			const allowRes = await subjectTestSdk.openSubjectForTiers({
+				subjectId: accessibleSubject.id,
+				params: { tier_ids: [subscriber.subscription_tier_id!] },
+				userMeta: {
+					userId: admin.id,
+					isAuth: true,
+					isWrongAccessJwt: false,
+				},
+			});
+
+			const restrictRes = await subjectTestSdk.openSubjectForTiers({
+				subjectId: subjectForAnotherTier.id,
+				params: { tier_ids: [otherTier.id] },
+				userMeta: {
+					userId: admin.id,
+					isAuth: true,
+					isWrongAccessJwt: false,
+				},
+			});
+
+			expect(allowRes.status).to.equal(HttpStatus.CREATED);
+			expect(restrictRes.status).to.equal(HttpStatus.CREATED);
+		});
+
+		it('Subscriber sees only subjects available for their tier', async () => {
+			const res = await subjectTestSdk.getSubjects({
+				userMeta: {
+					userId: subscriber.id,
+					isAuth: true,
+					isWrongAccessJwt: false,
+				},
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			expect(subjectIds).to.have.length(1);
+			expect(subjectIds).to.include(accessibleSubject.id);
+			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
+			expect(subjectIds).to.not.include(assignedSubject.id);
+			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
+		});
+
+		it('Subscriber cannot reveal restricted subjects using id filter', async () => {
+			const res = await subjectTestSdk.getSubjects({
+				userMeta: {
+					userId: subscriber.id,
+					isAuth: true,
+					isWrongAccessJwt: false,
+				},
+				query: { id: subjectNotMeantForSubscribers.id },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			expect(subjectIds).to.have.length(1);
+			expect(subjectIds).to.include(accessibleSubject.id);
+			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
+			expect(subjectIds).to.not.include(assignedSubject.id);
+			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
+		});
+
+		it('Subscriber cannot reveal restricted subjects using name filter', async () => {
+			const res = await subjectTestSdk.getSubjects({
+				userMeta: {
+					userId: subscriber.id,
+					isAuth: true,
+					isWrongAccessJwt: false,
+				},
+				query: { name: assignedSubject.name },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			expect(subjectIds).to.have.length(1);
+			expect(subjectIds).to.include(accessibleSubject.id);
+			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
+			expect(subjectIds).to.not.include(assignedSubject.id);
+			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
+		});
+
+		it('Subscriber cannot reveal restricted subjects using color_code filter', async () => {
+			const res = await subjectTestSdk.getSubjects({
+				userMeta: {
+					userId: subscriber.id,
+					isAuth: true,
+					isWrongAccessJwt: false,
+				},
+				query: { color_code: subjectNotMeantForSubscribers.color_code },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			expect(subjectIds).to.have.length(1);
+			expect(subjectIds).to.include(accessibleSubject.id);
+			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
+			expect(subjectIds).to.not.include(assignedSubject.id);
+			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
+		});
 	});
 });

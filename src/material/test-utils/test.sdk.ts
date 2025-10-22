@@ -5,6 +5,7 @@ import { MaterialResponseDto } from '../dto/base-material.dto';
 import { CreateMaterialDto } from '../dto/create-material.dto';
 import { GetMaterialsDto } from '../dto/get-materials.dto';
 import { UpdateMaterialDto } from '../dto/update-material.dto';
+import { OpenMaterialForTiersDto } from '../dto/open-material-for-tiers.dto';
 
 export class MaterialsTestSdk implements ValidateSDK<MaterialsTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -46,6 +47,23 @@ export class MaterialsTestSdk implements ValidateSDK<MaterialsTestSdk> {
 		return this.testClient.request<MaterialResponseDto[]>({
 			path: `/materials?${queryParams.toString()}`,
 			method: 'GET',
+			userMeta,
+		});
+	}
+
+	public async openMaterialForTiers({
+		materialId,
+		params,
+		userMeta,
+	}: {
+		materialId: string;
+		params: OpenMaterialForTiersDto;
+		userMeta: UserMeta;
+	}) {
+		return this.testClient.request<void>({
+			path: `/materials/${materialId}/open-for-tiers`,
+			method: 'POST',
+			body: params,
 			userMeta,
 		});
 	}

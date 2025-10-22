@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { AskForLoginController } from './usecases/ask-login/ask-login.controller';
 import { FinishLoginController } from './usecases/finish-login/finish-login.controller';
 import { OTPRedisStorage } from './adapters/otp-storage.adapter';
@@ -22,6 +22,7 @@ import { RefreshTokensController } from './usecases/refresh-tokens/refresh-token
 import { GetUserController } from './usecases/get-user/get-user.controller';
 import { GetUserUsecase } from './usecases/get-user/get-user.usecase';
 
+@Global()
 @Module({
 	controllers: [
 		AskForLoginController,

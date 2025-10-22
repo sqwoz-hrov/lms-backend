@@ -2,13 +2,24 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { randomWord } from '../../../../test/fixtures/common.fixture';
-import { createEmail, createName, createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import {
+	createEmail,
+	createName,
+	createTestAdmin,
+	createTestSubscriptionTier,
+	createTestUser,
+} from '../../../../test/fixtures/user.fixture';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../test-utils/test.repo';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
+import { CreateUserDto } from '../../dto/user.dto';
+
+type CreateUserDtoWithIgnoredFields = CreateUserDto & {
+	active_until?: string | null;
+};
 
 describe('[E2E] Signup usecase', () => {
 	let app: INestApplication;
@@ -123,6 +134,12 @@ describe('[E2E] Signup usecase', () => {
 		expect(res.body.role).to.equal(user.role);
 		expect(res.body.telegram_username).to.equal(user.telegram_username);
 		expect(res.body.name).to.equal(user.name);
+		expect(res.body.id).to.be.a('string');
+		expect(res.body.is_billable).to.equal(false);
+		expect(res.body.active_until).to.equal(null);
+		expect(res.body.subscription_tier_id).to.equal(null);
+		expect(res.body.subscription_tier).to.equal(null);
+		expect(res.body.is_archived).to.equal(false);
 	});
 
 	it('Admin can create admin', async () => {
@@ -150,6 +167,92 @@ describe('[E2E] Signup usecase', () => {
 		expect(res.body.role).to.equal(user.role);
 		expect(res.body.telegram_username).to.equal(user.telegram_username);
 		expect(res.body.name).to.equal(user.name);
+		expect(res.body.id).to.be.a('string');
+		expect(res.body.is_billable).to.equal(false);
+		expect(res.body.active_until).to.equal(null);
+		expect(res.body.subscription_tier_id).to.equal(null);
+		expect(res.body.subscription_tier).to.equal(null);
+		expect(res.body.is_archived).to.equal(false);
+	});
+
+	it('Ignores billing fields when role is not subscriber', async () => {
+		const requestAuthor = await createTestAdmin(utilRepository);
+		const subscriptionTier = await createTestSubscriptionTier(utilRepository);
+
+		const user: CreateUserDtoWithIgnoredFields = {
+			role: 'user',
+			name: createName(),
+			telegram_username: randomWord(),
+			email: createEmail(),
+			is_billable: true,
+			subscription_tier_id: subscriptionTier.id,
+			active_until: new Date('2040-01-01T00:00:00.000Z').toISOString(),
+		};
+
+		const res = await userTestSdk.signUp({
+			params: user,
+			userMeta: {
+				userId: requestAuthor.id,
+				isWrongAccessJwt: false,
+				isAuth: true,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.CREATED);
+		expect(res.body.email).to.equal(user.email);
+		expect(res.body.role).to.equal(user.role);
+		expect(res.body.name).to.equal(user.name);
+		expect(res.body.telegram_username).to.equal(user.telegram_username);
+		expect(res.body.is_billable).to.equal(false);
+		expect(res.body.active_until).to.equal(null);
+		expect(res.body.subscription_tier_id).to.equal(null);
+		expect(res.body.subscription_tier).to.equal(null);
+	});
+
+	it('Admin cannot create subscriber manually even with billing details', async () => {
+		const requestAuthor = await createTestAdmin(utilRepository);
+		const subscriptionTier = await createTestSubscriptionTier(utilRepository);
+		const subscriber = {
+			role: 'subscriber' as const,
+			name: createName(),
+			email: createEmail(),
+			telegram_username: randomWord(),
+			subscription_tier_id: subscriptionTier.id,
+			active_until: new Date('2032-01-01T00:00:00.000Z').toISOString(),
+			is_billable: true,
+		};
+
+		const res = await userTestSdk.signUp({
+			params: subscriber,
+			userMeta: {
+				userId: requestAuthor.id,
+				isWrongAccessJwt: false,
+				isAuth: true,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+	});
+
+	it('Returns 400 when trying to manually sign up a subscriber', async () => {
+		const requestAuthor = await createTestAdmin(utilRepository);
+		const subscriber = {
+			role: 'subscriber' as const,
+			name: createName(),
+			email: createEmail(),
+			telegram_username: randomWord(),
+		};
+
+		const res = await userTestSdk.signUp({
+			params: subscriber,
+			userMeta: {
+				userId: requestAuthor.id,
+				isWrongAccessJwt: false,
+				isAuth: true,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 
 	it('Returns 400 when trying to sign up with duplicate email', async () => {

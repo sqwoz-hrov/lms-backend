@@ -45,7 +45,7 @@ export class BaseMaterialDto {
 	@ApiProperty({ description: 'Resolved markdown content as text', required: false, type: 'string' })
 	@IsString()
 	@IsOptional()
-	markdown_content: string | undefined;
+	markdown_content?: string | undefined;
 
 	@ApiProperty()
 	@IsBoolean()

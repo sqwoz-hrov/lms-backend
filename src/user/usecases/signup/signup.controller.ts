@@ -1,7 +1,7 @@
 import { Body, Controller, InternalServerErrorException, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { SignupUsecase } from './signup.usecase';
-import { CreateUserDto, UserResponseDto } from '../../dto/signup.dto';
+import { CreateUserDto, UserResponseDto } from '../../dto/user.dto';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 

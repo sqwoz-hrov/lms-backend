@@ -17,5 +17,6 @@ export class UsersTestRepository {
 
 	async clearAll(): Promise<void> {
 		await this._connection.deleteFrom('user').execute();
+		await this._connection.deleteFrom('subscription_tier').execute();
 	}
 }

@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { UserModule } from '../user/user.module';
 import { HrConnectionRepository } from './hr-connection.repository';
 import { CreateHrConnectionController } from './usecases/create-hr-connection/create-hr-connection.controller';
 import { CreateHrConnectionUsecase } from './usecases/create-hr-connection/create-hr-connection.usecase';
@@ -11,7 +10,6 @@ import { GetHrConnectionsController } from './usecases/get-hr-connections/get-hr
 import { GetHrConnectionsUsecase } from './usecases/get-hr-connections/get-hr-connections.usecase';
 
 @Module({
-	imports: [UserModule],
 	controllers: [
 		CreateHrConnectionController,
 		DeleteHrConnectionController,

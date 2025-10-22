@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
-import { User, UserRole } from '../../user.entity';
+import { toUserResponseDto, UserResponseDto } from '../../dto/user.dto';
+import { UserRole } from '../../user.entity';
 import { UserRepository } from '../../user.repository';
 
 @Injectable()
@@ -14,15 +15,23 @@ export class SignupUsecase implements UsecaseInterface {
 		name,
 		email,
 		telegram_username,
+		is_archived,
 	}: {
 		role: UserRole;
 		name: string;
 		email: string;
 		telegram_username: string;
-	}): Promise<Omit<User, 'telegram_id'> | undefined> {
+		is_archived?: boolean;
+	}): Promise<UserResponseDto | undefined> {
 		const existingUser = await this.repo.findByEmail(email);
 
 		if (existingUser) throw new BadRequestException('Пользователь с таким email уже существует');
+
+		const normalizedIsArchived = is_archived ?? false;
+
+		if (role === 'subscriber') {
+			throw new BadRequestException('Нельзя создать подписчика вручную');
+		}
 
 		this.logger.log(`Saving user ${email}...`);
 
@@ -31,15 +40,19 @@ export class SignupUsecase implements UsecaseInterface {
 			name,
 			email,
 			telegram_username,
+			is_archived: normalizedIsArchived,
 		});
-		return saveRes
-			? {
-					name: saveRes.name,
-					id: saveRes.id,
-					email: saveRes.email,
-					role: saveRes.role,
-					telegram_username: saveRes.telegram_username,
-				}
-			: undefined;
+
+		if (!saveRes) {
+			return undefined;
+		}
+
+		const user = await this.repo.findByIdWithSubscriptionTier(saveRes.id);
+
+		if (!user) {
+			return undefined;
+		}
+
+		return toUserResponseDto(user);
 	}
 }
