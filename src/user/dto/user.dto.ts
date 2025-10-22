@@ -54,6 +54,11 @@ export class BaseUserDto {
 	@IsOptional()
 	subscription_tier_id?: string | null;
 
+	@ApiPropertyOptional({ description: 'Indicates whether user completed registration' })
+	@IsBoolean()
+	@IsOptional()
+	finished_registration?: boolean;
+
 	@ApiPropertyOptional({
 		description: 'Subscription active until date',
 		type: String,
@@ -101,6 +106,7 @@ export const toUserResponseDto = (user: UserWithSubscriptionTier): UserResponseD
 	email: user.email,
 	telegram_id: user.telegram_id ?? undefined,
 	telegram_username: user.telegram_username,
+	finished_registration: user.finished_registration,
 	subscription_tier_id: user.subscription_tier_id ?? null,
 	active_until: user.active_until?.toISOString() ?? null,
 	is_billable: user.is_billable,

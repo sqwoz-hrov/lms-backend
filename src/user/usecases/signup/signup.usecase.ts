@@ -7,7 +7,9 @@ import { UserRepository } from '../../user.repository';
 export class SignupUsecase implements UsecaseInterface {
 	private readonly logger = new Logger(SignupUsecase.name);
 
-	constructor(private readonly repo: UserRepository) {}
+	constructor(
+		private readonly repo: UserRepository,
+	) {}
 
 	public async execute({
 		name,
@@ -29,6 +31,7 @@ export class SignupUsecase implements UsecaseInterface {
 			name,
 			email,
 			telegram_username,
+			finished_registration: false,
 			is_archived: false,
 			is_billable: false,
 			subscription_tier_id: null,

@@ -28,6 +28,7 @@ import { TaskModule } from '../../src/task/task.module';
 import { TelegramModule } from '../../src/telegram/telegram.module';
 import { UserModule } from '../../src/user/user.module';
 import { VideoModule } from '../../src/video/video.module';
+import { setupValidation } from '../../src/validation';
 import { startAllContainers } from './test.start-all-containers';
 import { SilentLogger } from '../test.silent-logger';
 
@@ -75,6 +76,7 @@ export const mochaHooks = {
 			app.useLogger(new SilentLogger());
 		}
 		app.use(cookieParser());
+		setupValidation(app);
 
 		const _dbConfig = app.get<ConfigType<typeof dbConfig>>(dbConfig.KEY);
 		const _redisConfig = app.get<ConfigType<typeof redisConfig>>(redisConfig.KEY);

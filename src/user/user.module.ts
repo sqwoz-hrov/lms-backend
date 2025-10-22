@@ -23,12 +23,17 @@ import { GetUserUsecase } from './usecases/get-user/get-user.usecase';
 import { AdminSignupController } from './usecases/admin-signup/admin-signup.controller';
 import { AdminSignupUsecase } from './usecases/admin-signup/admin-signup.usecase';
 import { SignupUsecase } from './usecases/signup/signup.usecase';
+import { FinishRegistrationController } from './usecases/finish-registration/finish-registration.controller';
+import { FinishRegistrationUsecase } from './usecases/finish-registration/finish-registration.usecase';
+import { SendOtpController } from './usecases/send-otp/send-otp.controller';
+import { SendOtpUsecase } from './usecases/send-otp/send-otp.usecase';
 
 @Global()
 @Module({
 	controllers: [
 		AskForLoginController,
 		FinishLoginController,
+		FinishRegistrationController,
 		GetMeController,
 		GetUserController,
 		GetUsersController,
@@ -36,6 +41,7 @@ import { SignupUsecase } from './usecases/signup/signup.usecase';
 		RefreshTokensController,
 		AdminSignupController,
 		SignupController,
+		SendOtpController,
 	],
 	providers: [
 		OTPRedisStorage,
@@ -45,6 +51,7 @@ import { SignupUsecase } from './usecases/signup/signup.usecase';
 		JwtService,
 		AskForLoginUsecase,
 		FinishLoginUsecase,
+		FinishRegistrationUsecase,
 		GetMeUsecase,
 		GetUserUsecase,
 		GetUsersUsecase,
@@ -52,6 +59,7 @@ import { SignupUsecase } from './usecases/signup/signup.usecase';
 		RefreshTokensUsecase,
 		AdminSignupUsecase,
 		SignupUsecase,
+		SendOtpUsecase,
 		UserRepository,
 	],
 	exports: [UserSignupAdapter, UserRepository],

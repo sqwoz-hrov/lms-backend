@@ -9,6 +9,7 @@ import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../test-utils/test.repo';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
+import { PublicSignupDto } from '../../dto/user.dto';
 
 describe('[E2E] Public signup usecase', () => {
 	let app: INestApplication;
@@ -64,6 +65,84 @@ describe('[E2E] Public signup usecase', () => {
 		expect(res.body.subscription_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 		expect(res.body.is_archived).to.equal(false);
+		expect(res.body.finished_registration).to.equal(false);
+	});
+
+	it('Returns 400 when telegram username is missing', async () => {
+		const res = await userTestSdk.publicSignUp({
+			params: {
+				name: createName(),
+				email: createEmail(),
+			} as PublicSignupDto,
+			userMeta: {
+				userId: 'anonymous',
+				isAuth: false,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		if (res.status !== HttpStatus.BAD_REQUEST) throw new Error();
+		expect(res.body.description).to.contain('telegram_username');
+	});
+
+	it('Returns 400 when email has invalid format', async () => {
+		const res = await userTestSdk.publicSignUp({
+			params: {
+				name: createName(),
+				email: 'definitely-not-an-email',
+				telegram_username: randomWord(),
+			} as PublicSignupDto,
+			userMeta: {
+				userId: 'anonymous',
+				isAuth: false,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		if (res.status !== HttpStatus.BAD_REQUEST) throw new Error();
+		expect(res.body.description).to.contain('email must be an email');
+	});
+
+	it('Prevents privilege escalation attempts during signup', async () => {
+		const signupPayload = {
+			name: createName(),
+			email: createEmail(),
+			telegram_username: randomWord(),
+			role: 'admin',
+			is_billable: true,
+			finished_registration: true,
+		};
+
+		const res = await userTestSdk.publicSignUp({
+			params: signupPayload as PublicSignupDto,
+			userMeta: {
+				userId: 'anonymous',
+				isAuth: false,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status !== HttpStatus.CREATED) throw new Error();
+		expect(res.body.email).to.equal(signupPayload.email);
+		expect(res.body.role).to.equal('subscriber');
+		expect(res.body.is_billable).to.equal(false);
+		expect(res.body.finished_registration).to.equal(false);
+		expect(res.body.subscription_tier_id).to.equal(null);
+
+		const user = await utilRepository.connection
+			.selectFrom('user')
+			.select(['role', 'is_billable', 'finished_registration', 'subscription_tier_id'])
+			.where('id', '=', res.body.id)
+			.limit(1)
+			.executeTakeFirstOrThrow();
+
+		expect(user.role).to.equal('subscriber');
+		expect(user.is_billable).to.equal(false);
+		expect(user.finished_registration).to.equal(false);
+		expect(user.subscription_tier_id).to.equal(null);
 	});
 
 	it('Returns 400 when trying to sign up with duplicate email', async () => {
@@ -86,7 +165,7 @@ describe('[E2E] Public signup usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
-		if (res.status != 403) throw new Error();
+		if (res.status != 400) throw new Error();
 		expect(res.body.description).to.equal('Пользователь с таким email уже существует');
 	});
 });

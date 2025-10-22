@@ -164,12 +164,12 @@ describe('[E2E] Logout usecase', () => {
 		expect(refresh2After.status).to.equal(401);
 	});
 
-	it('Logout without any tokens returns 401', async () => {
+	it('Logout without any tokens returns 400', async () => {
 		const logoutResp = await userTestSdk.logout({
 			params: {},
 			userMeta: { isWrongAccessJwt: false, userId: 'no-user', isAuth: false },
 		});
-		expect(logoutResp.status).to.equal(401);
+		expect(logoutResp.status).to.equal(400);
 		expect((logoutResp.cookies ?? []).length).to.equal(0);
 	});
 

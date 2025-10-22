@@ -42,6 +42,7 @@ export class JournalRecordRepository {
 			.selectAll('journal_record')
 			.select(eb => [eb.ref('markdown_content.content_text').as('markdown_content')]);
 		for (const key in filter) {
+			if (filter[key as keyof typeof filter] === undefined) continue;
 			query = query.where(key as keyof typeof filter, '=', filter[key as keyof typeof filter]!);
 		}
 		const journalRecords: JournalRecordWithContent[] = await query.execute();

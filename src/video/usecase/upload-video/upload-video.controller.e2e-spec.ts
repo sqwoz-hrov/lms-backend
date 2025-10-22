@@ -247,8 +247,8 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			sessionId,
 		});
-		expect(res2.status).to.equal(HttpStatus.OK);
-		if (res2.status != 200) throw new Error();
+		expect(res2.status).to.equal(HttpStatus.CREATED);
+		if (res2.status != 201) throw new Error();
 		expect(res2.headers.get('upload-offset')).to.equal(String(total));
 		expect(res2.headers.get('upload-length')).to.equal(String(total));
 		expect(res2.headers.get('location')).to.be.a('string');
@@ -293,8 +293,8 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			sessionId,
 		});
-		expect(res2.status).to.equal(HttpStatus.OK);
-		if (res2.status != 200) throw new Error();
+		expect(res2.status).to.equal(HttpStatus.CREATED);
+		if (res2.status != 201) throw new Error();
 		expect(res2.headers.get('upload-offset')).to.equal(String(total));
 
 		const createdId = res2.body.id;

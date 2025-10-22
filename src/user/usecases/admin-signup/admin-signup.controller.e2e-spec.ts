@@ -141,6 +141,7 @@ describe('[E2E] Admin signup usecase', () => {
 		expect(res.body.subscription_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 		expect(res.body.is_archived).to.equal(false);
+		expect(res.body.finished_registration).to.equal(true);
 	});
 
 	it('Admin can create admin', async () => {
@@ -175,6 +176,7 @@ describe('[E2E] Admin signup usecase', () => {
 		expect(res.body.subscription_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 		expect(res.body.is_archived).to.equal(false);
+		expect(res.body.finished_registration).to.equal(true);
 	});
 
 	it('Ignores billing fields when role is not subscriber', async () => {

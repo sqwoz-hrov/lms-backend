@@ -30,6 +30,7 @@ describe('[E2E] Get user by id usecase', () => {
 		role: user.role,
 		name: user.name,
 		email: user.email,
+		finished_registration: user.finished_registration ?? true,
 		telegram_id: user.telegram_id ?? undefined,
 		telegram_username: user.telegram_username,
 		subscription_tier_id: user.subscription_tier_id ?? null,
