@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PickType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
 	IsBoolean,
@@ -77,6 +77,8 @@ export class BaseUserDto {
 }
 
 export class CreateUserDto extends OmitType(BaseUserDto, ['id', 'telegram_id', 'active_until', 'is_archived']) {}
+
+export class PublicSignupDto extends PickType(BaseUserDto, ['name', 'email', 'telegram_username']) {}
 
 export class UpdateUserDto extends OmitType(BaseUserDto, ['id']) {}
 

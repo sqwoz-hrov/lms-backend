@@ -4,6 +4,7 @@ import { AskLoginDto, AskLoginResponseDto } from '../dto/ask-login.dto';
 import { FinishLoginDto, FinishLoginResponseDto } from '../dto/finish-login.dto';
 import { LogoutDto } from '../dto/refresh-tokens.dto';
 import { CreateUserDto, UserResponseDto } from '../dto/user.dto';
+import { PublicSignupDto } from '../dto/user.dto';
 
 export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -26,7 +27,16 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 		});
 	}
 
-	public async signUp({ params, userMeta }: { params: CreateUserDto; userMeta: UserMeta }) {
+	public async adminSignUp({ params, userMeta }: { params: CreateUserDto; userMeta: UserMeta }) {
+		return await this.testClient.request<UserResponseDto>({
+			path: '/users/admin-signup',
+			method: 'POST',
+			userMeta,
+			body: params,
+		});
+	}
+
+	public async publicSignUp({ params, userMeta }: { params: PublicSignupDto; userMeta: UserMeta }) {
 		return await this.testClient.request<UserResponseDto>({
 			path: '/users/signup',
 			method: 'POST',
