@@ -119,6 +119,7 @@ describe('[E2E] Create Feedback usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.interview_id).to.equal(interview.id);
 		expect(res.body.markdown_content).to.equal(markdownContent);
 	});

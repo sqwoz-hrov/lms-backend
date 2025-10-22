@@ -119,6 +119,7 @@ describe('[E2E] Edit subject usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.id).to.equal(subject.id);
 		expect(res.body.name).to.equal(updatedName);
 		expect(res.body.color_code).to.equal(updatedColor);

@@ -172,6 +172,7 @@ describe('[E2E] Edit material usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.name).to.equal(newName);
 		expect(res.body.is_archived).to.equal(true);
 		expect(res.body.student_user_id).to.equal(newStudent.id);

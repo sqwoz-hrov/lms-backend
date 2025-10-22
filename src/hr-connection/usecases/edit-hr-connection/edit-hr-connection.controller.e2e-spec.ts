@@ -108,6 +108,7 @@ describe('[E2E] Edit HR Connection', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.name).to.equal(newCompany);
 	});
 
@@ -160,6 +161,7 @@ describe('[E2E] Edit HR Connection', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.name).to.equal(newCompany);
 		expect(res.body.student_user_id).to.equal(user.id);
 	});

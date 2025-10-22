@@ -89,6 +89,7 @@ describe('[E2E] Edit Interview usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.name).to.equal(newComment);
 	});
 
@@ -122,6 +123,7 @@ describe('[E2E] Edit Interview usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.name).to.equal(newComment);
 	});
 

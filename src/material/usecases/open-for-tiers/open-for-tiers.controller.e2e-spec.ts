@@ -95,6 +95,7 @@ describe('[E2E] Open material for tiers usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 
 		const rows = await materialUtilRepository.connection.selectFrom('material_tier').selectAll().execute();
 

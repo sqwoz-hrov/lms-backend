@@ -121,6 +121,7 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.deep.equal(toExpectedUserResponse(user));
 	});
 
@@ -138,6 +139,7 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.deep.equal(toExpectedUserResponse(admin));
 	});
 
@@ -162,6 +164,7 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.deep.equal(
 			toExpectedUserResponse(user, {
 				subscription_tier: {
@@ -189,6 +192,7 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.deep.equal(toExpectedUserResponse(subscriber));
 	});
 

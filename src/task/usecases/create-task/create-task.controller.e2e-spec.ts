@@ -104,6 +104,7 @@ describe('[E2E] Create task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.summary).to.equal(task.summary);
 		expect(res.body.student_user_id).to.equal(task.student_user_id);
 		expect(res.body.mentor_user_id).to.equal(task.mentor_user_id);

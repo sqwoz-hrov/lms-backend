@@ -86,6 +86,7 @@ describe('[E2E] Public signup usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		if (res.status != 403) throw new Error();
 		expect(res.body.description).to.equal('Пользователь с таким email уже существует');
 	});
 });

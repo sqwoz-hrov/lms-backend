@@ -102,6 +102,7 @@ describe('[E2E] Create journal record usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.student_user_id).to.equal(journalDto.student_user_id);
 		expect(res.body.name).to.equal(journalDto.name);
 		expect(res.body.markdown_content).to.equal(journalDto.markdown_content);

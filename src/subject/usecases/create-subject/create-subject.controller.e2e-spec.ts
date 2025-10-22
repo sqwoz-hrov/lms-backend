@@ -102,6 +102,7 @@ describe('[E2E] Create subject usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.name).to.equal(subjectDto.name);
 		expect(res.body.color_code).to.equal(subjectDto.color_code);
 		expect(res.body.id).to.be.a('string');

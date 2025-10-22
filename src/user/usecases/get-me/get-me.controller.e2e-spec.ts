@@ -75,6 +75,7 @@ describe('[E2E] Get me usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.id).to.equal(user.id);
 		expect(res.body.role).to.equal('user');
 		expect(res.body.name).to.equal(user.name);

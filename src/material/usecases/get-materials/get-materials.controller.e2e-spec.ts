@@ -129,6 +129,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(3);
 			for (const m of res.body) {
 				expect([null, user1.id]).to.include(m.student_user_id);
@@ -142,6 +143,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(1);
 			expect(res.body[0].is_archived).to.equal(true);
 		});
@@ -153,6 +155,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(4);
 		});
 
@@ -163,6 +166,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(3);
 			for (const m of res.body) {
 				expect([null, user1.id]).to.include(m.student_user_id);
@@ -176,6 +180,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(2);
 			expect(res.body[0].student_user_id).to.equal(user2.id);
 		});
@@ -187,6 +192,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(2);
 			expect(res.body[0].student_user_id).to.equal(user2.id);
 		});
@@ -240,6 +246,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			const materialIds = res.body.map(material => material.id);
 			expect(materialIds).to.have.length(1);
 			expect(materialIds).to.include(accessibleMaterial.id);
@@ -255,6 +262,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(0);
 		});
 
@@ -267,6 +275,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			const materialIds = res.body.map(material => material.id);
 			expect(materialIds).to.have.length(1); // ignores student_user_id filter and returns available materials
 			expect(materialIds).to.include(accessibleMaterial.id);
@@ -282,6 +291,7 @@ describe('[E2E] Get materials usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 			const materialIds = res.body.map(material => material.id);
 			expect(materialIds).to.have.length(1); // ignores is_archived filter and returns available materials
 			expect(materialIds).to.include(accessibleMaterial.id);

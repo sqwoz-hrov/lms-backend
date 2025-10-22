@@ -109,6 +109,7 @@ describe('[E2E] Get Feedback Info usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.id).to.equal(fb.id);
 	});
 
@@ -122,6 +123,7 @@ describe('[E2E] Get Feedback Info usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.id).to.equal(fb.id);
 	});
 

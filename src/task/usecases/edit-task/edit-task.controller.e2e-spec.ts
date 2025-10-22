@@ -137,6 +137,7 @@ describe('[E2E] Edit task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.summary).to.equal(newSummary);
 		expect(res.body.status).to.equal(editDto.status);
 	});

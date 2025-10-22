@@ -109,6 +109,7 @@ describe('[E2E] Get task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it('Admin can access task authored by him but assigned to someone else', async () => {
@@ -137,6 +138,7 @@ describe('[E2E] Get task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it('Admin can access task authored by someone else and assigned to someone else', async () => {
@@ -156,6 +158,7 @@ describe('[E2E] Get task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it('User can access task assigned to him', async () => {
@@ -182,6 +185,7 @@ describe('[E2E] Get task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it('User can not access task assigned to someone else', async () => {

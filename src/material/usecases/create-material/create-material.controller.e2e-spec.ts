@@ -108,6 +108,7 @@ describe('[E2E] Create material usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.name).to.equal(dto.name);
 		expect(res.body.subject_id).to.equal(dto.subject_id);
 		expect(res.body.type).to.equal(dto.type);

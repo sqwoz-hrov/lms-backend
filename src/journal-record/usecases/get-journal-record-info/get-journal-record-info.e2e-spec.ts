@@ -123,6 +123,7 @@ describe('[E2E] Get journal record info usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.id).to.equal(journal.id);
 		expect(res.body.name).to.equal(journal.name);
 	});

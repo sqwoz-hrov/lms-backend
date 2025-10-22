@@ -110,6 +110,7 @@ describe('[E2E] Delete task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 
 		const found = await taskUtilRepository.connection
 			.selectFrom('task')
