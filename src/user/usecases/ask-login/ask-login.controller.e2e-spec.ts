@@ -45,6 +45,7 @@ describe('[E2E] AskLogin usecase', function () {
 				name: 'testuser',
 				telegram_username: 'testuser',
 				telegram_id: 123456789,
+				finished_registration: true,
 				email: 'john@doe.com',
 			})
 			.execute();
@@ -57,8 +58,6 @@ describe('[E2E] AskLogin usecase', function () {
 				email: user.email,
 			},
 			userMeta: {
-				userId: user.id,
-				isWrongAccessJwt: false,
 				isAuth: false,
 			},
 		});
@@ -76,6 +75,7 @@ describe('[E2E] AskLogin usecase', function () {
 				name: 'testuser',
 				telegram_username: 'testuser',
 				telegram_id: 123456789,
+				finished_registration: true,
 				email: 'john@doe.com',
 			})
 			.execute();
@@ -114,14 +114,11 @@ describe('[E2E] AskLogin usecase', function () {
 	});
 
 	it('Non-existing user returns 404', async () => {
-		const user = await createTestUser(utilRepository);
 		const res = await userTestSdk.askLogin({
 			params: {
 				email: 'non-existent@email.com',
 			},
 			userMeta: {
-				userId: user.id,
-				isWrongAccessJwt: false,
 				isAuth: false,
 			},
 		});
@@ -129,14 +126,12 @@ describe('[E2E] AskLogin usecase', function () {
 	});
 
 	it('User with unfinished registration returns 404', async () => {
-		const user = await createTestUser(utilRepository, { telegram_id: undefined });
+		const user = await createTestUser(utilRepository, { telegram_id: undefined, finished_registration: false });
 		const res = await userTestSdk.askLogin({
 			params: {
 				email: user.email,
 			},
 			userMeta: {
-				userId: user.id,
-				isWrongAccessJwt: false,
 				isAuth: false,
 			},
 		});

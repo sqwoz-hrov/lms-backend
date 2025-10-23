@@ -43,15 +43,12 @@ describe('[E2E] Delete HR connection usecase', () => {
 	});
 
 	it('Unauthenticated request gets 401', async () => {
-		const user = await createTestUser(userUtilRepository);
 		const hrConnection = await createTestHrConnection(userUtilRepository, hrUtilRepository);
 
 		const res = await hrTestSdk.deleteHrConnection({
 			params: { id: hrConnection.id },
 			userMeta: {
-				userId: user.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -90,6 +87,7 @@ describe('[E2E] Delete HR connection usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it(`User can not delete another user's HR connection`, async () => {
@@ -128,6 +126,7 @@ describe('[E2E] Delete HR connection usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it('Non-existent HR connection returns 404', async () => {

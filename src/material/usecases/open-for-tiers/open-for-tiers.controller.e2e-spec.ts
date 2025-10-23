@@ -55,14 +55,13 @@ describe('[E2E] Open material for tiers usecase', () => {
 		);
 
 	it('Unauthenticated request gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
 		const material = await prepareMaterial();
 		const tier = await createTestSubscriptionTier(userUtilRepository);
 
 		const res = await materialTestSdk.openMaterialForTiers({
 			materialId: material.id,
 			params: { tier_ids: [tier.id] },
-			userMeta: { userId: admin.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -95,6 +94,7 @@ describe('[E2E] Open material for tiers usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 
 		const rows = await materialUtilRepository.connection.selectFrom('material_tier').selectAll().execute();
 

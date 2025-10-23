@@ -57,7 +57,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const ask = await userTestSdk.askLogin({
 			params: { email: user.email },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(ask.status).to.equal(202);
 
@@ -65,7 +65,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const finish = await userTestSdk.finishLogin({
 			params: { email: user.email, otpCode: Number(otpCode) },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(finish.status).to.equal(202);
 
@@ -75,7 +75,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const refreshRes = await userTestSdk.refresh({
 			params: { fallbackToken: r1 },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(refreshRes.status).to.equal(200);
@@ -93,7 +93,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const ask = await userTestSdk.askLogin({
 			params: { email: user.email },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(ask.status).to.equal(202);
 
@@ -101,7 +101,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const finish = await userTestSdk.finishLogin({
 			params: { email: user.email, otpCode: Number(otpCode) },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(finish.status).to.equal(202);
 
@@ -110,13 +110,13 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const first = await userTestSdk.refresh({
 			params: { fallbackToken: oldRefresh },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(first.status).to.equal(200);
 
 		const reuse = await userTestSdk.refresh({
 			params: { fallbackToken: oldRefresh },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(reuse.status).to.equal(401);
 	});
@@ -124,7 +124,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 	it('No token provided → 401', async () => {
 		const res = await userTestSdk.refresh({
 			params: { fallbackToken: '' },
-			userMeta: { isWrongAccessJwt: false, userId: 'u1', isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(res.status).to.equal(401);
 		const cookies = res.cookies ?? [];
@@ -136,7 +136,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const ask = await userTestSdk.askLogin({
 			params: { email: user.email },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(ask.status).to.equal(202);
 
@@ -144,7 +144,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const finish = await userTestSdk.finishLogin({
 			params: { email: user.email, otpCode: Number(otpCode) },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(finish.status).to.equal(202);
 
@@ -159,7 +159,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const res = await userTestSdk.refresh({
 			params: { fallbackToken: refreshToken },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(res.status).to.equal(401);
 	});
@@ -169,7 +169,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const ask = await userTestSdk.askLogin({
 			params: { email: user.email },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(ask.status).to.equal(202);
 
@@ -177,7 +177,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const finish = await userTestSdk.finishLogin({
 			params: { email: user.email, otpCode: Number(otpCode) },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(finish.status).to.equal(202);
 
@@ -188,7 +188,7 @@ describe('[E2E] Refresh tokens endpoint', () => {
 
 		const res = await userTestSdk.refresh({
 			params: { fallbackToken: tampered },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(res.status).to.equal(401);
 	});

@@ -47,9 +47,7 @@ describe('[E2E] Create HR connection usecase', () => {
 		const res = await hrTestSdk.createHrConnection({
 			params: dto,
 			userMeta: {
-				userId: user.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -88,6 +86,7 @@ describe('[E2E] Create HR connection usecase', () => {
 
 		// Should ignore dto.student_user_id and use the logged-in user id instead
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.student_user_id).to.equal(user.id);
 	});
 
@@ -106,6 +105,7 @@ describe('[E2E] Create HR connection usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.student_user_id).to.equal(student.id);
 		expect(res.body.name).to.equal(dto.name);
 	});
@@ -124,6 +124,7 @@ describe('[E2E] Create HR connection usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.student_user_id).to.equal(student.id);
 	});
 });

@@ -46,7 +46,6 @@ describe('[E2E] Delete journal record usecase', () => {
 	});
 
 	it('Unauthenticated request gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
 		const journal = await createTestJournalRecord(
 			userUtilRepository,
 			markdownContentRepository,
@@ -56,9 +55,7 @@ describe('[E2E] Delete journal record usecase', () => {
 		const res = await journalTestSdk.deleteJournalRecord({
 			params: { id: journal.id },
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -123,6 +120,7 @@ describe('[E2E] Delete journal record usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.id).to.equal(journal.id);
 		expect(res.body.name).to.equal(journal.name);
 	});

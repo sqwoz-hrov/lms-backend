@@ -62,12 +62,11 @@ describe('[E2E] Edit Feedback usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepo);
 		const feedback = await feedbackAggregateBuilder.createFeedback({});
 
 		const res = await feedbackSdk.editFeedback({
 			params: { id: feedback.id, markdown_content: 'Updated markdown_content' },
-			userMeta: { userId: admin.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -111,6 +110,7 @@ describe('[E2E] Edit Feedback usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.markdown_content).to.equal(newContent);
 	});
 

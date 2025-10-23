@@ -3,9 +3,10 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import * as sinon from 'sinon';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import { createTestAdmin } from '../../../../test/fixtures/user.fixture';
 import { extFor, makeRealVideoBuffer, twoPartReal } from '../../../../test/fixtures/video.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
+import { UserMeta } from '../../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig, s3Config } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
@@ -108,7 +109,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		start: number;
 		end: number;
 		total: number;
-		userMeta: { userId: string; isAuth: boolean; isWrongAccessJwt: boolean };
+		userMeta: UserMeta;
 		sessionId?: string | null;
 	}) {
 		return videoTestSdk.uploadChunk({
@@ -170,8 +171,6 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 	});
 
 	it('rejects unauthorized user (401)', async () => {
-		const user = await createTestUser(usersRepo);
-
 		const buf = makeRealVideoBuffer('mkv');
 		const res = await uploadChunkRaw({
 			filename: 'unauth' + extFor('mkv'),
@@ -179,7 +178,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 			start: 0,
 			end: buf.length - 1,
 			total: buf.length,
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -200,6 +199,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.headers.get('upload-length')).to.equal(String(plain.length));
 		expect(res.headers.get('upload-offset')).to.equal(String(plain.length));
 		expect(res.headers.get('location')).to.be.a('string');
@@ -247,6 +247,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 			sessionId,
 		});
 		expect(res2.status).to.equal(HttpStatus.CREATED);
+		if (res2.status != 201) throw new Error();
 		expect(res2.headers.get('upload-offset')).to.equal(String(total));
 		expect(res2.headers.get('upload-length')).to.equal(String(total));
 		expect(res2.headers.get('location')).to.be.a('string');
@@ -292,6 +293,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 			sessionId,
 		});
 		expect(res2.status).to.equal(HttpStatus.CREATED);
+		if (res2.status != 201) throw new Error();
 		expect(res2.headers.get('upload-offset')).to.equal(String(total));
 
 		const createdId = res2.body.id;

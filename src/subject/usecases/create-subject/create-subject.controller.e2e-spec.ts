@@ -41,15 +41,12 @@ describe('[E2E] Create subject usecase', () => {
 	});
 
 	it('Unauthenticated request gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
 		const subjectDto = createTestSubjectDto();
 
 		const res = await subjectTestSdk.createSubject({
 			params: subjectDto,
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -102,6 +99,7 @@ describe('[E2E] Create subject usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.name).to.equal(subjectDto.name);
 		expect(res.body.color_code).to.equal(subjectDto.color_code);
 		expect(res.body.id).to.be.a('string');

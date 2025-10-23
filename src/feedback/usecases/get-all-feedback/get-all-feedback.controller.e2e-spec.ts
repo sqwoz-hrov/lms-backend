@@ -63,11 +63,9 @@ describe('[E2E] Get All Feedback usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const user = await createTestUser(userUtilRepo);
-
 		const res = await feedbackSdk.getAllFeedback({
 			params: {},
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -124,6 +122,7 @@ describe('[E2E] Get All Feedback usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(3);
 
 			const feedbackIds = res.body.map((f: Feedback) => f.id);
@@ -141,6 +140,7 @@ describe('[E2E] Get All Feedback usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(2);
 
 			const feedbackIds = res.body.map((f: Feedback) => f.id);

@@ -2,26 +2,16 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { randomWord } from '../../../../test/fixtures/common.fixture';
-import {
-	createEmail,
-	createName,
-	createTestAdmin,
-	createTestSubscriptionTier,
-	createTestUser,
-} from '../../../../test/fixtures/user.fixture';
+import { createEmail, createName, createTestUser } from '../../../../test/fixtures/user.fixture';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../test-utils/test.repo';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
-import { CreateUserDto } from '../../dto/user.dto';
+import { PublicSignupDto } from '../../dto/user.dto';
 
-type CreateUserDtoWithIgnoredFields = CreateUserDto & {
-	active_until?: string | null;
-};
-
-describe('[E2E] Signup usecase', () => {
+describe('[E2E] Public signup usecase', () => {
 	let app: INestApplication;
 
 	let utilRepository: UsersTestRepository;
@@ -47,238 +37,167 @@ describe('[E2E] Signup usecase', () => {
 		await utilRepository.clearAll();
 	});
 
-	it('Unauthenticated gets 401', async () => {
-		const requestAuthor = await createTestUser(utilRepository);
-		const user = await createTestUser(utilRepository);
+	it('Creates subscriber without authentication', async () => {
+		const signupPayload = {
+			name: createName(),
+			email: createEmail(),
+			telegram_username: randomWord(),
+		};
 
-		const res = await userTestSdk.signUp({
-			params: {
-				email: user.email,
-				role: user.role,
-				telegram_username: user.telegram_username,
-				name: user.name,
-			},
+		const res = await userTestSdk.publicSignUp({
+			params: signupPayload,
 			userMeta: {
-				userId: requestAuthor.id,
-				isWrongAccessJwt: false,
 				isAuth: false,
 			},
 		});
 
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
-	});
-
-	it('Fake jwt get 401', async () => {
-		const requestAuthor = await createTestAdmin(utilRepository);
-		const user = await createTestUser(utilRepository);
-
-		const res = await userTestSdk.signUp({
-			params: {
-				email: user.email,
-				role: user.role,
-				telegram_username: user.telegram_username,
-				name: user.name,
-			},
-			userMeta: {
-				userId: requestAuthor.id,
-				isWrongAccessJwt: true,
-				isAuth: true,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
-	});
-
-	it('Non-admin gets 401', async () => {
-		const requestAuthor = await createTestUser(utilRepository);
-		const user = await createTestUser(utilRepository);
-
-		const res = await userTestSdk.signUp({
-			params: {
-				email: user.email,
-				role: user.role,
-				telegram_username: user.telegram_username,
-				name: user.name,
-			},
-			userMeta: {
-				userId: requestAuthor.id,
-				isWrongAccessJwt: false,
-				isAuth: true,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
-	});
-
-	it('Admin can create user', async () => {
-		const requestAuthor = await createTestAdmin(utilRepository);
-
-		const user = {
-			role: 'user',
-			name: createName(),
-			telegram_username: randomWord(),
-			email: createEmail(),
-		} as const;
-		const res = await userTestSdk.signUp({
-			params: {
-				...user,
-			},
-			userMeta: {
-				userId: requestAuthor.id,
-				isWrongAccessJwt: false,
-				isAuth: true,
-			},
-		});
 		expect(res.status).to.equal(HttpStatus.CREATED);
-		expect(res.body.email).to.equal(user.email);
-		expect(res.body.role).to.equal(user.role);
-		expect(res.body.telegram_username).to.equal(user.telegram_username);
-		expect(res.body.name).to.equal(user.name);
+		if (res.status != 201) throw new Error();
+		expect(res.body.email).to.equal(signupPayload.email);
+		expect(res.body.role).to.equal('subscriber');
+		expect(res.body.telegram_username).to.equal(signupPayload.telegram_username);
+		expect(res.body.name).to.equal(signupPayload.name);
 		expect(res.body.id).to.be.a('string');
 		expect(res.body.is_billable).to.equal(false);
 		expect(res.body.active_until).to.equal(null);
 		expect(res.body.subscription_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 		expect(res.body.is_archived).to.equal(false);
+		expect(res.body.finished_registration).to.equal(false);
 	});
 
-	it('Admin can create admin', async () => {
-		const requestAuthor = await createTestAdmin(utilRepository);
+	it('Returns 400 when telegram username is missing', async () => {
+		const res = await userTestSdk.publicSignUp({
+			params: {
+				name: createName(),
+				email: createEmail(),
+			} as PublicSignupDto,
+			userMeta: {
+				isAuth: false,
+			},
+		});
 
-		const user = {
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		if (res.status !== HttpStatus.BAD_REQUEST) throw new Error();
+		expect(res.body.description).to.contain('telegram_username');
+	});
+
+	it('Returns 400 when email has invalid format', async () => {
+		const res = await userTestSdk.publicSignUp({
+			params: {
+				name: createName(),
+				email: 'definitely-not-an-email',
+				telegram_username: randomWord(),
+			} as PublicSignupDto,
+			userMeta: {
+				isAuth: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		if (res.status !== HttpStatus.BAD_REQUEST) throw new Error();
+		expect(res.body.description).to.contain('email must be an email');
+	});
+
+	it('Prevents privilege escalation attempts during signup', async () => {
+		const signupPayload = {
+			name: createName(),
+			email: createEmail(),
+			telegram_username: randomWord(),
 			role: 'admin',
-			name: createName(),
-			telegram_username: randomWord(),
-			email: createEmail(),
-		} as const;
-
-		const res = await userTestSdk.signUp({
-			params: {
-				...user,
-			},
-			userMeta: {
-				userId: requestAuthor.id,
-				isWrongAccessJwt: false,
-				isAuth: true,
-			},
-		});
-		expect(res.status).to.equal(HttpStatus.CREATED);
-		expect(res.body.email).to.equal(user.email);
-		expect(res.body.role).to.equal(user.role);
-		expect(res.body.telegram_username).to.equal(user.telegram_username);
-		expect(res.body.name).to.equal(user.name);
-		expect(res.body.id).to.be.a('string');
-		expect(res.body.is_billable).to.equal(false);
-		expect(res.body.active_until).to.equal(null);
-		expect(res.body.subscription_tier_id).to.equal(null);
-		expect(res.body.subscription_tier).to.equal(null);
-		expect(res.body.is_archived).to.equal(false);
-	});
-
-	it('Ignores billing fields when role is not subscriber', async () => {
-		const requestAuthor = await createTestAdmin(utilRepository);
-		const subscriptionTier = await createTestSubscriptionTier(utilRepository);
-
-		const user: CreateUserDtoWithIgnoredFields = {
-			role: 'user',
-			name: createName(),
-			telegram_username: randomWord(),
-			email: createEmail(),
 			is_billable: true,
-			subscription_tier_id: subscriptionTier.id,
-			active_until: new Date('2040-01-01T00:00:00.000Z').toISOString(),
+			finished_registration: true,
 		};
 
-		const res = await userTestSdk.signUp({
-			params: user,
+		const res = await userTestSdk.publicSignUp({
+			params: signupPayload as PublicSignupDto,
 			userMeta: {
-				userId: requestAuthor.id,
-				isWrongAccessJwt: false,
-				isAuth: true,
+				isAuth: false,
 			},
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
-		expect(res.body.email).to.equal(user.email);
-		expect(res.body.role).to.equal(user.role);
-		expect(res.body.name).to.equal(user.name);
-		expect(res.body.telegram_username).to.equal(user.telegram_username);
+		if (res.status !== HttpStatus.CREATED) throw new Error();
+		expect(res.body.email).to.equal(signupPayload.email);
+		expect(res.body.role).to.equal('subscriber');
 		expect(res.body.is_billable).to.equal(false);
-		expect(res.body.active_until).to.equal(null);
+		expect(res.body.finished_registration).to.equal(false);
 		expect(res.body.subscription_tier_id).to.equal(null);
-		expect(res.body.subscription_tier).to.equal(null);
+
+		const user = await utilRepository.connection
+			.selectFrom('user')
+			.select(['role', 'is_billable', 'finished_registration', 'subscription_tier_id'])
+			.where('id', '=', res.body.id)
+			.limit(1)
+			.executeTakeFirstOrThrow();
+
+		expect(user.role).to.equal('subscriber');
+		expect(user.is_billable).to.equal(false);
+		expect(user.finished_registration).to.equal(false);
+		expect(user.subscription_tier_id).to.equal(null);
 	});
 
-	it('Admin cannot create subscriber manually even with billing details', async () => {
-		const requestAuthor = await createTestAdmin(utilRepository);
-		const subscriptionTier = await createTestSubscriptionTier(utilRepository);
-		const subscriber = {
-			role: 'subscriber' as const,
+	it('Prevents privilege escalation attempts during signup even if user is authorized', async () => {
+		const signupPayload = {
 			name: createName(),
 			email: createEmail(),
 			telegram_username: randomWord(),
-			subscription_tier_id: subscriptionTier.id,
-			active_until: new Date('2032-01-01T00:00:00.000Z').toISOString(),
+			role: 'admin',
 			is_billable: true,
+			finished_registration: true,
 		};
 
-		const res = await userTestSdk.signUp({
-			params: subscriber,
+		const requestAuthor = await createTestUser(utilRepository);
+
+		const res = await userTestSdk.publicSignUp({
+			params: signupPayload as PublicSignupDto,
 			userMeta: {
 				userId: requestAuthor.id,
-				isWrongAccessJwt: false,
 				isAuth: true,
+				isWrongAccessJwt: false,
 			},
 		});
 
-		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
-	});
+		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status !== HttpStatus.CREATED) throw new Error();
+		expect(res.body.email).to.equal(signupPayload.email);
+		expect(res.body.role).to.equal('subscriber');
+		expect(res.body.is_billable).to.equal(false);
+		expect(res.body.finished_registration).to.equal(false);
+		expect(res.body.subscription_tier_id).to.equal(null);
 
-	it('Returns 400 when trying to manually sign up a subscriber', async () => {
-		const requestAuthor = await createTestAdmin(utilRepository);
-		const subscriber = {
-			role: 'subscriber' as const,
-			name: createName(),
-			email: createEmail(),
-			telegram_username: randomWord(),
-		};
+		const user = await utilRepository.connection
+			.selectFrom('user')
+			.select(['role', 'is_billable', 'finished_registration', 'subscription_tier_id'])
+			.where('id', '=', res.body.id)
+			.limit(1)
+			.executeTakeFirstOrThrow();
 
-		const res = await userTestSdk.signUp({
-			params: subscriber,
-			userMeta: {
-				userId: requestAuthor.id,
-				isWrongAccessJwt: false,
-				isAuth: true,
-			},
-		});
-
-		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		expect(user.role).to.equal('subscriber');
+		expect(user.is_billable).to.equal(false);
+		expect(user.finished_registration).to.equal(false);
+		expect(user.subscription_tier_id).to.equal(null);
 	});
 
 	it('Returns 400 when trying to sign up with duplicate email', async () => {
-		const requestAuthor = await createTestAdmin(utilRepository);
-
 		const duplicateEmail = createEmail();
 		await createTestUser(utilRepository, {
 			email: duplicateEmail,
 		});
 
-		const user2 = {
-			role: 'user',
-			name: createName(),
-			email: duplicateEmail,
-			telegram_username: randomWord(),
-		} as const;
-
-		const secondRes = await userTestSdk.signUp({
-			params: user2,
+		const res = await userTestSdk.publicSignUp({
+			params: {
+				name: createName(),
+				email: duplicateEmail,
+				telegram_username: randomWord(),
+			},
 			userMeta: {
-				userId: requestAuthor.id,
-				isWrongAccessJwt: false,
-				isAuth: true,
+				isAuth: false,
 			},
 		});
 
-		expect(secondRes.status).to.equal(HttpStatus.BAD_REQUEST);
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		if (res.status != 400) throw new Error();
+		expect(res.body.description).to.equal('Пользователь с таким email уже существует');
 	});
 });

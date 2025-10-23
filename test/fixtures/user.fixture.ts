@@ -42,6 +42,7 @@ export const createTestUser = async (
 			name: createName(),
 			telegram_username: randomWord(),
 			telegram_id: randomNumericId(),
+			finished_registration: true,
 			email: createEmail(),
 			...overrides,
 		})
@@ -60,6 +61,7 @@ export const createTestAdmin = async (
 			name: createName(),
 			telegram_username: randomWord(),
 			telegram_id: randomNumericId(),
+			finished_registration: true,
 			email: createEmail(),
 			...overrides,
 		})
@@ -96,6 +98,7 @@ export const createTestSubscriber = async (
 			name: createName(),
 			telegram_username: randomWord(),
 			telegram_id: randomNumericId(),
+			finished_registration: true,
 			email: createEmail(),
 			is_billable: billable,
 			is_archived: is_archived ?? false,

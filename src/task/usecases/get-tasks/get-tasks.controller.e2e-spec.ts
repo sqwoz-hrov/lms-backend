@@ -73,9 +73,7 @@ describe('[E2E] Get tasks usecase', () => {
 				mentor_user_id: admin.id,
 			},
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -135,6 +133,7 @@ describe('[E2E] Get tasks usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(2);
 			for (const t of res.body) {
 				expect(t.mentor_user_id).to.equal(admin1.id);
@@ -148,6 +147,7 @@ describe('[E2E] Get tasks usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			// user2 has 2 tasks: one under admin1 and one under admin2
 			expect(res.body).to.be.an('array').with.length(2);
 			for (const t of res.body) {
@@ -162,6 +162,7 @@ describe('[E2E] Get tasks usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			// total tasks created above = 4
 			expect(res.body).to.be.an('array').with.length(4);
 		});
@@ -174,6 +175,7 @@ describe('[E2E] Get tasks usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			// user2 has exactly 2 tasks in setup
 			expect(res.body).to.be.an('array').with.length(2);
 			for (const t of res.body) {
@@ -188,6 +190,7 @@ describe('[E2E] Get tasks usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			// user3 has exactly 1 task
 			expect(res.body).to.be.an('array').with.length(1);
 			expect(res.body[0].student_user_id).to.equal(user3.id);
@@ -203,6 +206,7 @@ describe('[E2E] Get tasks usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(1);
 			expect(res.body[0].student_user_id).to.equal(admin2.id);
 		});
@@ -219,6 +223,7 @@ describe('[E2E] Get tasks usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			// Should ignore both query params and return both of user1’s tasks
 			expect(res.body).to.be.an('array').with.length(3);
 			for (const t of res.body) {

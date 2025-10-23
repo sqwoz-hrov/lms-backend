@@ -49,9 +49,7 @@ describe('[E2E] Get journal records usecase', () => {
 		const res = await journalTestSdk.getJournalRecords({
 			params: {},
 			userMeta: {
-				userId: 'fake',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -112,6 +110,7 @@ describe('[E2E] Get journal records usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.length).to.equal(2);
 
 		const names = res.body.map((r: BaseJournalRecordDto) => r.name);

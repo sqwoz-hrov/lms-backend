@@ -42,9 +42,7 @@ describe('[E2E] Get users usecase', () => {
 	it('Unauthenticated gets 401', async () => {
 		const res = await usersTestSdk.getUsers({
 			userMeta: {
-				userId: 'unknown',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -85,6 +83,7 @@ describe('[E2E] Get users usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.be.an('array');
 
 		const returnedIds = res.body.map(user => user.id);
@@ -120,6 +119,7 @@ describe('[E2E] Get users usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.be.an('array');
 
 		const returnedIds = res.body.map(user => user.id);
@@ -145,6 +145,7 @@ describe('[E2E] Get users usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.be.an('array').with.lengthOf(1);
 		expect(res.body[0].id).to.equal(subscriber.id);
 		expect(res.body[0].role).to.equal('subscriber');

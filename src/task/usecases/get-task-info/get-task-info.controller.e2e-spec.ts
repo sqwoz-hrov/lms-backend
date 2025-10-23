@@ -45,8 +45,6 @@ describe('[E2E] Get task usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
-
 		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
 
 		const res = await taskTestSdk.getTaskInfo({
@@ -54,9 +52,7 @@ describe('[E2E] Get task usecase', () => {
 				id: task.id,
 			},
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -64,8 +60,6 @@ describe('[E2E] Get task usecase', () => {
 	});
 
 	it('Fake JWT gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
-
 		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
 
 		const res = await taskTestSdk.getTaskInfo({
@@ -73,9 +67,7 @@ describe('[E2E] Get task usecase', () => {
 				id: task.id,
 			},
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: true,
 			},
 		});
 
@@ -109,6 +101,7 @@ describe('[E2E] Get task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it('Admin can access task authored by him but assigned to someone else', async () => {
@@ -137,6 +130,7 @@ describe('[E2E] Get task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it('Admin can access task authored by someone else and assigned to someone else', async () => {
@@ -156,6 +150,7 @@ describe('[E2E] Get task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it('User can access task assigned to him', async () => {
@@ -182,6 +177,7 @@ describe('[E2E] Get task usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 	});
 
 	it('User can not access task assigned to someone else', async () => {

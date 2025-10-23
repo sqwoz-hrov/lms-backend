@@ -19,6 +19,7 @@ export interface UserTable {
 	email: string;
 	telegram_id?: number;
 	telegram_username: string;
+	finished_registration: ColumnType<boolean, boolean | undefined>;
 	subscription_tier_id: ColumnType<string | null, string | null | undefined>;
 	active_until: ColumnType<Date | null, Date | string | null | undefined>;
 	is_billable: ColumnType<boolean, boolean | undefined>;

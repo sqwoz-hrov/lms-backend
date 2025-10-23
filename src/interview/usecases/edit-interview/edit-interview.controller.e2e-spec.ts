@@ -54,7 +54,7 @@ describe('[E2E] Edit Interview usecase', () => {
 
 		const res = await interviewTestSdk.editInterview({
 			params: { id: interview.id, name: 'New name' },
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -89,6 +89,7 @@ describe('[E2E] Edit Interview usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.name).to.equal(newComment);
 	});
 
@@ -122,6 +123,7 @@ describe('[E2E] Edit Interview usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.name).to.equal(newComment);
 	});
 

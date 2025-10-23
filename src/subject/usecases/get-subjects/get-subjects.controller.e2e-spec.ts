@@ -51,9 +51,7 @@ describe('[E2E] Get subjects usecase', () => {
 	it('Unauthenticated request gets 401', async () => {
 		const res = await subjectTestSdk.getSubjects({
 			userMeta: {
-				userId: 'fake',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -89,6 +87,7 @@ describe('[E2E] Get subjects usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.length).to.equal(2);
 
 		const names = res.body.map((s: BaseSubjectDto) => s.name);
@@ -110,6 +109,7 @@ describe('[E2E] Get subjects usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body.length).to.equal(1);
 		expect(res.body[0].id).to.equal(subject.id);
 		expect(res.body[0].name).to.equal(subject.name);
@@ -181,6 +181,7 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
@@ -200,6 +201,7 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
@@ -219,6 +221,7 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
@@ -238,6 +241,7 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);

@@ -49,9 +49,7 @@ describe('[E2E] Create tasks for multiple students usecase', () => {
 		const res = await taskTestSdk.createTasksForMultipleStudents({
 			params: dto,
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -109,6 +107,7 @@ describe('[E2E] Create tasks for multiple students usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body).to.be.an('array');
 		expect(res.body).to.have.length(2);
 

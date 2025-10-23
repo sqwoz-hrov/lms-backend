@@ -30,6 +30,7 @@ describe('[E2E] Get user by id usecase', () => {
 		role: user.role,
 		name: user.name,
 		email: user.email,
+		finished_registration: user.finished_registration ?? true,
 		telegram_id: user.telegram_id ?? undefined,
 		telegram_username: user.telegram_username,
 		subscription_tier_id: user.subscription_tier_id ?? null,
@@ -66,9 +67,7 @@ describe('[E2E] Get user by id usecase', () => {
 		const res = await userTestSdk.getUserById({
 			params: { id: user.id },
 			userMeta: {
-				userId: user.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -121,6 +120,7 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.deep.equal(toExpectedUserResponse(user));
 	});
 
@@ -138,6 +138,7 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.deep.equal(toExpectedUserResponse(admin));
 	});
 
@@ -162,6 +163,7 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.deep.equal(
 			toExpectedUserResponse(user, {
 				subscription_tier: {
@@ -189,6 +191,7 @@ describe('[E2E] Get user by id usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status != 200) throw new Error();
 		expect(res.body).to.deep.equal(toExpectedUserResponse(subscriber));
 	});
 

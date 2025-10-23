@@ -1,28 +1,23 @@
-import { Body, Controller, InternalServerErrorException, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { SignupUsecase } from './signup.usecase';
-import { CreateUserDto, UserResponseDto } from '../../dto/user.dto';
 import { Route } from '../../../common/nest/decorators/route.decorator';
-import { Roles } from '../../../common/nest/decorators/roles.decorator';
+import { PublicSignupDto, UserResponseDto } from '../../dto/user.dto';
+import { SignupUsecase } from './signup.usecase';
 
 @ApiTags('Users')
 @Controller('/users/signup')
-@Roles('admin')
 export class SignupController {
 	constructor(private readonly userSignupUseCase: SignupUsecase) {}
 
 	@Route({
-		summary: 'Регистрация пользователя',
-		description: 'Регистрация пользователя',
+		summary: 'Регистрация подписчика',
+		description: 'Регистрация нового подписчика',
 		responseType: UserResponseDto,
 	})
 	@Post('/')
 	@HttpCode(HttpStatus.CREATED)
-	async signup(@Body() signupDto: CreateUserDto): Promise<UserResponseDto> {
+	async signup(@Body() signupDto: PublicSignupDto): Promise<UserResponseDto> {
 		const newUser = await this.userSignupUseCase.execute(signupDto);
-		if (!newUser) {
-			throw new InternalServerErrorException('Пользователь не создан');
-		}
 
 		return newUser;
 	}

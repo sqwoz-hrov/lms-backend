@@ -2,7 +2,7 @@ import { CookieJar, Cookie } from 'tough-cookie';
 import { JwtFactory } from './test.jwt.factory';
 import { jwtConfig } from '../src/config';
 import { ConfigType } from '@nestjs/config';
-import { UserMeta } from './test.abstract.sdk';
+import { UserMeta, UserMetaWithAuth } from './test.abstract.sdk';
 import * as FormData from 'form-data';
 import { Readable } from 'stream';
 
@@ -28,13 +28,31 @@ interface RequestOptions {
 	method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 	userMeta: UserMeta;
 }
+type SuccessStatus = 200 | 201 | 202 | 203 | 205 | 206 | 207 | 208 | 226;
+type ErrorStatus = 400 | 401 | 402 | 403 | 404 | 500;
 
-export type RequestResult<TResponse> = {
-	status: number;
+type RequestResultOk<TResponse> = {
+	status: SuccessStatus;
 	body: TResponse;
 	headers: Headers;
 	cookies: string[];
 };
+
+type RequestResultErr = {
+	status: ErrorStatus;
+	body: { description: string };
+	headers: Headers;
+	cookies: string[];
+};
+
+type NonJsonResult = {
+	status: 204;
+	body: Record<string, never>;
+	headers: Headers;
+	cookies: string[];
+};
+
+export type RequestResult<TResponse> = RequestResultOk<TResponse> | RequestResultErr | NonJsonResult;
 
 export class TestHttpClient {
 	private readonly jwtFactory: JwtFactory;
@@ -64,7 +82,7 @@ export class TestHttpClient {
 		userMeta,
 	}: RequestOptions): Promise<RequestResult<TResponse>> {
 		const url = `${this.baseUrl}${path}`;
-		const authCookie = this.buildAuthCookie(userMeta);
+		const authCookie = userMeta.isAuth ? this.buildAuthCookie(userMeta) : null;
 		const { processedBody, contentHeaders } = this.processBody(body);
 
 		const finalHeaders = this.buildHeaders({
@@ -88,13 +106,13 @@ export class TestHttpClient {
 
 		return {
 			status: response.status,
-			body: parsedBody as TResponse,
+			body: parsedBody,
 			headers: response.headers,
 			cookies: setCookieHeaders,
-		};
+		} as RequestResult<TResponse>;
 	}
 
-	private buildAuthCookie(userMeta: UserMeta): string | null {
+	private buildAuthCookie(userMeta: UserMetaWithAuth): string | null {
 		const { userId, isAuth, isWrongAccessJwt, isWrongRefreshJwt } = userMeta;
 
 		if (!isAuth) {
@@ -199,7 +217,9 @@ export class TestHttpClient {
 		return headers;
 	}
 
-	private async parseResponseBody<TResponse>(response: Response): Promise<TResponse | Record<string, never>> {
+	private async parseResponseBody<TResponse>(
+		response: Response,
+	): Promise<TResponse | { description: string } | Record<string, never>> {
 		const contentType = response.headers.get('content-type') || '';
 
 		// If no content or 204 No Content, return empty object

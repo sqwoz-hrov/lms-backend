@@ -52,7 +52,7 @@ describe('[E2E] Create Interview usecase', () => {
 
 		const res = await interviewTestSdk.createInterview({
 			params: dto,
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
@@ -103,6 +103,7 @@ describe('[E2E] Create Interview usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.hr_connection_id).to.equal(hrConnection.id);
 		expect(res.body.name).to.equal(dto.name);
 		expect(res.body.type).to.equal(dto.type);
@@ -121,6 +122,7 @@ describe('[E2E] Create Interview usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status != 201) throw new Error();
 		expect(res.body.hr_connection_id).to.equal(hrConnection.id);
 		expect(res.body.name).to.equal(dto.name);
 		expect(res.body.type).to.equal(dto.type);

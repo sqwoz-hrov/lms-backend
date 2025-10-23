@@ -46,10 +46,9 @@ describe('[E2E] Get Interviews usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const user = await createTestUser(userUtilRepo);
 		const res = await interviewTestSdk.getInterviews({
 			params: {},
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
@@ -95,6 +94,7 @@ describe('[E2E] Get Interviews usecase', () => {
 				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(3);
 		});
 
@@ -104,6 +104,7 @@ describe('[E2E] Get Interviews usecase', () => {
 				userMeta: { userId: user1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(2);
 			for (const interview of res.body) {
 				expect(interview.name).to.match(/^Interview [AB]$/);
@@ -115,6 +116,10 @@ describe('[E2E] Get Interviews usecase', () => {
 				params: {},
 				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
+
+			expect(allInterviews.status).to.equal(HttpStatus.OK);
+			if (allInterviews.status != 200) throw new Error();
+
 			const foreignHrId = allInterviews.body.find((i: any) => i.name === 'Interview A')?.hr_connection_id;
 
 			const res = await interviewTestSdk.getInterviews({
