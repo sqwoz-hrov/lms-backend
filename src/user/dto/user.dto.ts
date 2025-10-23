@@ -99,23 +99,34 @@ export class UserResponseDto extends BaseUserDto {
 	subscription_tier?: SubscriptionTierDto | null;
 }
 
-export const toUserResponseDto = (user: UserWithSubscriptionTier): UserResponseDto => ({
-	id: user.id,
-	role: user.role,
-	name: user.name,
-	email: user.email,
-	telegram_id: user.telegram_id ?? undefined,
-	telegram_username: user.telegram_username,
-	finished_registration: user.finished_registration,
-	subscription_tier_id: user.subscription_tier_id ?? null,
-	active_until: user.active_until?.toISOString() ?? null,
-	is_billable: user.is_billable,
-	is_archived: user.is_archived,
-	subscription_tier: user.subscription_tier
-		? {
-				id: user.subscription_tier.id,
-				tier: user.subscription_tier.tier,
-				permissions: user.subscription_tier.permissions ?? [],
-			}
-		: null,
-});
+export const toUserResponseDto = (user: UserWithSubscriptionTier): UserResponseDto => {
+	const subscription = user.subscription ?? null;
+	const subscriptionTier = user.subscription_tier ?? null;
+
+	const subscriptionTierId = subscription?.subscription_tier_id ?? null;
+	const activeUntil = subscription?.current_period_end
+		? new Date(subscription.current_period_end).toISOString()
+		: null;
+	const isBillable = subscription ? !subscription.is_gifted : false;
+
+	return {
+		id: user.id,
+		role: user.role,
+		name: user.name,
+		email: user.email,
+		telegram_id: user.telegram_id ?? undefined,
+		telegram_username: user.telegram_username,
+		finished_registration: user.finished_registration,
+		subscription_tier_id: subscriptionTierId,
+		active_until: activeUntil,
+		is_billable: isBillable,
+		is_archived: user.is_archived,
+		subscription_tier: subscriptionTier
+			? {
+					id: subscriptionTier.id,
+					tier: subscriptionTier.tier,
+					permissions: subscriptionTier.permissions ?? [],
+				}
+			: null,
+	};
+};

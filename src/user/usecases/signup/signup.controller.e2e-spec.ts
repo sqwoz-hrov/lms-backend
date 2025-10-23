@@ -168,15 +168,13 @@ describe('[E2E] Public signup usecase', () => {
 
 		const user = await utilRepository.connection
 			.selectFrom('user')
-			.select(['role', 'is_billable', 'finished_registration', 'subscription_tier_id'])
+			.select(['role', 'finished_registration'])
 			.where('id', '=', res.body.id)
 			.limit(1)
 			.executeTakeFirstOrThrow();
 
 		expect(user.role).to.equal('subscriber');
-		expect(user.is_billable).to.equal(false);
 		expect(user.finished_registration).to.equal(false);
-		expect(user.subscription_tier_id).to.equal(null);
 	});
 
 	it('Returns 400 when trying to sign up with duplicate email', async () => {

@@ -13,7 +13,7 @@ import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { User } from '../../../user/user.entity';
+import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { BaseSubjectDto } from '../../dto/base-subject.dto';
 import { Subject } from '../../subject.entity';
 import { SubjectsTestRepository } from '../../test-utils/test.repo';
@@ -116,8 +116,8 @@ describe('[E2E] Get subjects usecase', () => {
 	});
 
 	describe('Subscriber access tests', () => {
-		let admin: User;
-		let subscriber: User;
+	let admin: UserWithSubscriptionTier;
+	let subscriber: UserWithSubscriptionTier;
 		let accessibleSubject: Subject;
 		let subjectForAnotherTier: Subject;
 		let assignedSubject: Subject;
@@ -128,7 +128,11 @@ describe('[E2E] Get subjects usecase', () => {
 			subscriber = await createTestSubscriber(userUtilRepository);
 			const otherTier = await createTestSubscriptionTier(userUtilRepository);
 
-			expect(subscriber.subscription_tier_id).to.be.a('string');
+			if (!subscriber.subscription) {
+				throw new Error('Subscriber fixture did not include subscription');
+			}
+
+			expect(subscriber.subscription.subscription_tier_id).to.be.a('string');
 
 			accessibleSubject = await createTestSubject(subjectUtilRepository, {
 				name: 'Accessible Subject',
@@ -149,7 +153,7 @@ describe('[E2E] Get subjects usecase', () => {
 
 			const allowRes = await subjectTestSdk.openSubjectForTiers({
 				subjectId: accessibleSubject.id,
-				params: { tier_ids: [subscriber.subscription_tier_id!] },
+				params: { tier_ids: [subscriber.subscription.subscription_tier_id] },
 				userMeta: {
 					userId: admin.id,
 					isAuth: true,
