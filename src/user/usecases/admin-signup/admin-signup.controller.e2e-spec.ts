@@ -48,7 +48,6 @@ describe('[E2E] Admin signup usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const requestAuthor = await createTestUser(utilRepository);
 		const user = await createTestUser(utilRepository);
 
 		const res = await userTestSdk.adminSignUp({
@@ -59,8 +58,6 @@ describe('[E2E] Admin signup usecase', () => {
 				name: user.name,
 			},
 			userMeta: {
-				userId: requestAuthor.id,
-				isWrongAccessJwt: false,
 				isAuth: false,
 			},
 		});
@@ -141,7 +138,7 @@ describe('[E2E] Admin signup usecase', () => {
 		expect(res.body.subscription_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 		expect(res.body.is_archived).to.equal(false);
-		expect(res.body.finished_registration).to.equal(true);
+		expect(res.body.finished_registration).to.equal(false);
 	});
 
 	it('Admin can create admin', async () => {
@@ -176,7 +173,7 @@ describe('[E2E] Admin signup usecase', () => {
 		expect(res.body.subscription_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 		expect(res.body.is_archived).to.equal(false);
-		expect(res.body.finished_registration).to.equal(true);
+		expect(res.body.finished_registration).to.equal(false);
 	});
 
 	it('Ignores billing fields when role is not subscriber', async () => {

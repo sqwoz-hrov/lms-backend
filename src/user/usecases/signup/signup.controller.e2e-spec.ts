@@ -47,9 +47,7 @@ describe('[E2E] Public signup usecase', () => {
 		const res = await userTestSdk.publicSignUp({
 			params: signupPayload,
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -75,9 +73,7 @@ describe('[E2E] Public signup usecase', () => {
 				email: createEmail(),
 			} as PublicSignupDto,
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -94,9 +90,7 @@ describe('[E2E] Public signup usecase', () => {
 				telegram_username: randomWord(),
 			} as PublicSignupDto,
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -118,8 +112,48 @@ describe('[E2E] Public signup usecase', () => {
 		const res = await userTestSdk.publicSignUp({
 			params: signupPayload as PublicSignupDto,
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status !== HttpStatus.CREATED) throw new Error();
+		expect(res.body.email).to.equal(signupPayload.email);
+		expect(res.body.role).to.equal('subscriber');
+		expect(res.body.is_billable).to.equal(false);
+		expect(res.body.finished_registration).to.equal(false);
+		expect(res.body.subscription_tier_id).to.equal(null);
+
+		const user = await utilRepository.connection
+			.selectFrom('user')
+			.select(['role', 'is_billable', 'finished_registration', 'subscription_tier_id'])
+			.where('id', '=', res.body.id)
+			.limit(1)
+			.executeTakeFirstOrThrow();
+
+		expect(user.role).to.equal('subscriber');
+		expect(user.is_billable).to.equal(false);
+		expect(user.finished_registration).to.equal(false);
+		expect(user.subscription_tier_id).to.equal(null);
+	});
+
+	it('Prevents privilege escalation attempts during signup even if user is authorized', async () => {
+		const signupPayload = {
+			name: createName(),
+			email: createEmail(),
+			telegram_username: randomWord(),
+			role: 'admin',
+			is_billable: true,
+			finished_registration: true,
+		};
+
+		const requestAuthor = await createTestUser(utilRepository);
+
+		const res = await userTestSdk.publicSignUp({
+			params: signupPayload as PublicSignupDto,
+			userMeta: {
+				userId: requestAuthor.id,
+				isAuth: true,
 				isWrongAccessJwt: false,
 			},
 		});
@@ -158,9 +192,7 @@ describe('[E2E] Public signup usecase', () => {
 				telegram_username: randomWord(),
 			},
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

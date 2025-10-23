@@ -49,9 +49,7 @@ describe('[E2E] Get journal records usecase', () => {
 		const res = await journalTestSdk.getJournalRecords({
 			params: {},
 			userMeta: {
-				userId: 'fake',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

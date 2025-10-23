@@ -73,9 +73,7 @@ describe('[E2E] Get tasks usecase', () => {
 				mentor_user_id: admin.id,
 			},
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

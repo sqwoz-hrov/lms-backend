@@ -66,8 +66,6 @@ describe('[E2E] FinishLogin usecase', () => {
 		const askLoginResponse = await userTestSdk.askLogin({
 			params: { email: user.email },
 			userMeta: {
-				isWrongAccessJwt: false,
-				userId: user.id,
 				isAuth: false,
 			},
 		});
@@ -78,8 +76,6 @@ describe('[E2E] FinishLogin usecase', () => {
 		const finishLoginResponse = await userTestSdk.finishLogin({
 			params: { email: user.email, otpCode: Number(otpCode) },
 			userMeta: {
-				isWrongAccessJwt: false,
-				userId: user.id,
 				isAuth: false,
 			},
 		});
@@ -132,8 +128,6 @@ describe('[E2E] FinishLogin usecase', () => {
 		const askLoginResponse = await userTestSdk.askLogin({
 			params: { email: user.email },
 			userMeta: {
-				isWrongAccessJwt: false,
-				userId: user.id,
 				isAuth: false,
 			},
 		});
@@ -145,8 +139,6 @@ describe('[E2E] FinishLogin usecase', () => {
 		const finishLoginResponse = await userTestSdk.finishLogin({
 			params: { email: user.email, otpCode },
 			userMeta: {
-				isWrongAccessJwt: false,
-				userId: user.id,
 				isAuth: false,
 			},
 		});

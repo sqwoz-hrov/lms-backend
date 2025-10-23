@@ -47,9 +47,7 @@ describe('[E2E] Create HR connection usecase', () => {
 		const res = await hrTestSdk.createHrConnection({
 			params: dto,
 			userMeta: {
-				userId: user.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

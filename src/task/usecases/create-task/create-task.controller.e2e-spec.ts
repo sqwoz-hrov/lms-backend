@@ -47,9 +47,7 @@ describe('[E2E] Create task usecase', () => {
 		const res = await taskTestSdk.createTask({
 			params: task,
 			userMeta: {
-				userId: author.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

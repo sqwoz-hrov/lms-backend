@@ -62,7 +62,7 @@ describe('[E2E] Create Feedback usecase', () => {
 
 		const res = await feedbackSdk.createFeedback({
 			params: dto,
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);

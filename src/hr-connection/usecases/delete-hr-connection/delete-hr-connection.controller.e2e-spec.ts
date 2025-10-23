@@ -43,15 +43,12 @@ describe('[E2E] Delete HR connection usecase', () => {
 	});
 
 	it('Unauthenticated request gets 401', async () => {
-		const user = await createTestUser(userUtilRepository);
 		const hrConnection = await createTestHrConnection(userUtilRepository, hrUtilRepository);
 
 		const res = await hrTestSdk.deleteHrConnection({
 			params: { id: hrConnection.id },
 			userMeta: {
-				userId: user.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

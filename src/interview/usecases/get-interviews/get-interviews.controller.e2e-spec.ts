@@ -46,10 +46,9 @@ describe('[E2E] Get Interviews usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const user = await createTestUser(userUtilRepo);
 		const res = await interviewTestSdk.getInterviews({
 			params: {},
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});

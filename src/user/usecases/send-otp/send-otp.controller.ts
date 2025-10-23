@@ -5,12 +5,12 @@ import { SendOtpDto, SendOtpResponseDto } from '../../dto/send-otp.dto';
 import { SendOtpUsecase } from './send-otp.usecase';
 
 @ApiTags('Users')
-@Controller('/users/signup/send-otp')
+@Controller('/users/send-otp')
 export class SendOtpController {
 	constructor(private readonly sendOtpUsecase: SendOtpUsecase) {}
 
 	@Route({
-		summary: 'Отправляет OTP для завершения регистрации',
+		summary: 'Отправляет OTP',
 		description: 'Создает новый OTP и отправляет его в Telegram, если для пользователя привязан Telegram ID',
 		responseType: SendOtpResponseDto,
 	})

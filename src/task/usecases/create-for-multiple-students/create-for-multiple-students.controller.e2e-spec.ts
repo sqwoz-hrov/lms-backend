@@ -49,9 +49,7 @@ describe('[E2E] Create tasks for multiple students usecase', () => {
 		const res = await taskTestSdk.createTasksForMultipleStudents({
 			params: dto,
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

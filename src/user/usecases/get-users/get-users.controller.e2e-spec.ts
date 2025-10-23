@@ -42,9 +42,7 @@ describe('[E2E] Get users usecase', () => {
 	it('Unauthenticated gets 401', async () => {
 		const res = await usersTestSdk.getUsers({
 			userMeta: {
-				userId: 'unknown',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

@@ -79,9 +79,7 @@ describe('[E2E] Get materials usecase', () => {
 		const res = await materialTestSdk.getMaterials({
 			params: { student_user_id: admin.id },
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

@@ -62,12 +62,11 @@ describe('[E2E] Get Feedback Info usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const user = await createTestUser(userUtilRepo);
 		const feedback = await feedbackBuilder.createFeedback({});
 
 		const res = await feedbackSdk.getFeedbackInfo({
 			params: { id: feedback.id },
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);

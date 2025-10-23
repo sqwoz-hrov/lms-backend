@@ -56,7 +56,7 @@ describe('[E2E] Delete Interview usecase', () => {
 
 		const res = await interviewTestSdk.deleteInterview({
 			params: { id: interview.id },
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);

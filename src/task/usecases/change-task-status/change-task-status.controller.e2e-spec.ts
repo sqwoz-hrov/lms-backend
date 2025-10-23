@@ -55,7 +55,7 @@ describe('[E2E] Change task status usecase', () => {
 
 		const res = await taskTestSdk.changeTaskStatus({
 			params: { id: task.id, status: 'done' },
-			userMeta: { userId: admin.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});

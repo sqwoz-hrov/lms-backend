@@ -45,16 +45,12 @@ describe('[E2E] Delete task usecase', () => {
 	});
 
 	it('Unauthenticated request gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
-
 		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
 
 		const res = await taskTestSdk.deleteTask({
 			params: { id: task.id },
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

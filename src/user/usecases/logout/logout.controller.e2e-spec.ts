@@ -62,7 +62,7 @@ describe('[E2E] Logout usecase', () => {
 
 		const askLoginResponse = await userTestSdk.askLogin({
 			params: { email: user.email },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(askLoginResponse.status).to.equal(202);
 
@@ -70,7 +70,7 @@ describe('[E2E] Logout usecase', () => {
 
 		const finishLoginResponse = await userTestSdk.finishLogin({
 			params: { email: user.email, otpCode },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(finishLoginResponse.status).to.equal(202);
 
@@ -83,13 +83,13 @@ describe('[E2E] Logout usecase', () => {
 
 		const refreshOk = await userTestSdk.refresh({
 			params: { fallbackToken: refreshToken },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(refreshOk.status).to.equal(200);
 
 		const logoutResp = await userTestSdk.logout({
 			params: { all: false, fallbackRefreshToken: refreshToken },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(logoutResp.status).to.equal(200);
 
@@ -99,7 +99,7 @@ describe('[E2E] Logout usecase', () => {
 
 		const refreshFail = await userTestSdk.refresh({
 			params: { fallbackToken: refreshToken },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(refreshFail.status).to.equal(401);
 	});
@@ -109,57 +109,57 @@ describe('[E2E] Logout usecase', () => {
 
 		const ask1 = await userTestSdk.askLogin({
 			params: { email: user.email },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(ask1.status).to.equal(202);
 		const otp1 = Number(await redisConnection.get(user.id));
 		const login1 = await userTestSdk.finishLogin({
 			params: { email: user.email, otpCode: otp1 },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(login1.status).to.equal(202);
 		const r1 = cookieMap(login1.cookies ?? []).get('refresh_token')!;
 
 		const ask2 = await userTestSdk.askLogin({
 			params: { email: user.email },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(ask2.status).to.equal(202);
 		const otp2 = Number(await redisConnection.get(user.id));
 		const login2 = await userTestSdk.finishLogin({
 			params: { email: user.email, otpCode: otp2 },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(login2.status).to.equal(202);
 		const r2 = cookieMap(login2.cookies ?? []).get('refresh_token')!;
 
 		const refresh1 = await userTestSdk.refresh({
 			params: { fallbackToken: r1 },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(refresh1.status).to.equal(200);
 
 		const refresh2 = await userTestSdk.refresh({
 			params: { fallbackToken: r2 },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(refresh2.status).to.equal(200);
 
 		const logoutAll = await userTestSdk.logout({
 			params: { all: true, fallbackRefreshToken: r1 },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(logoutAll.status).to.equal(200);
 
 		const refresh1After = await userTestSdk.refresh({
 			params: { fallbackToken: r1 },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(refresh1After.status).to.equal(401);
 
 		const refresh2After = await userTestSdk.refresh({
 			params: { fallbackToken: r2 },
-			userMeta: { isWrongAccessJwt: false, userId: user.id, isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(refresh2After.status).to.equal(401);
 	});
@@ -167,7 +167,7 @@ describe('[E2E] Logout usecase', () => {
 	it('Logout without any tokens returns 400', async () => {
 		const logoutResp = await userTestSdk.logout({
 			params: {},
-			userMeta: { isWrongAccessJwt: false, userId: 'no-user', isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(logoutResp.status).to.equal(400);
 		expect((logoutResp.cookies ?? []).length).to.equal(0);
@@ -176,7 +176,7 @@ describe('[E2E] Logout usecase', () => {
 	it('Logout with malformed refresh in body returns 401', async () => {
 		const logoutResp = await userTestSdk.logout({
 			params: { all: false, fallbackRefreshToken: 'not-a-jwt' },
-			userMeta: { isWrongAccessJwt: false, userId: 'no-user', isAuth: false },
+			userMeta: { isAuth: false },
 		});
 		expect(logoutResp.status).to.equal(401);
 		expect((logoutResp.cookies ?? []).length).to.equal(0);

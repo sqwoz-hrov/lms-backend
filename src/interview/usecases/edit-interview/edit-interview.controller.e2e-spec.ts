@@ -54,7 +54,7 @@ describe('[E2E] Edit Interview usecase', () => {
 
 		const res = await interviewTestSdk.editInterview({
 			params: { id: interview.id, name: 'New name' },
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);

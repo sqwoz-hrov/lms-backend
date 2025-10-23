@@ -45,8 +45,6 @@ describe('[E2E] Get task usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
-
 		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
 
 		const res = await taskTestSdk.getTaskInfo({
@@ -54,9 +52,7 @@ describe('[E2E] Get task usecase', () => {
 				id: task.id,
 			},
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -64,8 +60,6 @@ describe('[E2E] Get task usecase', () => {
 	});
 
 	it('Fake JWT gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
-
 		const task = await createTestTask(userUtilRepository, markdownContentUtilRepository, taskUtilRepository);
 
 		const res = await taskTestSdk.getTaskInfo({
@@ -73,9 +67,7 @@ describe('[E2E] Get task usecase', () => {
 				id: task.id,
 			},
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: true,
 			},
 		});
 

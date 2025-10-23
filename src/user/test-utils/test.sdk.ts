@@ -58,7 +58,7 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 
 	public async sendSignupOtp({ params, userMeta }: { params: SendOtpDto; userMeta: UserMeta }) {
 		return await this.testClient.request<SendOtpResponseDto>({
-			path: '/users/signup/send-otp',
+			path: '/users/send-otp',
 			method: 'POST',
 			userMeta,
 			body: params,

@@ -49,9 +49,7 @@ describe('[E2E] Send signup OTP usecase', () => {
 		const signupRes = await userTestSdk.publicSignUp({
 			params: signupPayload,
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -61,9 +59,7 @@ describe('[E2E] Send signup OTP usecase', () => {
 		const sendOtpRes = await userTestSdk.sendSignupOtp({
 			params: { email: signupPayload.email },
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -85,9 +81,7 @@ describe('[E2E] Send signup OTP usecase', () => {
 		const signupRes = await userTestSdk.publicSignUp({
 			params: signupPayload,
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -103,9 +97,7 @@ describe('[E2E] Send signup OTP usecase', () => {
 		const sendOtpRes = await userTestSdk.sendSignupOtp({
 			params: { email: signupPayload.email },
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -118,9 +110,7 @@ describe('[E2E] Send signup OTP usecase', () => {
 		const sendOtpRes = await userTestSdk.sendSignupOtp({
 			params: { email: createEmail() },
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

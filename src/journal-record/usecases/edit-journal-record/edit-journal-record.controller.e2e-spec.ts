@@ -46,7 +46,6 @@ describe('[E2E] Edit journal record usecase', () => {
 	});
 
 	it('Unauthenticated request gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
 		const journal = await createTestJournalRecord(
 			userUtilRepository,
 			markdownContentRepository,
@@ -59,9 +58,7 @@ describe('[E2E] Edit journal record usecase', () => {
 				name: 'Updated name',
 			},
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

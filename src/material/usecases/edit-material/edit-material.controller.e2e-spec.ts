@@ -55,7 +55,6 @@ describe('[E2E] Edit material usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
 		const material = await createTestMaterial(
 			userUtilRepository,
 			markdownContentUtilRepository,
@@ -71,9 +70,7 @@ describe('[E2E] Edit material usecase', () => {
 		const res = await materialTestSdk.editMaterial({
 			params: editDto,
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

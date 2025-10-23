@@ -53,9 +53,7 @@ describe('[E2E] Edit HR Connection', () => {
 		const res = await hrSdk.editHrConnection({
 			params: dto,
 			userMeta: {
-				userId: user.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -76,9 +74,7 @@ describe('[E2E] Edit HR Connection', () => {
 		const res = await hrSdk.editHrConnection({
 			params: dto,
 			userMeta: {
-				userId: user.id,
 				isAuth: false,
-				isWrongAccessJwt: true,
 			},
 		});
 

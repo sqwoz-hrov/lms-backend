@@ -46,15 +46,12 @@ describe('[E2E] Create material usecase', () => {
 	});
 
 	it('Unauthenticated gets 401', async () => {
-		const author = await createTestAdmin(userUtilRepository);
 		const material = createTestMaterialDto('subject-id');
 
 		const res = await materialTestSdk.createMaterial({
 			params: material,
 			userMeta: {
-				userId: author.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

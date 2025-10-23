@@ -2,7 +2,7 @@ import { CookieJar, Cookie } from 'tough-cookie';
 import { JwtFactory } from './test.jwt.factory';
 import { jwtConfig } from '../src/config';
 import { ConfigType } from '@nestjs/config';
-import { UserMeta } from './test.abstract.sdk';
+import { UserMeta, UserMetaWithAuth } from './test.abstract.sdk';
 import * as FormData from 'form-data';
 import { Readable } from 'stream';
 
@@ -82,7 +82,7 @@ export class TestHttpClient {
 		userMeta,
 	}: RequestOptions): Promise<RequestResult<TResponse>> {
 		const url = `${this.baseUrl}${path}`;
-		const authCookie = this.buildAuthCookie(userMeta);
+		const authCookie = userMeta.isAuth ? this.buildAuthCookie(userMeta) : null;
 		const { processedBody, contentHeaders } = this.processBody(body);
 
 		const finalHeaders = this.buildHeaders({
@@ -112,7 +112,7 @@ export class TestHttpClient {
 		} as RequestResult<TResponse>;
 	}
 
-	private buildAuthCookie(userMeta: UserMeta): string | null {
+	private buildAuthCookie(userMeta: UserMetaWithAuth): string | null {
 		const { userId, isAuth, isWrongAccessJwt, isWrongRefreshJwt } = userMeta;
 
 		if (!isAuth) {

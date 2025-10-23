@@ -47,9 +47,7 @@ describe('[E2E] Create journal record usecase', () => {
 		const res = await journalTestSdk.createJournalRecord({
 			params: journalDto,
 			userMeta: {
-				userId: admin.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

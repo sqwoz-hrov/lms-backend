@@ -52,7 +52,7 @@ describe('[E2E] Create Interview usecase', () => {
 
 		const res = await interviewTestSdk.createInterview({
 			params: dto,
-			userMeta: { userId: user.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);

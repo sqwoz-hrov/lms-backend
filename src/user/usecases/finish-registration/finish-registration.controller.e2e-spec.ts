@@ -1,15 +1,17 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
+import Redis from 'ioredis';
 import { randomWord } from '../../../../test/fixtures/common.fixture';
 import { createEmail, createName } from '../../../../test/fixtures/user.fixture';
-import { TestHttpClient } from '../../../../test/test.http-client';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
+import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
+import { REDIS_CONNECTION_KEY } from '../../../infra/redis.const';
+import { OTPRedisStorage } from '../../adapters/otp-storage.adapter';
 import { UsersTestRepository } from '../../test-utils/test.repo';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
-import { OTPRedisStorage } from '../../adapters/otp-storage.adapter';
 
 describe('[E2E] Finish registration usecase', () => {
 	let app: INestApplication;
@@ -17,12 +19,14 @@ describe('[E2E] Finish registration usecase', () => {
 	let utilRepository: UsersTestRepository;
 	let userTestSdk: UsersTestSdk;
 	let otpStorage: OTPRedisStorage;
+	let redisConnection: Redis;
 
 	before(function (this: ISharedContext) {
 		app = this.app;
 		const kysely = app.get(DatabaseProvider);
 		utilRepository = new UsersTestRepository(kysely);
 		otpStorage = app.get(OTPRedisStorage);
+		redisConnection = app.get(REDIS_CONNECTION_KEY);
 
 		userTestSdk = new UsersTestSdk(
 			new TestHttpClient(
@@ -37,6 +41,7 @@ describe('[E2E] Finish registration usecase', () => {
 
 	afterEach(async () => {
 		await utilRepository.clearAll();
+		await redisConnection.flushall();
 	});
 
 	it('Finishes registration with correct OTP', async () => {
@@ -49,9 +54,7 @@ describe('[E2E] Finish registration usecase', () => {
 		const signupRes = await userTestSdk.publicSignUp({
 			params: signupPayload,
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -61,9 +64,7 @@ describe('[E2E] Finish registration usecase', () => {
 		const sendOtpRes = await userTestSdk.sendSignupOtp({
 			params: { email: signupPayload.email },
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -75,15 +76,15 @@ describe('[E2E] Finish registration usecase', () => {
 			throw new Error('OTP not found');
 		}
 
+		await utilRepository.connection.updateTable('user').set('telegram_id', 100000).execute();
+
 		const finishRes = await userTestSdk.finishRegistration({
 			params: {
 				email: signupPayload.email,
 				otpCode: Number(otp.asString),
 			},
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -111,9 +112,7 @@ describe('[E2E] Finish registration usecase', () => {
 		const signupRes = await userTestSdk.publicSignUp({
 			params: signupPayload,
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -123,9 +122,7 @@ describe('[E2E] Finish registration usecase', () => {
 		const sendOtpRes = await userTestSdk.sendSignupOtp({
 			params: { email: signupPayload.email },
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 
@@ -138,9 +135,7 @@ describe('[E2E] Finish registration usecase', () => {
 				otpCode: 111111,
 			},
 			userMeta: {
-				userId: 'anonymous',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

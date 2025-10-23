@@ -51,9 +51,7 @@ describe('[E2E] Get subjects usecase', () => {
 	it('Unauthenticated request gets 401', async () => {
 		const res = await subjectTestSdk.getSubjects({
 			userMeta: {
-				userId: 'fake',
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

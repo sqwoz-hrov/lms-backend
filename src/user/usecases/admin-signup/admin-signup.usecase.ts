@@ -40,7 +40,7 @@ export class AdminSignupUsecase implements UsecaseInterface {
 			name,
 			email,
 			telegram_username,
-			finished_registration: true,
+			finished_registration: false,
 			is_archived: normalizedIsArchived,
 		});
 

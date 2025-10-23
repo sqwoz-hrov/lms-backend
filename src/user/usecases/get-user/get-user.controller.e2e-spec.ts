@@ -67,9 +67,7 @@ describe('[E2E] Get user by id usecase', () => {
 		const res = await userTestSdk.getUserById({
 			params: { id: user.id },
 			userMeta: {
-				userId: user.id,
 				isAuth: false,
-				isWrongAccessJwt: false,
 			},
 		});
 

@@ -38,14 +38,13 @@ describe('[E2E] Open subject for tiers usecase', () => {
 	});
 
 	it('Unauthenticated request gets 401', async () => {
-		const admin = await createTestAdmin(userUtilRepository);
 		const subject = await createTestSubject(subjectUtilRepository);
 		const tier = await createTestSubscriptionTier(userUtilRepository);
 
 		const res = await subjectTestSdk.openSubjectForTiers({
 			subjectId: subject.id,
 			params: { tier_ids: [tier.id] },
-			userMeta: { userId: admin.id, isAuth: false, isWrongAccessJwt: false },
+			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
