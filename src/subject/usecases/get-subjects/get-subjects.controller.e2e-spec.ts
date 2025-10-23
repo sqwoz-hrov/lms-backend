@@ -183,7 +183,7 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status != 200) throw new Error();
+			if (res.status != 200) throw new Error();
 			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
@@ -203,7 +203,7 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status != 200) throw new Error();
+			if (res.status != 200) throw new Error();
 			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
@@ -223,7 +223,7 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status != 200) throw new Error();
+			if (res.status != 200) throw new Error();
 			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
@@ -243,7 +243,7 @@ describe('[E2E] Get subjects usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status != 200) throw new Error();
+			if (res.status != 200) throw new Error();
 			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);

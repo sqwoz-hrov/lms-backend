@@ -96,7 +96,7 @@ describe('[E2E] Get HR connections usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status != 200) throw new Error();
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(2);
 			for (const conn of res.body) {
 				expect(conn.student_user_id).to.equal(user2.id);
@@ -110,7 +110,7 @@ describe('[E2E] Get HR connections usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status != 200) throw new Error();
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(4);
 		});
 
@@ -121,7 +121,7 @@ describe('[E2E] Get HR connections usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status != 200) throw new Error();
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(2);
 			for (const conn of res.body) {
 				expect(conn.student_user_id).to.equal(user2.id);
@@ -135,7 +135,7 @@ describe('[E2E] Get HR connections usecase', () => {
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status != 200) throw new Error();
+			if (res.status != 200) throw new Error();
 			expect(res.body).to.be.an('array').with.length(1);
 			expect(res.body[0].student_user_id).to.equal(user3.id);
 		});

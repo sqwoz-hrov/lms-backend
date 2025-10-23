@@ -7,9 +7,7 @@ import { UserRepository } from '../../user.repository';
 export class SignupUsecase implements UsecaseInterface {
 	private readonly logger = new Logger(SignupUsecase.name);
 
-	constructor(
-		private readonly repo: UserRepository,
-	) {}
+	constructor(private readonly repo: UserRepository) {}
 
 	public async execute({
 		name,
