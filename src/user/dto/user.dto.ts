@@ -104,9 +104,7 @@ export const toUserResponseDto = (user: UserWithSubscriptionTier): UserResponseD
 	const subscriptionTier = user.subscription_tier ?? null;
 
 	const subscriptionTierId = subscription?.subscription_tier_id ?? null;
-	const activeUntil = subscription?.current_period_end
-		? new Date(subscription.current_period_end).toISOString()
-		: null;
+	const activeUntil = subscription?.current_period_end ? new Date(subscription.current_period_end).toISOString() : null;
 	const isBillable = subscription ? !subscription.is_gifted : false;
 
 	return {

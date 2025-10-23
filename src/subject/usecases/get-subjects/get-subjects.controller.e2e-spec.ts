@@ -116,8 +116,8 @@ describe('[E2E] Get subjects usecase', () => {
 	});
 
 	describe('Subscriber access tests', () => {
-	let admin: UserWithSubscriptionTier;
-	let subscriber: UserWithSubscriptionTier;
+		let admin: UserWithSubscriptionTier;
+		let subscriber: UserWithSubscriptionTier;
 		let accessibleSubject: Subject;
 		let subjectForAnotherTier: Subject;
 		let assignedSubject: Subject;
