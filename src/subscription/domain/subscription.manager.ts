@@ -122,6 +122,16 @@ export class SubscriptionManager {
 		}
 
 		const existing = params.existingSubscription;
+		const existingTier = this.tierById.get(existing.subscription_tier_id);
+
+		if (!existingTier) {
+			throw new Error(`Unknown subscription tier "${existing.subscription_tier_id}"`);
+		}
+
+		if (existingTier.power > params.targetTier.power) {
+			throw new Error(`Cannot downgrade subscription tier from "${existingTier.tier}" to "${params.targetTier.tier}"`);
+		}
+
 		const base = this.maxDate(existing.current_period_end, now);
 		const nextEnd = this.addDays(base, periodDays);
 		const updated: SubscriptionState = {

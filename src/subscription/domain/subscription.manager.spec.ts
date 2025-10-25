@@ -17,7 +17,14 @@ const paidTier: SubscriptionTier = {
 	permissions: [],
 };
 
-const defaultTiers = [freeTier, paidTier];
+const premiumTier: SubscriptionTier = {
+	id: 'tier-premium',
+	tier: 'premium',
+	power: 2,
+	permissions: [],
+};
+
+const defaultTiers = [freeTier, paidTier, premiumTier];
 
 const BASE_DATE = new Date('2024-01-01T00:00:00.000Z');
 
@@ -140,6 +147,58 @@ describe('SubscriptionManager', () => {
 			});
 			expect(action.subscription.current_period_end).to.deep.equal(addDays(currentPeriodEnd, 15));
 			expect(action.subscription.next_billing_at).to.equal(null);
+		});
+
+		it('upgrades existing subscription to a higher tier', () => {
+			const manager = createManager();
+			const now = new Date('2024-03-10T00:00:00.000Z');
+			const existing = buildSubscriptionState({
+				subscription_tier_id: paidTier.id,
+				current_period_end: addDays(now, 10),
+				is_gifted: false,
+				status: 'active',
+				billing_period_days: 30,
+			});
+
+			const { action } = manager.handleGift({
+				user: { id: existing.user_id },
+				targetTier: premiumTier,
+				durationDays: 20,
+				existingSubscription: existing,
+				now,
+			});
+
+			expect(action.do).to.equal('update_data');
+			expect(action.subscription).to.include({
+				id: existing.id,
+				user_id: existing.user_id,
+				subscription_tier_id: premiumTier.id,
+				status: 'active',
+				is_gifted: true,
+				price_on_purchase_rubles: 0,
+			});
+			expect(action.subscription.current_period_end).to.deep.equal(addDays(existing.current_period_end as Date, 20));
+			expect(action.subscription.next_billing_at).to.equal(null);
+		});
+
+		it('throws when trying to downgrade subscription tier', () => {
+			const manager = createManager();
+			const now = new Date('2024-04-01T00:00:00.000Z');
+			const existing = buildSubscriptionState({
+				subscription_tier_id: premiumTier.id,
+				current_period_end: addDays(now, 5),
+				is_gifted: false,
+			});
+
+			expect(() =>
+				manager.handleGift({
+					user: { id: existing.user_id },
+					targetTier: paidTier,
+					durationDays: 10,
+					existingSubscription: existing,
+					now,
+				}),
+			).to.throw('Cannot downgrade subscription tier from "premium" to "paid"');
 		});
 	});
 
