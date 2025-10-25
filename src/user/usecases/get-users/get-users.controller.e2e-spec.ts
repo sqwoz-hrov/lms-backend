@@ -104,6 +104,7 @@ describe('[E2E] Get users usecase', () => {
 		expect(returnedSubscriber?.subscription_tier).to.deep.equal({
 			id: subscriptionTier.id,
 			tier: subscriptionTier.tier,
+			power: subscriptionTier.power,
 			permissions: subscriptionTier.permissions ?? [],
 		});
 	});

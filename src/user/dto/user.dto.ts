@@ -123,6 +123,7 @@ export const toUserResponseDto = (user: UserWithSubscriptionTier): UserResponseD
 			? {
 					id: subscriptionTier.id,
 					tier: subscriptionTier.tier,
+					power: subscriptionTier.power,
 					permissions: subscriptionTier.permissions ?? [],
 				}
 			: null,

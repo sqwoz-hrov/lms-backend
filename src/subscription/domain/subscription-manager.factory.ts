@@ -17,7 +17,6 @@ export class SubscriptionManagerFactory {
 		return new SubscriptionManager(tiers, {
 			defaultBillingPeriodDays: this.config.defaultBillingPeriodDays,
 			defaultGracePeriodSize: this.config.defaultGracePeriodSize,
-			freeTierCode: this.config.freeTierCode,
 		});
 	}
 }

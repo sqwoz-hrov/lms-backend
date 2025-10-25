@@ -14,7 +14,6 @@ export type SubscriptionAction =
 interface SubscriptionManagerOptions {
 	defaultBillingPeriodDays?: number;
 	defaultGracePeriodSize?: number;
-	freeTierCode?: string;
 }
 
 interface BillingCronParams {
@@ -57,19 +56,20 @@ interface RegistrationParams {
 
 export class SubscriptionManager {
 	private readonly tierById = new Map<string, SubscriptionTier>();
-	private readonly tierByCode = new Map<string, SubscriptionTier>();
+	private readonly tierByPower = new Map<number, SubscriptionTier>();
 	private readonly defaultBillingPeriodDays: number;
 	private readonly defaultGracePeriodSize: number;
-	private readonly freeTierCode: string;
 
 	constructor(subscriptionTiers: SubscriptionTier[], options: SubscriptionManagerOptions = {}) {
 		this.defaultBillingPeriodDays = options.defaultBillingPeriodDays ?? 30;
 		this.defaultGracePeriodSize = options.defaultGracePeriodSize ?? 3;
-		this.freeTierCode = options.freeTierCode ?? 'free';
 
 		for (const tier of subscriptionTiers) {
 			this.tierById.set(tier.id, tier);
-			this.tierByCode.set(tier.tier, tier);
+			if (this.tierByPower.has(tier.power)) {
+				throw new Error(`Duplicate subscription tier power "${tier.power}" configured`);
+			}
+			this.tierByPower.set(tier.power, tier);
 		}
 	}
 
@@ -131,7 +131,6 @@ export class SubscriptionManager {
 			status: 'active',
 			is_gifted: true,
 			price_on_purchase_rubles: 0,
-			billing_period_days: periodDays,
 			current_period_end: nextEnd,
 			next_billing_at: null,
 			grace_period_size: grace,
@@ -239,9 +238,9 @@ export class SubscriptionManager {
 	}
 
 	private resolveFreeTier(): SubscriptionTier {
-		const freeTier = this.tierByCode.get(this.freeTierCode);
+		const freeTier = this.tierByPower.get(0);
 		if (!freeTier) {
-			throw new Error(`Free subscription tier "${this.freeTierCode}" not configured`);
+			throw new Error('Free subscription tier with power 0 not configured');
 		}
 		return freeTier;
 	}

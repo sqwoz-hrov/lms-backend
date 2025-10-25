@@ -18,14 +18,23 @@ export const createTestSubscriptionTier = async (
 	userRepository: UsersTestRepository,
 	overrides: Partial<SubscriptionTier> = {},
 ): Promise<SubscriptionTier> => {
-	const tierName = overrides.tier ?? `tier-${randomWord()}`;
+	const { power: overridePower, ...restOverrides } = overrides;
+	const tierName = restOverrides.tier ?? `tier-${randomWord()}`;
+
+	const powerResult = await userRepository.connection
+		.selectFrom('subscription_tier')
+		.select(({ fn }) => fn.max<number>('power').as('maxPower'))
+		.executeTakeFirst();
+
+	const resolvedPower = overridePower ?? ((powerResult?.maxPower ?? -1) + 1);
 
 	return userRepository.connection
 		.insertInto('subscription_tier')
 		.values({
 			tier: tierName,
 			permissions: [],
-			...overrides,
+			power: resolvedPower,
+			...restOverrides,
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();

@@ -42,6 +42,7 @@ export class UserRepository {
 				'subscription.updated_at as subscription__updated_at',
 				'subscription_tier.id as subscription_tier__id',
 				'subscription_tier.tier as subscription_tier__tier',
+				'subscription_tier.power as subscription_tier__power',
 				'subscription_tier.permissions as subscription_tier__permissions',
 			])
 			.execute();
@@ -79,6 +80,7 @@ export class UserRepository {
 				'subscription.updated_at as subscription__updated_at',
 				'subscription_tier.id as subscription_tier__id',
 				'subscription_tier.tier as subscription_tier__tier',
+				'subscription_tier.power as subscription_tier__power',
 				'subscription_tier.permissions as subscription_tier__permissions',
 			])
 			.where('user.id', '=', id)
@@ -149,6 +151,7 @@ export class UserRepository {
 			subscription__updated_at,
 			subscription_tier__id,
 			subscription_tier__tier,
+			subscription_tier__power,
 			subscription_tier__permissions,
 			...user
 		} = row;
@@ -174,10 +177,11 @@ export class UserRepository {
 				: null;
 
 		const subscriptionTier: SubscriptionTier | null =
-			subscription_tier__id !== null && subscription_tier__tier !== null
+			subscription_tier__id !== null && subscription_tier__tier !== null && subscription_tier__power !== null
 				? {
 						id: subscription_tier__id,
 						tier: subscription_tier__tier,
+						power: subscription_tier__power,
 						permissions: subscription_tier__permissions ?? [],
 					}
 				: null;

@@ -6,6 +6,7 @@ export type UserRole = 'admin' | 'user' | 'subscriber';
 export interface SubscriptionTierTable {
 	id: Generated<string>;
 	tier: string;
+	power: ColumnType<number, number | undefined, number | undefined>;
 	permissions: ColumnType<string[], string[] | undefined, string[] | undefined>;
 }
 

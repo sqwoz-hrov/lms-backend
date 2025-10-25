@@ -9,6 +9,16 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await sql`ALTER TABLE "user" DROP CONSTRAINT IF EXISTS user_subscription_tier_id_fkey`.execute(db);
 
 	await db.schema
+		.alterTable('subscription_tier')
+		.addColumn('power', 'integer', col => col.notNull())
+		.execute();
+
+	await db.schema
+		.alterTable('subscription_tier')
+		.addUniqueConstraint('subscription_tier_power_unique', ['power'])
+		.execute();
+
+	await db.schema
 		.createTable('subscription')
 		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
 		.addColumn('user_id', 'uuid', col => col.notNull().references('user.id').onDelete('cascade'))
@@ -62,6 +72,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
+	await db.schema.alterTable('subscription_tier').dropConstraint('subscription_tier_power_unique').execute();
+	await db.schema.alterTable('subscription_tier').dropColumn('power').execute();
+
 	await db.schema.alterTable('payment_event').dropColumn('subscription_id').execute();
 
 	await db.schema

@@ -6,12 +6,14 @@ import { SubscriptionDraft, SubscriptionState } from '../subscription.entity';
 const freeTier: SubscriptionTier = {
 	id: 'tier-free',
 	tier: 'free',
+	power: 0,
 	permissions: [],
 };
 
 const paidTier: SubscriptionTier = {
 	id: 'tier-paid',
 	tier: 'paid',
+	power: 1,
 	permissions: [],
 };
 
@@ -25,7 +27,6 @@ const createManager = () =>
 	new SubscriptionManager(defaultTiers, {
 		defaultBillingPeriodDays: 30,
 		defaultGracePeriodSize: 3,
-		freeTierCode: 'free',
 	});
 
 const buildSubscriptionState = (overrides: Partial<SubscriptionState> = {}): SubscriptionState => ({
@@ -133,7 +134,7 @@ describe('SubscriptionManager', () => {
 				subscription_tier_id: paidTier.id,
 				is_gifted: true,
 				status: 'active',
-				billing_period_days: 15,
+				billing_period_days: 40,
 				grace_period_size: 4,
 			});
 			expect(action.subscription.current_period_end).to.deep.equal(addDays(currentPeriodEnd, 15));

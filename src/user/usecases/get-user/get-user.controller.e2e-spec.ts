@@ -170,6 +170,7 @@ describe('[E2E] Get user by id usecase', () => {
 				subscription_tier: {
 					id: subscriptionTier.id,
 					tier: subscriptionTier.tier,
+					power: subscriptionTier.power,
 					permissions: subscriptionTier.permissions ?? [],
 				},
 			}),
