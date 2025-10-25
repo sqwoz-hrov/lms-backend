@@ -46,8 +46,6 @@ const buildSubscriptionState = (overrides: Partial<SubscriptionState> = {}): Sub
 	grace_period_size: overrides.grace_period_size ?? 3,
 	billing_period_days: overrides.billing_period_days ?? 30,
 	current_period_end: overrides.current_period_end !== undefined ? overrides.current_period_end : new Date(BASE_DATE),
-	next_billing_at: overrides.next_billing_at !== undefined ? overrides.next_billing_at : new Date(BASE_DATE),
-	billing_retry_attempts: overrides.billing_retry_attempts ?? 0,
 	last_billing_attempt:
 		overrides.last_billing_attempt !== undefined ? overrides.last_billing_attempt : new Date(BASE_DATE),
 });
@@ -79,7 +77,6 @@ describe('SubscriptionManager', () => {
 				grace_period_size: 3,
 				billing_period_days: 0,
 				current_period_end: null,
-				next_billing_at: null,
 				price_on_purchase_rubles: 0,
 			});
 		});
@@ -108,7 +105,6 @@ describe('SubscriptionManager', () => {
 				billing_period_days: 45,
 				grace_period_size: 2,
 				current_period_end: addDays(now, 45),
-				next_billing_at: null,
 				price_on_purchase_rubles: 0,
 			});
 		});
@@ -146,7 +142,6 @@ describe('SubscriptionManager', () => {
 				grace_period_size: 4,
 			});
 			expect(action.subscription.current_period_end).to.deep.equal(addDays(currentPeriodEnd, 15));
-			expect(action.subscription.next_billing_at).to.equal(null);
 		});
 
 		it('upgrades existing subscription to a higher tier', () => {
@@ -178,7 +173,6 @@ describe('SubscriptionManager', () => {
 				price_on_purchase_rubles: 0,
 			});
 			expect(action.subscription.current_period_end).to.deep.equal(addDays(existing.current_period_end as Date, 20));
-			expect(action.subscription.next_billing_at).to.equal(null);
 		});
 
 		it('throws when trying to downgrade subscription tier', () => {
@@ -203,16 +197,15 @@ describe('SubscriptionManager', () => {
 	});
 
 	describe('handleBillingCron', () => {
-		it('marks retry within grace period as past due', () => {
+		it('keeps subscription active and schedules retry within grace period', () => {
 			const manager = createManager();
 			const now = new Date('2024-05-01T12:00:00.000Z');
 			const subscription = buildSubscriptionState({
 				status: 'active',
-				billing_retry_attempts: 0,
 				grace_period_size: 2,
 				is_gifted: false,
 				current_period_end: addDays(now, 5),
-				next_billing_at: now,
+				last_billing_attempt: null,
 			});
 
 			const { action } = manager.handleBillingCron({
@@ -223,19 +216,20 @@ describe('SubscriptionManager', () => {
 			});
 
 			expect(action.do).to.equal('update_data');
-			expect(action.subscription.status).to.equal('past_due');
-			expect(action.subscription.billing_retry_attempts).to.equal(1);
-			expect(action.subscription.next_billing_at?.getTime()).to.equal(addDays(now, 1).getTime());
+			expect(action.subscription.status).to.equal('active');
+			expect(action.subscription.subscription_tier_id).to.equal(subscription.subscription_tier_id);
+			expect(action.subscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
+			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
 		});
 
-		it('cancels subscription when retries exceed grace', () => {
+		it('downgrades subscription to free tier when grace period expired', () => {
 			const manager = createManager();
-			const now = new Date('2024-06-01T09:00:00.000Z');
+			const periodEnd = new Date('2024-05-20T00:00:00.000Z');
+			const now = addDays(periodEnd, 4);
 			const subscription = buildSubscriptionState({
-				billing_retry_attempts: 3,
+				current_period_end: periodEnd,
 				grace_period_size: 3,
 				is_gifted: false,
-				status: 'past_due',
 			});
 
 			const { action } = manager.handleBillingCron({
@@ -245,9 +239,13 @@ describe('SubscriptionManager', () => {
 				now,
 			});
 
-			expect(action.do).to.equal('delete');
-			expect(action.subscription.status).to.equal('canceled');
-			expect(action.subscription.billing_retry_attempts).to.equal(4);
+			expect(action.do).to.equal('update_data');
+			expect(action.subscription.subscription_tier_id).to.equal(freeTier.id);
+			expect(action.subscription.status).to.equal('active');
+			expect(action.subscription.billing_period_days).to.equal(0);
+			expect(action.subscription.current_period_end).to.equal(null);
+			expect(action.subscription.is_gifted).to.equal(true);
+			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
 		});
 
 		it('prolongs subscription after successful billing', () => {
@@ -257,8 +255,7 @@ describe('SubscriptionManager', () => {
 			const subscription = buildSubscriptionState({
 				is_gifted: false,
 				current_period_end: originalEnd,
-				next_billing_at: originalEnd,
-				billing_retry_attempts: 1,
+				last_billing_attempt: addDays(originalEnd, -1),
 			});
 
 			const { action } = manager.handleBillingCron({
@@ -271,8 +268,7 @@ describe('SubscriptionManager', () => {
 			expect(action.do).to.equal('prolong');
 			const expectedEnd = addDays(originalEnd, subscription.billing_period_days);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
-			expect(action.subscription.next_billing_at?.getTime()).to.equal(expectedEnd.getTime());
-			expect(action.subscription.billing_retry_attempts).to.equal(0);
+			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
 		});
 
 		it('prolongs subscription after successful billing when now is after period end but within grace', () => {
@@ -280,12 +276,10 @@ describe('SubscriptionManager', () => {
 			const originalEnd = new Date('2024-08-01T00:00:00.000Z');
 			const now = new Date('2024-08-04T10:00:00.000Z');
 			const subscription = buildSubscriptionState({
-				status: 'past_due',
 				is_gifted: false,
 				current_period_end: originalEnd,
-				next_billing_at: addDays(originalEnd, 1),
-				billing_retry_attempts: 2,
 				grace_period_size: 5,
+				last_billing_attempt: addDays(originalEnd, 1),
 			});
 
 			const { action } = manager.handleBillingCron({
@@ -298,8 +292,6 @@ describe('SubscriptionManager', () => {
 			expect(action.do).to.equal('prolong');
 			const expectedEnd = addDays(now, subscription.billing_period_days);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
-			expect(action.subscription.next_billing_at?.getTime()).to.equal(expectedEnd.getTime());
-			expect(action.subscription.billing_retry_attempts).to.equal(0);
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
 			expect(action.subscription.status).to.equal('active');
 		});
@@ -313,8 +305,7 @@ describe('SubscriptionManager', () => {
 			const subscription = buildSubscriptionState({
 				is_gifted: false,
 				current_period_end: currentEnd,
-				next_billing_at: currentEnd,
-				billing_retry_attempts: 2,
+				last_billing_attempt: addDays(currentEnd, -2),
 			});
 
 			const { action } = manager.handlePaymentEvent({
@@ -328,19 +319,18 @@ describe('SubscriptionManager', () => {
 			const expectedEnd = addDays(currentEnd, subscription.billing_period_days);
 			expect(action.subscription.status).to.equal('active');
 			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
-			expect(action.subscription.next_billing_at?.getTime()).to.equal(expectedEnd.getTime());
-			expect(action.subscription.billing_retry_attempts).to.equal(0);
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		});
 
-		it('cancels subscription on payment cancellation', () => {
+		it('downgrades to free tier on payment cancellation outside grace period', () => {
 			const manager = createManager();
+			const periodEnd = new Date('2024-09-10T00:00:00.000Z');
 			const subscription = buildSubscriptionState({
-				status: 'past_due',
 				is_gifted: false,
-				billing_retry_attempts: 1,
+				current_period_end: periodEnd,
+				grace_period_size: 3,
 			});
-			const canceledAt = new Date('2024-09-15T10:00:00.000Z');
+			const canceledAt = addDays(periodEnd, 5);
 
 			const { action } = manager.handlePaymentEvent({
 				user: { id: subscription.user_id },
@@ -348,9 +338,33 @@ describe('SubscriptionManager', () => {
 				event: { type: 'payment.canceled', occurredAt: canceledAt },
 			});
 
-			expect(action.do).to.equal('delete');
-			expect(action.subscription.status).to.equal('canceled');
-			expect(action.subscription.next_billing_at).to.equal(null);
+			expect(action.do).to.equal('update_data');
+			expect(action.subscription.subscription_tier_id).to.equal(freeTier.id);
+			expect(action.subscription.status).to.equal('active');
+			expect(action.subscription.current_period_end).to.equal(null);
+			expect(action.subscription.is_gifted).to.equal(true);
+			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
+		});
+
+		it('keeps subscription when payment cancellation happens within grace period', () => {
+			const manager = createManager();
+			const periodEnd = new Date('2024-09-10T00:00:00.000Z');
+			const subscription = buildSubscriptionState({
+				is_gifted: false,
+				current_period_end: periodEnd,
+				grace_period_size: 5,
+			});
+			const canceledAt = addDays(periodEnd, 2);
+
+			const { action } = manager.handlePaymentEvent({
+				user: { id: subscription.user_id },
+				subscription,
+				event: { type: 'payment.canceled', occurredAt: canceledAt },
+			});
+
+			expect(action.do).to.equal('update_data');
+			expect(action.subscription.subscription_tier_id).to.equal(subscription.subscription_tier_id);
+			expect(action.subscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
 		});
 	});

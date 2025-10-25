@@ -128,7 +128,7 @@ describe('[E2E] Finish registration usecase', () => {
 		expect(subscription?.price_on_purchase_rubles).to.equal(0);
 		expect(subscription?.status).to.equal('active');
 		expect(subscription?.current_period_end).to.equal(null);
-		expect(subscription?.next_billing_at).to.equal(null);
+		expect(subscription?.last_billing_attempt).to.equal(null);
 	});
 
 	it('Fails with wrong OTP', async () => {

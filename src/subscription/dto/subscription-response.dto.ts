@@ -3,28 +3,28 @@ import { SubscriptionStatus, Subscription } from '../subscription.entity';
 
 export class SubscriptionResponseDto {
 	@ApiProperty()
-	id!: string;
+	id: string;
 
 	@ApiProperty()
-	userId!: string;
+	userId: string;
 
 	@ApiProperty()
-	subscriptionTierId!: string;
+	subscriptionTierId: string;
 
-	@ApiProperty({ enum: ['pending', 'active', 'past_due', 'canceled'] satisfies SubscriptionStatus[] })
-	status!: SubscriptionStatus;
-
-	@ApiProperty()
-	priceOnPurchaseRubles!: number;
+	@ApiProperty({ enum: ['pending', 'active', 'canceled'] satisfies SubscriptionStatus[] })
+	status: SubscriptionStatus;
 
 	@ApiProperty()
-	isGifted!: boolean;
+	priceOnPurchaseRubles: number;
 
 	@ApiProperty()
-	gracePeriodSize!: number;
+	isGifted: boolean;
 
 	@ApiProperty()
-	billingPeriodDays!: number;
+	gracePeriodSize: number;
+
+	@ApiProperty()
+	billingPeriodDays: number;
 
 	@ApiProperty({ nullable: true })
 	paymentMethodId: string | null = null;
@@ -33,19 +33,13 @@ export class SubscriptionResponseDto {
 	currentPeriodEnd: string | null = null;
 
 	@ApiProperty({ type: String, nullable: true })
-	nextBillingAt: string | null = null;
-
-	@ApiProperty()
-	billingRetryAttempts!: number;
-
-	@ApiProperty({ type: String, nullable: true })
 	lastBillingAttempt: string | null = null;
 
 	@ApiProperty({ type: String })
-	createdAt!: string;
+	createdAt: string;
 
 	@ApiProperty({ type: String })
-	updatedAt!: string;
+	updatedAt: string;
 
 	static fromEntity(entity: Subscription, extras?: { paymentMethodId?: string | null }): SubscriptionResponseDto {
 		const dto = new SubscriptionResponseDto();
@@ -59,8 +53,6 @@ export class SubscriptionResponseDto {
 		dto.billingPeriodDays = entity.billing_period_days;
 		dto.paymentMethodId = extras?.paymentMethodId ?? null;
 		dto.currentPeriodEnd = entity.current_period_end ? entity.current_period_end.toISOString() : null;
-		dto.nextBillingAt = entity.next_billing_at ? entity.next_billing_at.toISOString() : null;
-		dto.billingRetryAttempts = entity.billing_retry_attempts;
 		dto.lastBillingAttempt = entity.last_billing_attempt ? entity.last_billing_attempt.toISOString() : null;
 		dto.createdAt = entity.created_at.toISOString();
 		dto.updatedAt = entity.updated_at.toISOString();

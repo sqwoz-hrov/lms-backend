@@ -44,7 +44,7 @@ interface GiftSubscriptionParams {
 	user: Pick<User, 'id'>;
 	targetTier: SubscriptionTier;
 	durationDays: number;
-	existingSubscription?: SubscriptionState | null;
+	existingSubscription?: SubscriptionState;
 	now?: Date;
 	gracePeriodSize?: number;
 }
@@ -85,8 +85,6 @@ export class SubscriptionManager {
 			grace_period_size: this.defaultGracePeriodSize,
 			billing_period_days: 0,
 			current_period_end: null,
-			next_billing_at: null,
-			billing_retry_attempts: 0,
 			last_billing_attempt: null,
 		};
 		return {
@@ -111,8 +109,6 @@ export class SubscriptionManager {
 				grace_period_size: grace,
 				billing_period_days: periodDays,
 				current_period_end: currentPeriodEnd,
-				next_billing_at: null,
-				billing_retry_attempts: 0,
 				last_billing_attempt: null,
 			};
 
@@ -141,9 +137,7 @@ export class SubscriptionManager {
 			is_gifted: true,
 			price_on_purchase_rubles: 0,
 			current_period_end: nextEnd,
-			next_billing_at: null,
 			grace_period_size: grace,
-			billing_retry_attempts: 0,
 			last_billing_attempt: null,
 		};
 
@@ -166,24 +160,18 @@ export class SubscriptionManager {
 				...subscription,
 				status: 'active',
 				current_period_end: nextEnd,
-				next_billing_at: nextEnd,
-				billing_retry_attempts: 0,
 				last_billing_attempt: now,
 			};
 
 			return { action: { do: 'prolong', subscription: updated } };
 		}
 
-		const attempts = subscription.billing_retry_attempts + 1;
-		const withinGrace = attempts < subscription.grace_period_size;
+		const withinGrace = this.isWithinGracePeriod(subscription, now);
 
 		if (withinGrace) {
 			const updated: SubscriptionState = {
 				...subscription,
-				status: 'past_due',
-				billing_retry_attempts: attempts,
 				last_billing_attempt: now,
-				next_billing_at: this.addDays(now, 1),
 			};
 
 			return {
@@ -191,15 +179,9 @@ export class SubscriptionManager {
 			};
 		}
 
-		const canceled: SubscriptionState = {
-			...subscription,
-			status: 'canceled',
-			billing_retry_attempts: attempts,
-			last_billing_attempt: now,
-			next_billing_at: null,
-		};
+		const downgraded = this.downgradeToFreeTier(subscription, now);
 
-		return { action: { do: 'delete', subscription: canceled } };
+		return { action: { do: 'update_data', subscription: downgraded } };
 	}
 
 	handlePaymentEvent(params: PaymentEventParams): { action: SubscriptionAction } {
@@ -217,23 +199,26 @@ export class SubscriptionManager {
 					...subscription,
 					status: 'active',
 					current_period_end: nextEnd,
-					next_billing_at: subscription.is_gifted ? null : nextEnd,
-					billing_retry_attempts: 0,
 					last_billing_attempt: occurredAt,
 				};
 
 				return { action: { do: 'prolong', subscription: updated } };
 			}
 			case 'payment.canceled': {
+				const occurredAt = params.event.occurredAt ?? now;
+				const withinGrace = this.isWithinGracePeriod(subscription, occurredAt);
+
+				if (!withinGrace) {
+					const downgraded = this.downgradeToFreeTier(subscription, occurredAt);
+					return { action: { do: 'update_data', subscription: downgraded } };
+				}
+
 				const updated: SubscriptionState = {
 					...subscription,
-					status: 'canceled',
-					next_billing_at: null,
-					billing_retry_attempts: subscription.billing_retry_attempts,
-					last_billing_attempt: params.event.occurredAt ?? now,
+					last_billing_attempt: occurredAt,
 				};
 
-				return { action: { do: 'delete', subscription: updated } };
+				return { action: { do: 'update_data', subscription: updated } };
 			}
 		}
 	}
@@ -263,5 +248,29 @@ export class SubscriptionManager {
 			return right;
 		}
 		return left > right ? left : right;
+	}
+
+	private isWithinGracePeriod(subscription: SubscriptionState, comparison: Date): boolean {
+		const gracePeriodDays = subscription.grace_period_size ?? this.defaultGracePeriodSize;
+		if (!subscription.current_period_end) {
+			return false;
+		}
+		const graceEnd = this.addDays(subscription.current_period_end, Math.max(0, gracePeriodDays));
+		return comparison.getTime() <= graceEnd.getTime();
+	}
+
+	private downgradeToFreeTier(subscription: SubscriptionState, occurredAt: Date): SubscriptionState {
+		const freeTier = this.resolveFreeTier();
+		return {
+			...subscription,
+			subscription_tier_id: freeTier.id,
+			status: 'active',
+			price_on_purchase_rubles: 0,
+			is_gifted: true,
+			grace_period_size: this.defaultGracePeriodSize,
+			billing_period_days: 0,
+			current_period_end: null,
+			last_billing_attempt: occurredAt,
+		};
 	}
 }

@@ -31,8 +31,6 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('grace_period_size', 'smallint', col => col.notNull().defaultTo(3))
 		.addColumn('billing_period_days', 'smallint', col => col.notNull().defaultTo(30))
 		.addColumn('current_period_end', 'timestamp')
-		.addColumn('next_billing_at', 'timestamp')
-		.addColumn('billing_retry_attempts', 'integer', col => col.notNull().defaultTo(0))
 		.addColumn('last_billing_attempt', 'timestamp')
 		.addColumn('created_at', 'timestamp', col => col.notNull().defaultTo(sql`now()`))
 		.addColumn('updated_at', 'timestamp', col => col.notNull().defaultTo(sql`now()`))
@@ -41,9 +39,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			sql`
 			CASE
 				WHEN is_gifted THEN
-					next_billing_at IS NULL
-					AND billing_retry_attempts = 0
-					AND last_billing_attempt IS NULL
+					price_on_purchase_rubles = 0 
 				ELSE
 					TRUE
 			END`,

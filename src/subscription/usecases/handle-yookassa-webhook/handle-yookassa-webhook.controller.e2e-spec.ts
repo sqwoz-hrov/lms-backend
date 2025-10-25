@@ -59,8 +59,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			grace_period_size: 3,
 			billing_period_days: 30,
 			current_period_end: currentPeriodEnd,
-			next_billing_at: currentPeriodEnd,
-			billing_retry_attempts: 1,
 			last_billing_attempt: new Date('2024-12-01T00:00:00.000Z'),
 		};
 
@@ -98,9 +96,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const expectedEnd = addDays(currentPeriodEnd, newSubscriptionPayload.billing_period_days);
 		expect(updatedSubscription.status).to.equal('active');
-		expect(updatedSubscription.current_period_end.getTime()).to.equal(expectedEnd.getTime());
-		expect(updatedSubscription.next_billing_at?.getTime()).to.equal(expectedEnd.getTime());
-		expect(updatedSubscription.billing_retry_attempts).to.equal(0);
+		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
 		expect(paymentMethod?.payment_method_id).to.equal('pm-123');
@@ -110,7 +106,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		expect(events[0].event).to.deep.equal(payload);
 	});
 
-	it('stores cancellation event and removes subscription access', async () => {
+	it('stores cancellation event and downgrades subscription to free tier outside grace period', async () => {
 		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free' });
 		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium' });
 		expect(freeTier.id).to.not.equal(premiumTier.id);
@@ -120,14 +116,12 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const subscription = await subscriptionRepo.insert({
 			user_id: user.id,
 			subscription_tier_id: premiumTier.id,
-			status: 'past_due',
+			status: 'active',
 			price_on_purchase_rubles: 2500,
 			is_gifted: false,
 			grace_period_size: 2,
 			billing_period_days: 30,
-			current_period_end: new Date('2025-02-01T00:00:00.000Z'),
-			next_billing_at: new Date('2025-02-01T00:00:00.000Z'),
-			billing_retry_attempts: 2,
+			current_period_end: new Date('2025-01-15T00:00:00.000Z'),
 			last_billing_attempt: new Date('2025-01-15T00:00:00.000Z'),
 		});
 		await subscriptionRepo.upsertPaymentMethod({
@@ -155,9 +149,17 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		expect(response.status).to.equal(HttpStatus.OK);
 
-		const deletedSubscription = await subscriptionRepo.findById(subscription.id);
-		expect(deletedSubscription).to.be.a('undefined');
-
+		const downgradedSubscription = await subscriptionRepo.findById(subscription.id);
+		expect(downgradedSubscription).to.not.be.a('undefined');
+		if (!downgradedSubscription) {
+			throw new Error('Subscription missing after downgrade');
+		}
+		expect(downgradedSubscription.subscription_tier_id).to.equal(freeTier.id);
+		expect(downgradedSubscription.status).to.equal('active');
+		expect(downgradedSubscription.billing_period_days).to.equal(0);
+		expect(downgradedSubscription.current_period_end).to.equal(null);
+		expect(downgradedSubscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
+		expect(downgradedSubscription.is_gifted).to.equal(true);
 		const events = await subscriptionRepo.findPaymentEvents();
 		const matchingEvent = events.find(event => event.event && (event.event as any).object?.id === 'payment-002');
 		expect(matchingEvent).to.not.be.a('undefined');

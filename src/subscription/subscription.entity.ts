@@ -1,6 +1,6 @@
 import { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
 
-export type SubscriptionStatus = 'pending' | 'active' | 'past_due' | 'canceled';
+export type SubscriptionStatus = 'pending' | 'active' | 'canceled';
 
 export interface SubscriptionTable {
 	id: Generated<string>;
@@ -12,8 +12,6 @@ export interface SubscriptionTable {
 	grace_period_size: ColumnType<number, number | undefined>;
 	billing_period_days: number;
 	current_period_end: ColumnType<Date | null, Date | string | null | undefined>;
-	next_billing_at: ColumnType<Date | null, Date | string | null | undefined>;
-	billing_retry_attempts: ColumnType<number, number | undefined>;
 	last_billing_attempt: ColumnType<Date | null, Date | string | null | undefined>;
 	created_at: Generated<Date>;
 	updated_at: ColumnType<Date, Date | string | undefined, Date | string | undefined>;

@@ -49,7 +49,6 @@ export class SubscriptionActionExecutor {
 	}
 
 	private draftToNew(draft: SubscriptionDraft): NewSubscription {
-		const nextBillingAt = draft.next_billing_at ?? null;
 		const lastBillingAttempt = draft.last_billing_attempt ?? null;
 
 		return {
@@ -61,14 +60,11 @@ export class SubscriptionActionExecutor {
 			grace_period_size: draft.grace_period_size,
 			billing_period_days: draft.billing_period_days,
 			current_period_end: draft.current_period_end,
-			next_billing_at: nextBillingAt,
-			billing_retry_attempts: draft.billing_retry_attempts,
 			last_billing_attempt: lastBillingAttempt,
 		};
 	}
 
 	private stateToUpdate(state: SubscriptionState): SubscriptionUpdate {
-		const nextBillingAt = state.next_billing_at ?? null;
 		const lastBillingAttempt = state.last_billing_attempt ?? null;
 
 		return {
@@ -80,8 +76,6 @@ export class SubscriptionActionExecutor {
 			grace_period_size: state.grace_period_size,
 			billing_period_days: state.billing_period_days,
 			current_period_end: state.current_period_end,
-			next_billing_at: nextBillingAt,
-			billing_retry_attempts: state.billing_retry_attempts,
 			last_billing_attempt: lastBillingAttempt,
 		};
 	}

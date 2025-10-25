@@ -93,9 +93,10 @@ describe('[E2E] Get users usecase', () => {
 		const returnedSubscriber = res.body.find(user => user.id === subscriber.id);
 		expect(returnedSubscriber).to.be.an('object');
 		expect(returnedSubscriber?.subscription_tier_id).to.equal(subscriber.subscription.subscription_tier_id);
-		expect(new Date(returnedSubscriber?.active_until as string).toISOString()).to.equal(
-			new Date(subscriber.subscription.current_period_end).toISOString(),
-		);
+		const expectedActiveUntil = subscriber.subscription.current_period_end
+			? subscriber.subscription.current_period_end.toISOString()
+			: null;
+		expect(returnedSubscriber?.active_until).to.equal(expectedActiveUntil);
 		expect(returnedSubscriber?.is_billable).to.equal(!subscriber.subscription.is_gifted);
 		expect(returnedSubscriber?.subscription_tier).to.deep.equal({
 			id: subscriptionTier.id,
@@ -153,8 +154,9 @@ describe('[E2E] Get users usecase', () => {
 		expect(res.body[0].subscription_tier_id).to.equal(subscriber.subscription.subscription_tier_id);
 		expect(res.body[0].subscription_tier?.id).to.equal(subscriptionTier.id);
 		expect(res.body[0].is_billable).to.equal(!subscriber.subscription.is_gifted);
-		expect(new Date(res.body[0].active_until as string).toISOString()).to.equal(
-			new Date(subscriber.subscription.current_period_end).toISOString(),
-		);
+		const ownActiveUntil = subscriber.subscription.current_period_end
+			? subscriber.subscription.current_period_end.toISOString()
+			: null;
+		expect(res.body[0].active_until).to.equal(ownActiveUntil);
 	});
 });

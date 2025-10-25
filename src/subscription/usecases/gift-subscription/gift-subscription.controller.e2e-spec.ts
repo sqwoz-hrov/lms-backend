@@ -117,9 +117,9 @@ describe('[E2E] Gift subscription usecase', () => {
 			expect(persistedSubscription.is_gifted).to.equal(true);
 			expect(persistedSubscription.billing_period_days).to.equal(20);
 			expect(persistedSubscription.grace_period_size).to.equal(2);
-			expect(persistedSubscription.current_period_end.getTime()).to.equal(expectedPeriodEnd.getTime());
-			expect(persistedSubscription.next_billing_at).to.equal(null);
-			expect(persistedSubscription.billing_retry_attempts).to.equal(0);
+			expect(persistedSubscription.current_period_end).to.not.equal(null);
+			expect(persistedSubscription.current_period_end?.getTime()).to.equal(expectedPeriodEnd.getTime());
+			expect(persistedSubscription.last_billing_attempt).to.equal(null);
 
 			const paymentMethod = await subscriptionRepo.findPaymentMethod(recipient.id);
 			expect(paymentMethod).to.be.a('undefined');

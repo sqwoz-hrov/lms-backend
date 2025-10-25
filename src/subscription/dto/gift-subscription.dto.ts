@@ -4,11 +4,11 @@ import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 export class GiftSubscriptionDto {
 	@ApiProperty({ format: 'uuid', description: 'Идентификатор пользователя, которому выдается подписка' })
 	@IsUUID()
-	userId!: string;
+	userId: string;
 
 	@ApiProperty({ format: 'uuid', description: 'Идентификатор тарифа подписки' })
 	@IsUUID()
-	subscriptionTierId!: string;
+	subscriptionTierId: string;
 
 	@ApiProperty({
 		description: 'Длительность подарка в днях',
