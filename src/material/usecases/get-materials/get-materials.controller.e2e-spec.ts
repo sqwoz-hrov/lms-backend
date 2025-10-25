@@ -7,6 +7,7 @@ import {
 	createTestSubscriber,
 	createTestSubscriptionTier,
 	createTestUser,
+	type TestSubscriber,
 } from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
@@ -199,7 +200,7 @@ describe('[E2E] Get materials usecase', () => {
 	describe('Subscriber access tests', () => {
 		let admin: UserWithSubscriptionTier;
 		let student: UserWithSubscriptionTier;
-		let subscriber: UserWithSubscriptionTier;
+		let subscriber: TestSubscriber;
 		let accessibleMaterial: Material;
 		let materialForAnotherTier: Material;
 		let assignedMaterial: Material;
@@ -212,10 +213,6 @@ describe('[E2E] Get materials usecase', () => {
 			subscriber = await createTestSubscriber(userUtilRepository);
 
 			const otherTier = await createTestSubscriptionTier(userUtilRepository);
-
-			if (!subscriber.subscription) {
-				throw new Error('Subscriber fixture did not include subscription');
-			}
 
 			expect(subscriber.subscription.subscription_tier_id).to.be.a('string');
 

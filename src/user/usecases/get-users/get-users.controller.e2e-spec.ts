@@ -74,10 +74,6 @@ describe('[E2E] Get users usecase', () => {
 			active_until: new Date('2033-01-01T00:00:00.000Z'),
 		});
 
-		if (!subscriber.subscription) {
-			throw new Error('Subscriber fixture did not include subscription');
-		}
-
 		const res = await usersTestSdk.getUsers({
 			userMeta: {
 				userId: admin.id,
@@ -140,10 +136,6 @@ describe('[E2E] Get users usecase', () => {
 			subscription_tier_id: subscriptionTier.id,
 			active_until: new Date('2034-05-01T00:00:00.000Z'),
 		});
-
-		if (!subscriber.subscription) {
-			throw new Error('Subscriber fixture did not include subscription');
-		}
 
 		const res = await usersTestSdk.getUsers({
 			userMeta: {

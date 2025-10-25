@@ -1,3 +1,4 @@
+import { Subscription } from '../../src/subscription/subscription.entity';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
 import { SubscriptionTier, User, UserWithSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
@@ -24,9 +25,10 @@ export const createTestSubscriptionTier = async (
 	const powerResult = await userRepository.connection
 		.selectFrom('subscription_tier')
 		.select(({ fn }) => fn.max<number>('power').as('maxPower'))
+		.limit(1)
 		.executeTakeFirst();
 
-	const resolvedPower = overridePower ?? ((powerResult?.maxPower ?? -1) + 1);
+	const resolvedPower = overridePower ?? (powerResult?.maxPower ?? -1) + 1;
 
 	return userRepository.connection
 		.insertInto('subscription_tier')
@@ -87,26 +89,20 @@ type SubscriberFixtureOverrides = Partial<User> & {
 export const createTestSubscriber = async (
 	userRepository: UsersTestRepository,
 	overrides: SubscriberFixtureOverrides = {},
-): Promise<UserWithSubscriptionTier> => {
+): Promise<UserWithSubscriptionTier & { subscription: Subscription; subscription_tier: SubscriptionTier }> => {
 	const { subscription_tier_id, active_until, is_billable, is_archived, ...userOverrides } = overrides;
 
 	const billable = is_billable ?? true;
 
-	let resolvedTierId = subscription_tier_id ?? null;
-	let subscriptionTier: SubscriptionTier | null = null;
-
-	if (!resolvedTierId) {
-		subscriptionTier = await createTestSubscriptionTier(userRepository);
-		resolvedTierId = subscriptionTier.id;
-	} else {
-		subscriptionTier =
-			(await userRepository.connection
+	const subscriptionTier = subscription_tier_id
+		? await userRepository.connection
 				.selectFrom('subscription_tier')
 				.selectAll()
-				.where('id', '=', resolvedTierId)
+				.where('id', '=', subscription_tier_id)
 				.limit(1)
-				.executeTakeFirst()) ?? null;
-	}
+				.executeTakeFirstOrThrow()
+		: await createTestSubscriptionTier(userRepository);
+	const resolvedTierId = subscriptionTier.id;
 
 	const now = new Date();
 	const defaultActiveUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -151,3 +147,5 @@ export const createTestSubscriber = async (
 		subscription_tier: subscriptionTier,
 	};
 };
+
+export type TestSubscriber = Awaited<ReturnType<typeof createTestSubscriber>>;
