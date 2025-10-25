@@ -8,6 +8,7 @@ import {
 } from '../subscription.entity';
 import { SubscriptionAction } from '../domain/subscription.manager';
 import { SubscriptionRepository, SubscriptionTransaction } from '../subscription.repository';
+import { Switch } from '../../common/utils/safe-guard';
 
 @Injectable()
 export class SubscriptionActionExecutor {
@@ -19,33 +20,32 @@ export class SubscriptionActionExecutor {
 	}): Promise<Subscription | undefined> {
 		const { action, trx } = params;
 
-		let persistedSubscription: Subscription | undefined;
-
-		if (action.do === 'create') {
-			persistedSubscription = await this.subscriptionRepository.create(this.draftToNew(action.subscription), trx);
-		} else if (action.do === 'update_data' || action.do === 'prolong') {
-			const subscriptionId = action.subscription.id;
-			if (!subscriptionId) {
-				throw new Error('Subscription id is required for update actions');
+		switch (action.do) {
+			case 'create':
+				return this.subscriptionRepository.create(this.draftToNew(action.subscription), trx);
+			case 'update_data':
+			case 'prolong': {
+				const subscriptionId = action.subscription.id;
+				const updated = await this.subscriptionRepository.update(
+					subscriptionId,
+					this.stateToUpdate(action.subscription),
+					trx,
+				);
+				if (!updated) {
+					throw new Error(`Subscription ${subscriptionId} not found`);
+				}
+				return updated;
 			}
-			const updated = await this.subscriptionRepository.update(
-				subscriptionId,
-				this.stateToUpdate(action.subscription),
-				trx,
-			);
-			if (!updated) {
-				throw new Error(`Subscription ${subscriptionId} not found`);
+			case 'delete': {
+				const subscriptionId = action.subscription.id;
+				if (subscriptionId) {
+					await this.subscriptionRepository.deleteById(subscriptionId, trx);
+				}
+				return undefined;
 			}
-			persistedSubscription = updated;
-		} else if (action.do === 'delete') {
-			const subscriptionId = action.subscription.id;
-			if (subscriptionId) {
-				await this.subscriptionRepository.deleteById(subscriptionId, trx);
-			}
-			persistedSubscription = undefined;
+			default:
+				return Switch.safeGuard(action);
 		}
-
-		return persistedSubscription;
 	}
 
 	private draftToNew(draft: SubscriptionDraft): NewSubscription {

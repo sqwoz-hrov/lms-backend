@@ -172,4 +172,70 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
 		expect(paymentMethod?.payment_method_id).to.equal('pm-456');
 	});
+
+	it('does not downgrade subscription to free tier if payment failed within grace period', async () => {
+		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free' });
+		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium' });
+		expect(freeTier.id).to.not.equal(premiumTier.id);
+
+		const user = await createTestUser(usersRepo, { role: 'subscriber' });
+
+		const currentPeriodEnd = new Date('2025-03-10T00:00:00.000Z');
+		const subscription = await subscriptionRepo.insert({
+			user_id: user.id,
+			subscription_tier_id: premiumTier.id,
+			status: 'active',
+			price_on_purchase_rubles: 2500,
+			is_gifted: false,
+			grace_period_size: 5,
+			billing_period_days: 30,
+			current_period_end: currentPeriodEnd,
+			last_billing_attempt: new Date('2025-02-10T00:00:00.000Z'),
+		});
+		await subscriptionRepo.upsertPaymentMethod({
+			userId: user.id,
+			paymentMethodId: 'pm-789',
+		});
+
+		const canceledAt = new Date('2025-03-12T12:00:00.000Z');
+		const payload = {
+			event: 'payment.canceled',
+			object: {
+				id: 'payment-003',
+				metadata: {
+					user_id: user.id,
+					subscription_id: subscription.id,
+				},
+				canceled_at: canceledAt.toISOString(),
+			},
+		};
+
+		const response = await subscriptionSdk.sendYookassaWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+
+		const updatedSubscription = await subscriptionRepo.findById(subscription.id);
+		expect(updatedSubscription).to.not.be.a('undefined');
+		if (!updatedSubscription) {
+			throw new Error('Subscription missing after webhook');
+		}
+		expect(updatedSubscription.subscription_tier_id).to.equal(premiumTier.id);
+		expect(updatedSubscription.subscription_tier_id).to.not.equal(freeTier.id);
+		expect(updatedSubscription.status).to.equal('active');
+		expect(updatedSubscription.billing_period_days).to.equal(subscription.billing_period_days);
+		expect(updatedSubscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
+		expect(updatedSubscription.is_gifted).to.equal(false);
+		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
+
+		const events = await subscriptionRepo.findPaymentEvents({ subscriptionId: subscription.id });
+		expect(events.length).to.equal(1);
+		expect(events[0].event).to.deep.equal(payload);
+		expect(events[0].subscription_id).to.equal(subscription.id);
+
+		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
+		expect(paymentMethod?.payment_method_id).to.equal('pm-789');
+	});
 });

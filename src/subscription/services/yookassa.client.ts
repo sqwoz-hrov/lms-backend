@@ -77,13 +77,6 @@ export class YookassaClient {
 		};
 	}
 
-	private buildMetadata(base: Record<string, unknown>): Record<string, unknown> {
-		return {
-			...base,
-			origin: base['origin'] ?? 'lms-backend',
-		};
-	}
-
 	private async post<T>(path: string, body: unknown, idempotenceKey?: string): Promise<T> {
 		const key = idempotenceKey ?? randomUUID();
 		const url = new URL(path, `${this.baseUrl}/`).toString();
@@ -115,11 +108,11 @@ export class YookassaClient {
 	}
 
 	async createPaymentForm(params: CreatePaymentFormParams): Promise<YookassaPaymentResponse> {
-		const metadata = this.buildMetadata({
+		const metadata = {
 			user_id: params.userId,
 			subscription_id: params.subscriptionId,
 			...params.metadata,
-		});
+		};
 
 		const body = {
 			amount: this.serializeAmount(params.amountRubles),
@@ -137,11 +130,11 @@ export class YookassaClient {
 	}
 
 	async chargeSavedPaymentMethod(params: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse> {
-		const metadata = this.buildMetadata({
+		const metadata = {
 			user_id: params.userId,
 			subscription_id: params.subscriptionId,
 			...params.metadata,
-		});
+		};
 
 		const body = {
 			amount: this.serializeAmount(params.amountRubles),
