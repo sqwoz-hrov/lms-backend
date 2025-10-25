@@ -274,6 +274,35 @@ describe('SubscriptionManager', () => {
 			expect(action.subscription.next_billing_at?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.billing_retry_attempts).to.equal(0);
 		});
+
+		it('prolongs subscription after successful billing when now is after period end but within grace', () => {
+			const manager = createManager();
+			const originalEnd = new Date('2024-08-01T00:00:00.000Z');
+			const now = new Date('2024-08-04T10:00:00.000Z');
+			const subscription = buildSubscriptionState({
+				status: 'past_due',
+				is_gifted: false,
+				current_period_end: originalEnd,
+				next_billing_at: addDays(originalEnd, 1),
+				billing_retry_attempts: 2,
+				grace_period_size: 5,
+			});
+
+			const { action } = manager.handleBillingCron({
+				user: { id: subscription.user_id },
+				subscription,
+				outcome: 'success',
+				now,
+			});
+
+			expect(action.do).to.equal('prolong');
+			const expectedEnd = addDays(now, subscription.billing_period_days);
+			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+			expect(action.subscription.next_billing_at?.getTime()).to.equal(expectedEnd.getTime());
+			expect(action.subscription.billing_retry_attempts).to.equal(0);
+			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
+			expect(action.subscription.status).to.equal('active');
+		});
 	});
 
 	describe('handlePaymentEvent', () => {
