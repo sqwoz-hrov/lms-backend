@@ -2,19 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { SubjectResponseDto } from '../../dto/base-subject.dto';
 import { SubjectRepository } from '../../subject.repository';
-import { User } from '../../../user/user.entity';
+import { UserWithSubscriptionTier } from '../../../user/user.entity';
 
 @Injectable()
 export class GetSubjectsUsecase implements UsecaseInterface {
 	constructor(private readonly subjectRepository: SubjectRepository) {}
 
-	async execute(user: User): Promise<SubjectResponseDto[]> {
+	async execute(user: UserWithSubscriptionTier): Promise<SubjectResponseDto[]> {
 		if (user.role === 'subscriber') {
-			if (!user.subscription_tier_id) {
+			const subscriptionTierId = user.subscription?.subscription_tier_id;
+
+			if (!subscriptionTierId) {
 				return [];
 			}
 
-			return await this.subjectRepository.findBySubscriptionTier(user.subscription_tier_id);
+			return await this.subjectRepository.findBySubscriptionTier(subscriptionTierId);
 		}
 
 		return await this.subjectRepository.find();

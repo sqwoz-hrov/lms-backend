@@ -31,9 +31,6 @@ export class SignupUsecase implements UsecaseInterface {
 			telegram_username,
 			finished_registration: false,
 			is_archived: false,
-			is_billable: false,
-			subscription_tier_id: null,
-			active_until: null,
 		});
 
 		if (!saveRes) {

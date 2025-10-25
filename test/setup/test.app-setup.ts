@@ -14,6 +14,8 @@ import {
 	otpConfig,
 	redisConfig,
 	s3Config,
+	yookassaConfig,
+	subscriptionConfig,
 } from '../../src/config';
 import { FeedbackModule } from '../../src/feedback/feedback.module';
 import { HrConnectionModule } from '../../src/hr-connection/hr-connection.module';
@@ -28,6 +30,7 @@ import { TaskModule } from '../../src/task/task.module';
 import { TelegramModule } from '../../src/telegram/telegram.module';
 import { UserModule } from '../../src/user/user.module';
 import { VideoModule } from '../../src/video/video.module';
+import { SubscriptionModule } from '../../src/subscription/subscription.module';
 import { setupValidation } from '../../src/validation';
 import { startAllContainers } from './test.start-all-containers';
 import { SilentLogger } from '../test.silent-logger';
@@ -51,7 +54,18 @@ export const mochaHooks = {
 		const testModule = await Test.createTestingModule({
 			imports: [
 				ConfigModule.forRoot({
-					load: [appConfig, dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig, s3Config],
+					load: [
+						appConfig,
+						dbConfig,
+						imageStorageConfig,
+						jwtConfig,
+						otpBotConfig,
+						otpConfig,
+						redisConfig,
+						s3Config,
+						yookassaConfig,
+						subscriptionConfig,
+					],
 					isGlobal: true,
 					envFilePath: '.env.test',
 				}),
@@ -66,6 +80,7 @@ export const mochaHooks = {
 				SubjectModule,
 				TaskModule,
 				TelegramModule.forRoot({ useTelegramAPI: false }),
+				SubscriptionModule,
 				UserModule,
 				VideoModule,
 			],
