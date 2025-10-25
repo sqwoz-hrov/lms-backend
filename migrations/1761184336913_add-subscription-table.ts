@@ -30,7 +30,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('is_gifted', 'boolean', col => col.notNull().defaultTo(false))
 		.addColumn('grace_period_size', 'smallint', col => col.notNull().defaultTo(3))
 		.addColumn('billing_period_days', 'smallint', col => col.notNull().defaultTo(30))
-		.addColumn('current_period_end', 'timestamp', col => col.notNull())
+		.addColumn('current_period_end', 'timestamp')
 		.addColumn('next_billing_at', 'timestamp')
 		.addColumn('billing_retry_attempts', 'integer', col => col.notNull().defaultTo(0))
 		.addColumn('last_billing_attempt', 'timestamp')
@@ -47,6 +47,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 				ELSE
 					TRUE
 			END`,
+		)
+		.addCheckConstraint(
+			'subscription_current_period_end_check',
+			sql`(is_gifted = false AND current_period_end IS NOT NULL) or is_gifted = true`,
 		)
 		.addUniqueConstraint('subscription_user_id_unique', ['user_id'])
 		.execute();

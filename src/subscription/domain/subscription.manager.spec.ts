@@ -38,10 +38,11 @@ const buildSubscriptionState = (overrides: Partial<SubscriptionState> = {}): Sub
 	is_gifted: overrides.is_gifted ?? false,
 	grace_period_size: overrides.grace_period_size ?? 3,
 	billing_period_days: overrides.billing_period_days ?? 30,
-	current_period_end: overrides.current_period_end ?? new Date(BASE_DATE),
-	next_billing_at: overrides.next_billing_at ?? new Date(BASE_DATE),
+	current_period_end: overrides.current_period_end !== undefined ? overrides.current_period_end : new Date(BASE_DATE),
+	next_billing_at: overrides.next_billing_at !== undefined ? overrides.next_billing_at : new Date(BASE_DATE),
 	billing_retry_attempts: overrides.billing_retry_attempts ?? 0,
-	last_billing_attempt: overrides.last_billing_attempt ?? new Date(BASE_DATE),
+	last_billing_attempt:
+		overrides.last_billing_attempt !== undefined ? overrides.last_billing_attempt : new Date(BASE_DATE),
 });
 
 const expectDraftMatches = (draft: SubscriptionDraft, expected: Partial<SubscriptionDraft>) => {
@@ -70,7 +71,7 @@ describe('SubscriptionManager', () => {
 				is_gifted: true,
 				grace_period_size: 3,
 				billing_period_days: 0,
-				current_period_end: now,
+				current_period_end: null,
 				next_billing_at: null,
 				price_on_purchase_rubles: 0,
 			});
@@ -210,7 +211,7 @@ describe('SubscriptionManager', () => {
 
 			expect(action.do).to.equal('prolong');
 			const expectedEnd = addDays(originalEnd, subscription.billing_period_days);
-			expect(action.subscription.current_period_end.getTime()).to.equal(expectedEnd.getTime());
+			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.next_billing_at?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.billing_retry_attempts).to.equal(0);
 		});
@@ -238,7 +239,7 @@ describe('SubscriptionManager', () => {
 			expect(action.do).to.equal('prolong');
 			const expectedEnd = addDays(currentEnd, subscription.billing_period_days);
 			expect(action.subscription.status).to.equal('active');
-			expect(action.subscription.current_period_end.getTime()).to.equal(expectedEnd.getTime());
+			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.next_billing_at?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.billing_retry_attempts).to.equal(0);
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());

@@ -20,6 +20,6 @@ import { YookassaClient } from './services/yookassa.client';
 		SubscriptionActionExecutor,
 		YookassaClient,
 	],
-	exports: [SubscriptionRepository, SubscriptionManagerFactory],
+	exports: [SubscriptionRepository, SubscriptionManagerFactory, SubscriptionActionExecutor],
 })
 export class SubscriptionModule {}

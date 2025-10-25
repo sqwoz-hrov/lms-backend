@@ -27,9 +27,11 @@ import { FinishRegistrationController } from './usecases/finish-registration/fin
 import { FinishRegistrationUsecase } from './usecases/finish-registration/finish-registration.usecase';
 import { SendOtpController } from './usecases/send-otp/send-otp.controller';
 import { SendOtpUsecase } from './usecases/send-otp/send-otp.usecase';
+import { SubscriptionModule } from '../subscription/subscription.module';
 
 @Global()
 @Module({
+	imports: [SubscriptionModule],
 	controllers: [
 		AskForLoginController,
 		FinishLoginController,

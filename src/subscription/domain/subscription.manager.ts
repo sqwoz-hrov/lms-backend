@@ -74,7 +74,6 @@ export class SubscriptionManager {
 	}
 
 	handleRegistration(params: RegistrationParams): { action: SubscriptionAction } {
-		const now = params.now ?? new Date();
 		const freeTier = this.resolveFreeTier();
 
 		const subscription: SubscriptionDraft = {
@@ -85,7 +84,7 @@ export class SubscriptionManager {
 			is_gifted: true,
 			grace_period_size: this.defaultGracePeriodSize,
 			billing_period_days: 0,
-			current_period_end: now,
+			current_period_end: null,
 			next_billing_at: null,
 			billing_retry_attempts: 0,
 			last_billing_attempt: null,
@@ -249,7 +248,10 @@ export class SubscriptionManager {
 		return new Date(date.getTime() + days * MS_IN_DAY);
 	}
 
-	private maxDate(left: Date, right: Date): Date {
+	private maxDate(left: Date | null, right: Date): Date {
+		if (!left) {
+			return right;
+		}
 		return left > right ? left : right;
 	}
 }

@@ -29,8 +29,8 @@ export class SubscriptionResponseDto {
 	@ApiProperty({ nullable: true })
 	paymentMethodId: string | null = null;
 
-	@ApiProperty({ type: String })
-	currentPeriodEnd!: string;
+	@ApiProperty({ type: String, nullable: true })
+	currentPeriodEnd: string | null = null;
 
 	@ApiProperty({ type: String, nullable: true })
 	nextBillingAt: string | null = null;
@@ -58,7 +58,7 @@ export class SubscriptionResponseDto {
 		dto.gracePeriodSize = entity.grace_period_size;
 		dto.billingPeriodDays = entity.billing_period_days;
 		dto.paymentMethodId = extras?.paymentMethodId ?? null;
-		dto.currentPeriodEnd = entity.current_period_end.toISOString();
+		dto.currentPeriodEnd = entity.current_period_end ? entity.current_period_end.toISOString() : null;
 		dto.nextBillingAt = entity.next_billing_at ? entity.next_billing_at.toISOString() : null;
 		dto.billingRetryAttempts = entity.billing_retry_attempts;
 		dto.lastBillingAttempt = entity.last_billing_attempt ? entity.last_billing_attempt.toISOString() : null;

@@ -11,7 +11,7 @@ export interface SubscriptionTable {
 	is_gifted: ColumnType<boolean, boolean | undefined>;
 	grace_period_size: ColumnType<number, number | undefined>;
 	billing_period_days: number;
-	current_period_end: ColumnType<Date, Date | string>;
+	current_period_end: ColumnType<Date | null, Date | string | null | undefined>;
 	next_billing_at: ColumnType<Date | null, Date | string | null | undefined>;
 	billing_retry_attempts: ColumnType<number, number | undefined>;
 	last_billing_attempt: ColumnType<Date | null, Date | string | null | undefined>;

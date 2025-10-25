@@ -20,6 +20,7 @@ describe('[E2E] Finish registration usecase', () => {
 	let userTestSdk: UsersTestSdk;
 	let otpStorage: OTPRedisStorage;
 	let redisConnection: Redis;
+	let freeTierId: string;
 
 	before(function (this: ISharedContext) {
 		app = this.app;
@@ -37,6 +38,20 @@ describe('[E2E] Finish registration usecase', () => {
 				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
 			),
 		);
+	});
+
+	beforeEach(async () => {
+		const tier = await utilRepository.connection
+			.insertInto('subscription_tier')
+			.values({
+				tier: `free-${randomWord()}`,
+				permissions: [],
+				power: 0,
+			})
+			.returningAll()
+			.executeTakeFirstOrThrow();
+
+		freeTierId = tier.id;
 	});
 
 	afterEach(async () => {
@@ -100,6 +115,20 @@ describe('[E2E] Finish registration usecase', () => {
 			.executeTakeFirstOrThrow();
 
 		expect(user.finished_registration).to.equal(true);
+
+		const subscription = await utilRepository.connection
+			.selectFrom('subscription')
+			.selectAll()
+			.where('user_id', '=', signupRes.body.id)
+			.limit(1)
+			.executeTakeFirst();
+
+		expect(subscription?.subscription_tier_id).to.equal(freeTierId);
+		expect(subscription?.is_gifted).to.equal(true);
+		expect(subscription?.price_on_purchase_rubles).to.equal(0);
+		expect(subscription?.status).to.equal('active');
+		expect(subscription?.current_period_end).to.equal(null);
+		expect(subscription?.next_billing_at).to.equal(null);
 	});
 
 	it('Fails with wrong OTP', async () => {
