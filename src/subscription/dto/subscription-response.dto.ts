@@ -47,7 +47,7 @@ export class SubscriptionResponseDto {
 	@ApiProperty({ type: String })
 	updatedAt!: string;
 
-	static fromEntity(entity: Subscription): SubscriptionResponseDto {
+	static fromEntity(entity: Subscription, extras?: { paymentMethodId?: string | null }): SubscriptionResponseDto {
 		const dto = new SubscriptionResponseDto();
 		dto.id = entity.id;
 		dto.userId = entity.user_id;
@@ -57,7 +57,7 @@ export class SubscriptionResponseDto {
 		dto.isGifted = entity.is_gifted;
 		dto.gracePeriodSize = entity.grace_period_size;
 		dto.billingPeriodDays = entity.billing_period_days;
-		dto.paymentMethodId = entity.payment_method_id ?? null;
+		dto.paymentMethodId = extras?.paymentMethodId ?? null;
 		dto.currentPeriodEnd = entity.current_period_end.toISOString();
 		dto.nextBillingAt = entity.next_billing_at ? entity.next_billing_at.toISOString() : null;
 		dto.billingRetryAttempts = entity.billing_retry_attempts;

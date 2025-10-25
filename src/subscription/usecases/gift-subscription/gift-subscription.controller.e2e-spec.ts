@@ -120,6 +120,9 @@ describe('[E2E] Gift subscription usecase', () => {
 			expect(persistedSubscription.current_period_end.getTime()).to.equal(expectedPeriodEnd.getTime());
 			expect(persistedSubscription.next_billing_at).to.equal(null);
 			expect(persistedSubscription.billing_retry_attempts).to.equal(0);
+
+			const paymentMethod = await subscriptionRepo.findPaymentMethod(recipient.id);
+			expect(paymentMethod).to.be.a('undefined');
 		} finally {
 			clock.restore();
 		}

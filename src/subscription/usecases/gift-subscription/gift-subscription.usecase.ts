@@ -68,7 +68,15 @@ export class GiftSubscriptionUsecase implements UsecaseInterface {
 				trx,
 			});
 
-			return persisted ? SubscriptionResponseDto.fromEntity(persisted) : null;
+			if (!persisted) {
+				return null;
+			}
+
+			const paymentMethod = await this.subscriptionRepository.findPaymentMethodByUserId(lockedUser.id, trx);
+
+			return SubscriptionResponseDto.fromEntity(persisted, {
+				paymentMethodId: paymentMethod?.payment_method_id ?? null,
+			});
 		});
 	}
 }

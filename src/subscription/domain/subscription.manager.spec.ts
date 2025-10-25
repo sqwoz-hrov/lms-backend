@@ -21,7 +21,7 @@ const BASE_DATE = new Date('2024-01-01T00:00:00.000Z');
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
-const buildManager = () =>
+const createManager = () =>
 	new SubscriptionManager(defaultTiers, {
 		defaultBillingPeriodDays: 30,
 		defaultGracePeriodSize: 3,
@@ -37,7 +37,6 @@ const buildSubscriptionState = (overrides: Partial<SubscriptionState> = {}): Sub
 	is_gifted: overrides.is_gifted ?? false,
 	grace_period_size: overrides.grace_period_size ?? 3,
 	billing_period_days: overrides.billing_period_days ?? 30,
-	payment_method_id: overrides.payment_method_id ?? 'pm-1',
 	current_period_end: overrides.current_period_end ?? new Date(BASE_DATE),
 	next_billing_at: overrides.next_billing_at ?? new Date(BASE_DATE),
 	billing_retry_attempts: overrides.billing_retry_attempts ?? 0,
@@ -52,8 +51,8 @@ const expectDraftMatches = (draft: SubscriptionDraft, expected: Partial<Subscrip
 
 describe('SubscriptionManager', () => {
 	describe('handleRegistration', () => {
-		it('creates free subscription draft for new user', () => {
-			const manager = buildManager();
+		it('creates free tier subscription for new user', () => {
+			const manager = createManager();
 			const now = new Date('2024-03-01T10:00:00.000Z');
 
 			const { action } = manager.handleRegistration({
@@ -79,7 +78,7 @@ describe('SubscriptionManager', () => {
 
 	describe('handleGift', () => {
 		it('creates gifted subscription for user without existing subscription', () => {
-			const manager = buildManager();
+			const manager = createManager();
 			const now = new Date('2024-05-10T09:30:00.000Z');
 
 			const { action } = manager.handleGift({
@@ -106,7 +105,7 @@ describe('SubscriptionManager', () => {
 		});
 
 		it('prolongs existing gifted subscription of the same tier', () => {
-			const manager = buildManager();
+			const manager = createManager();
 
 			const currentPeriodEnd = new Date('2024-04-01T00:00:00.000Z');
 			const now = new Date('2024-03-01T00:00:00.000Z');
@@ -144,7 +143,7 @@ describe('SubscriptionManager', () => {
 
 	describe('handleBillingCron', () => {
 		it('marks retry within grace period as past due', () => {
-			const manager = buildManager();
+			const manager = createManager();
 			const now = new Date('2024-05-01T12:00:00.000Z');
 			const subscription = buildSubscriptionState({
 				status: 'active',
@@ -169,7 +168,7 @@ describe('SubscriptionManager', () => {
 		});
 
 		it('cancels subscription when retries exceed grace', () => {
-			const manager = buildManager();
+			const manager = createManager();
 			const now = new Date('2024-06-01T09:00:00.000Z');
 			const subscription = buildSubscriptionState({
 				billing_retry_attempts: 3,
@@ -191,7 +190,7 @@ describe('SubscriptionManager', () => {
 		});
 
 		it('prolongs subscription after successful billing', () => {
-			const manager = buildManager();
+			const manager = createManager();
 			const now = new Date('2024-07-01T08:00:00.000Z');
 			const originalEnd = new Date('2024-07-05T00:00:00.000Z');
 			const subscription = buildSubscriptionState({
@@ -218,7 +217,7 @@ describe('SubscriptionManager', () => {
 
 	describe('handlePaymentEvent', () => {
 		it('prolongs subscription on payment success and keeps payment schedule', () => {
-			const manager = buildManager();
+			const manager = createManager();
 			const occurredAt = new Date('2024-08-01T12:00:00.000Z');
 			const currentEnd = new Date('2024-08-05T00:00:00.000Z');
 			const subscription = buildSubscriptionState({
@@ -245,7 +244,7 @@ describe('SubscriptionManager', () => {
 		});
 
 		it('cancels subscription on payment cancellation', () => {
-			const manager = buildManager();
+			const manager = createManager();
 			const subscription = buildSubscriptionState({
 				status: 'past_due',
 				is_gifted: false,

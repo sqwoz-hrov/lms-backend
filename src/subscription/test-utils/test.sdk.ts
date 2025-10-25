@@ -3,12 +3,6 @@ import { TestHttpClient } from '../../../test/test.http-client';
 import { GiftSubscriptionDto } from '../dto/gift-subscription.dto';
 import { SubscriptionResponseDto } from '../dto/subscription-response.dto';
 
-const ANONYMOUS_META: UserMeta = {
-	userId: 'anonymous',
-	isAuth: false,
-	isWrongAccessJwt: false,
-};
-
 export class SubscriptionTestSdk implements ValidateSDK<SubscriptionTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
 
@@ -30,5 +24,3 @@ export class SubscriptionTestSdk implements ValidateSDK<SubscriptionTestSdk> {
 		});
 	}
 }
-
-export { ANONYMOUS_META as AnonymousSubscriptionUserMeta };

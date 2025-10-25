@@ -20,7 +20,6 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('is_gifted', 'boolean', col => col.notNull().defaultTo(false))
 		.addColumn('grace_period_size', 'smallint', col => col.notNull().defaultTo(3))
 		.addColumn('billing_period_days', 'smallint', col => col.notNull().defaultTo(30))
-		.addColumn('payment_method_id', 'varchar')
 		.addColumn('current_period_end', 'timestamp', col => col.notNull())
 		.addColumn('next_billing_at', 'timestamp')
 		.addColumn('billing_retry_attempts', 'integer', col => col.notNull().defaultTo(0))
@@ -32,8 +31,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			sql`
 			CASE
 				WHEN is_gifted THEN
-					payment_method_id IS NULL
-					AND next_billing_at IS NULL
+					next_billing_at IS NULL
 					AND billing_retry_attempts = 0
 					AND last_billing_attempt IS NULL
 				ELSE
@@ -43,13 +41,17 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addUniqueConstraint('subscription_user_id_unique', ['user_id'])
 		.execute();
 
-	await db.schema.alterTable('payment_event').addColumn('subscription_id', 'uuid').execute();
 	await db.schema
-		.alterTable('payment_event')
-		.addForeignKeyConstraint('payment_event_subscription_id_fkey', ['subscription_id'], 'subscription', ['id'], cb =>
-			cb.onDelete('set null'),
-		)
+		.createTable('payment_method')
+		.addColumn('id', 'uuid', col => col.primaryKey().defaultTo(sql`uuid_generate_v7()`))
+		.addColumn('user_id', 'uuid', col => col.notNull().references('user.id').onDelete('cascade'))
+		.addColumn('payment_method_id', 'text', col => col.notNull())
+		.addColumn('created_at', 'timestamp', col => col.notNull().defaultTo(sql`now()`))
+		.addColumn('updated_at', 'timestamp', col => col.notNull().defaultTo(sql`now()`))
+		.addUniqueConstraint('payment_method_user_id_unique', ['user_id'])
 		.execute();
+
+	await db.schema.alterTable('payment_event').addColumn('subscription_id', 'uuid').execute();
 
 	await db.schema
 		.alterTable('user')
@@ -60,7 +62,6 @@ export async function up(db: Kysely<any>): Promise<void> {
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-	await db.schema.alterTable('payment_event').dropConstraint('payment_event_subscription_id_fkey').execute();
 	await db.schema.alterTable('payment_event').dropColumn('subscription_id').execute();
 
 	await db.schema
@@ -105,6 +106,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 		)
 		.execute();
 
+	await db.schema.dropTable('payment_method').ifExists().execute();
 	await db.schema.dropTable('subscription').ifExists().execute();
 	await db.schema.dropType('subscription_status').ifExists().execute();
 }

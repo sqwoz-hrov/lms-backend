@@ -49,7 +49,6 @@ export class SubscriptionActionExecutor {
 	}
 
 	private draftToNew(draft: SubscriptionDraft): NewSubscription {
-		const paymentMethodId = draft.payment_method_id ?? null;
 		const nextBillingAt = draft.next_billing_at ?? null;
 		const lastBillingAttempt = draft.last_billing_attempt ?? null;
 
@@ -61,7 +60,6 @@ export class SubscriptionActionExecutor {
 			is_gifted: draft.is_gifted,
 			grace_period_size: draft.grace_period_size,
 			billing_period_days: draft.billing_period_days,
-			payment_method_id: paymentMethodId,
 			current_period_end: draft.current_period_end,
 			next_billing_at: nextBillingAt,
 			billing_retry_attempts: draft.billing_retry_attempts,
@@ -70,7 +68,6 @@ export class SubscriptionActionExecutor {
 	}
 
 	private stateToUpdate(state: SubscriptionState): SubscriptionUpdate {
-		const paymentMethodId = state.payment_method_id ?? null;
 		const nextBillingAt = state.next_billing_at ?? null;
 		const lastBillingAttempt = state.last_billing_attempt ?? null;
 
@@ -82,7 +79,6 @@ export class SubscriptionActionExecutor {
 			is_gifted: state.is_gifted,
 			grace_period_size: state.grace_period_size,
 			billing_period_days: state.billing_period_days,
-			payment_method_id: paymentMethodId,
 			current_period_end: state.current_period_end,
 			next_billing_at: nextBillingAt,
 			billing_retry_attempts: state.billing_retry_attempts,

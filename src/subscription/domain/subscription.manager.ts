@@ -32,10 +32,6 @@ type PaymentWebhookEvent =
 	| {
 			type: 'payment.canceled';
 			occurredAt?: Date;
-	  }
-	| {
-			type: 'payment_method.active';
-			paymentMethodId: string;
 	  };
 
 interface PaymentEventParams {
@@ -89,7 +85,6 @@ export class SubscriptionManager {
 			is_gifted: true,
 			grace_period_size: this.defaultGracePeriodSize,
 			billing_period_days: 0,
-			payment_method_id: null,
 			current_period_end: now,
 			next_billing_at: null,
 			billing_retry_attempts: 0,
@@ -116,7 +111,6 @@ export class SubscriptionManager {
 				is_gifted: true,
 				grace_period_size: grace,
 				billing_period_days: periodDays,
-				payment_method_id: null,
 				current_period_end: currentPeriodEnd,
 				next_billing_at: null,
 				billing_retry_attempts: 0,
@@ -137,7 +131,6 @@ export class SubscriptionManager {
 			status: 'active',
 			is_gifted: true,
 			price_on_purchase_rubles: 0,
-			payment_method_id: null,
 			billing_period_days: periodDays,
 			current_period_end: nextEnd,
 			next_billing_at: null,
@@ -206,18 +199,6 @@ export class SubscriptionManager {
 		const subscription = params.subscription;
 
 		switch (params.event.type) {
-			case 'payment_method.active': {
-				if (subscription.payment_method_id === params.event.paymentMethodId) {
-					return { action: { do: 'update_data', subscription } };
-				}
-
-				const updated: SubscriptionState = {
-					...subscription,
-					payment_method_id: params.event.paymentMethodId,
-				};
-
-				return { action: { do: 'update_data', subscription: updated } };
-			}
 			case 'payment.succeeded': {
 				const occurredAt = params.event.occurredAt ?? now;
 				const base = this.maxDate(subscription.current_period_end, occurredAt);

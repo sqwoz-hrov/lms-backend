@@ -9,7 +9,7 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { NewSubscription } from '../../subscription.entity';
 import { SubscriptionTestRepository } from '../../test-utils/test.repo';
-import { AnonymousSubscriptionUserMeta, SubscriptionTestSdk } from '../../test-utils/test.sdk';
+import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
@@ -58,7 +58,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			is_gifted: false,
 			grace_period_size: 3,
 			billing_period_days: 30,
-			payment_method_id: 'pm-123',
 			current_period_end: currentPeriodEnd,
 			next_billing_at: currentPeriodEnd,
 			billing_retry_attempts: 1,
@@ -66,6 +65,10 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		};
 
 		const subscription = await subscriptionRepo.insert(newSubscriptionPayload);
+		await subscriptionRepo.upsertPaymentMethod({
+			userId: user.id,
+			paymentMethodId: 'pm-123',
+		});
 
 		const occurredAt = new Date('2024-12-15T12:00:00.000Z');
 		const payload = {
@@ -82,7 +85,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const response = await subscriptionSdk.sendYookassaWebhook({
 			params: payload,
-			userMeta: AnonymousSubscriptionUserMeta,
+			userMeta: { isAuth: false },
 		});
 
 		expect(response.status).to.equal(HttpStatus.OK);
@@ -99,7 +102,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		expect(updatedSubscription.next_billing_at?.getTime()).to.equal(expectedEnd.getTime());
 		expect(updatedSubscription.billing_retry_attempts).to.equal(0);
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
-		expect(updatedSubscription.payment_method_id).to.equal(newSubscriptionPayload.payment_method_id);
+		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
+		expect(paymentMethod?.payment_method_id).to.equal('pm-123');
 
 		const events = await subscriptionRepo.findPaymentEvents({ subscriptionId: subscription.id });
 		expect(events.length).to.equal(1);
@@ -121,11 +125,14 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			is_gifted: false,
 			grace_period_size: 2,
 			billing_period_days: 30,
-			payment_method_id: 'pm-456',
 			current_period_end: new Date('2025-02-01T00:00:00.000Z'),
 			next_billing_at: new Date('2025-02-01T00:00:00.000Z'),
 			billing_retry_attempts: 2,
 			last_billing_attempt: new Date('2025-01-15T00:00:00.000Z'),
+		});
+		await subscriptionRepo.upsertPaymentMethod({
+			userId: user.id,
+			paymentMethodId: 'pm-456',
 		});
 
 		const canceledAt = new Date('2025-01-20T08:00:00.000Z');
@@ -143,7 +150,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const response = await subscriptionSdk.sendYookassaWebhook({
 			params: payload,
-			userMeta: AnonymousSubscriptionUserMeta,
+			userMeta: { isAuth: false },
 		});
 
 		expect(response.status).to.equal(HttpStatus.OK);
@@ -158,6 +165,9 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			throw new Error('Cancellation event was not persisted');
 		}
 		expect(matchingEvent.event).to.deep.equal(payload);
-		expect(matchingEvent.subscription_id).to.equal(null);
+		expect(matchingEvent.subscription_id).to.equal(subscription.id);
+
+		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
+		expect(paymentMethod?.payment_method_id).to.equal('pm-456');
 	});
 });

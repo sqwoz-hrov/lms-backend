@@ -128,7 +128,6 @@ export const createTestSubscriber = async (
 			is_gifted: !billable,
 			grace_period_size: 3,
 			billing_period_days: billable ? 30 : 0,
-			payment_method_id: null,
 			current_period_end: currentPeriodEnd,
 			next_billing_at: billable ? currentPeriodEnd : null,
 			billing_retry_attempts: 0,

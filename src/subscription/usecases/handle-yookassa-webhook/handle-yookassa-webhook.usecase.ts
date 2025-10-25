@@ -90,6 +90,17 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 				return;
 			}
 
+			if (event.type === 'payment_method.active') {
+				await this.subscriptionRepository.upsertPaymentMethod(
+					{
+						userId: subscription.user_id,
+						paymentMethodId: event.paymentMethodId,
+					},
+					trx,
+				);
+				return;
+			}
+
 			const { action } = manager.handlePaymentEvent({ user, subscription, event, now: new Date() });
 
 			await this.subscriptionActionExecutor.execute({

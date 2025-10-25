@@ -5,12 +5,15 @@ import {
 	PaymentEvent,
 	PaymentEventTable,
 	Subscription,
+	PaymentMethod,
+	PaymentMethodTable,
 	SubscriptionTable,
 } from '../subscription.entity';
 
 type SubscriptionTestDb = {
 	subscription: SubscriptionTable;
 	payment_event: PaymentEventTable;
+	payment_method: PaymentMethodTable;
 };
 
 export class SubscriptionTestRepository {
@@ -21,6 +24,7 @@ export class SubscriptionTestRepository {
 	}
 
 	async clearAll(): Promise<void> {
+		await this.connection.deleteFrom('payment_method').execute();
 		await this.connection.deleteFrom('payment_event').execute();
 		await this.connection.deleteFrom('subscription').execute();
 	}
@@ -44,5 +48,29 @@ export class SubscriptionTestRepository {
 			query = query.where('subscription_id', '=', filter.subscriptionId);
 		}
 		return await query.execute();
+	}
+
+	async upsertPaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<void> {
+		await this.connection
+			.insertInto('payment_method')
+			.values({
+				user_id: params.userId,
+				payment_method_id: params.paymentMethodId,
+			})
+			.onConflict(oc =>
+				oc.column('user_id').doUpdateSet({
+					payment_method_id: params.paymentMethodId,
+				}),
+			)
+			.execute();
+	}
+
+	async findPaymentMethod(userId: string): Promise<PaymentMethod | undefined> {
+		return await this.connection
+			.selectFrom('payment_method')
+			.selectAll()
+			.where('user_id', '=', userId)
+			.limit(1)
+			.executeTakeFirst();
 	}
 }

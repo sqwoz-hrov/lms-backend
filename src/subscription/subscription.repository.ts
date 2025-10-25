@@ -6,6 +6,7 @@ import {
 	NewSubscription,
 	PaymentEvent,
 	PaymentEventTable,
+	PaymentMethod,
 	Subscription,
 	SubscriptionAggregation,
 	SubscriptionUpdate,
@@ -97,5 +98,36 @@ export class SubscriptionRepository {
 	async insertPaymentEvent(data: NewPaymentEvent, trx?: SubscriptionTransaction): Promise<PaymentEvent> {
 		const executor = this.getExecutor(trx);
 		return await executor.insertInto('payment_event').values(data).returningAll().executeTakeFirstOrThrow();
+	}
+
+	async upsertPaymentMethod(
+		params: { userId: string; paymentMethodId: string },
+		trx?: SubscriptionTransaction,
+	): Promise<PaymentMethod> {
+		const executor = this.getExecutor(trx);
+		return await executor
+			.insertInto('payment_method')
+			.values({
+				user_id: params.userId,
+				payment_method_id: params.paymentMethodId,
+			})
+			.onConflict(oc =>
+				oc.column('user_id').doUpdateSet({
+					payment_method_id: params.paymentMethodId,
+					updated_at: sql`now()`,
+				}),
+			)
+			.returningAll()
+			.executeTakeFirstOrThrow();
+	}
+
+	async findPaymentMethodByUserId(userId: string, trx?: SubscriptionTransaction): Promise<PaymentMethod | undefined> {
+		const executor = this.getExecutor(trx);
+		return await executor
+			.selectFrom('payment_method')
+			.selectAll()
+			.where('user_id', '=', userId)
+			.limit(1)
+			.executeTakeFirst();
 	}
 }
