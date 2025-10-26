@@ -98,8 +98,10 @@ export class SubscriptionManager {
 		const grace =
 			params.gracePeriodSize ?? params.existingSubscription?.grace_period_size ?? this.defaultGracePeriodSize;
 
-		if (!params.existingSubscription) {
-			const currentPeriodEnd = this.addDays(now, periodDays);
+		const existing = params.existingSubscription;
+
+		if (!existing) {
+			const newPeriodEnd = this.addDays(now, periodDays);
 			const subscription: SubscriptionDraft = {
 				user_id: params.user.id,
 				subscription_tier_id: params.targetTier.id,
@@ -108,7 +110,7 @@ export class SubscriptionManager {
 				is_gifted: true,
 				grace_period_size: grace,
 				billing_period_days: periodDays,
-				current_period_end: currentPeriodEnd,
+				current_period_end: newPeriodEnd,
 				last_billing_attempt: null,
 			};
 
@@ -117,7 +119,6 @@ export class SubscriptionManager {
 			};
 		}
 
-		const existing = params.existingSubscription;
 		const existingTier = this.tierById.get(existing.subscription_tier_id);
 
 		if (!existingTier) {
@@ -267,7 +268,7 @@ export class SubscriptionManager {
 			status: 'active',
 			price_on_purchase_rubles: 0,
 			is_gifted: true,
-			grace_period_size: this.defaultGracePeriodSize,
+			grace_period_size: 0,
 			billing_period_days: 0,
 			current_period_end: null,
 			last_billing_attempt: occurredAt,
