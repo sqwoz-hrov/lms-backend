@@ -1,12 +1,9 @@
 import { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
 
-export type SubscriptionStatus = 'pending' | 'active' | 'canceled';
-
 export interface SubscriptionTable {
 	id: Generated<string>;
 	user_id: string;
 	subscription_tier_id: string;
-	status: ColumnType<SubscriptionStatus, SubscriptionStatus | undefined>;
 	price_on_purchase_rubles: number;
 	is_gifted: ColumnType<boolean, boolean | undefined>;
 	grace_period_size: ColumnType<number, number | undefined>;

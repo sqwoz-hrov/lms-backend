@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { SubscriptionStatus, Subscription } from '../subscription.entity';
+import { Subscription } from '../subscription.entity';
 
 export class SubscriptionResponseDto {
 	@ApiProperty()
@@ -10,9 +10,6 @@ export class SubscriptionResponseDto {
 
 	@ApiProperty()
 	subscriptionTierId: string;
-
-	@ApiProperty({ enum: ['pending', 'active', 'canceled'] satisfies SubscriptionStatus[] })
-	status: SubscriptionStatus;
 
 	@ApiProperty()
 	priceOnPurchaseRubles: number;
@@ -46,7 +43,6 @@ export class SubscriptionResponseDto {
 		dto.id = entity.id;
 		dto.userId = entity.user_id;
 		dto.subscriptionTierId = entity.subscription_tier_id;
-		dto.status = entity.status;
 		dto.priceOnPurchaseRubles = entity.price_on_purchase_rubles;
 		dto.isGifted = entity.is_gifted;
 		dto.gracePeriodSize = entity.grace_period_size;

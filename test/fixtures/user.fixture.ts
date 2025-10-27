@@ -128,7 +128,6 @@ export const createTestSubscriber = async (
 		.values({
 			user_id: user.id,
 			subscription_tier_id: resolvedTierId,
-			status: 'active',
 			price_on_purchase_rubles: billable ? 1500 : 0,
 			is_gifted: !billable,
 			grace_period_size: 3,

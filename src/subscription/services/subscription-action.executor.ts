@@ -54,7 +54,6 @@ export class SubscriptionActionExecutor {
 		return {
 			user_id: draft.user_id,
 			subscription_tier_id: draft.subscription_tier_id,
-			status: draft.status,
 			price_on_purchase_rubles: draft.price_on_purchase_rubles,
 			is_gifted: draft.is_gifted,
 			grace_period_size: draft.grace_period_size,
@@ -70,7 +69,6 @@ export class SubscriptionActionExecutor {
 		return {
 			user_id: state.user_id,
 			subscription_tier_id: state.subscription_tier_id,
-			status: state.status,
 			price_on_purchase_rubles: state.price_on_purchase_rubles,
 			is_gifted: state.is_gifted,
 			grace_period_size: state.grace_period_size,

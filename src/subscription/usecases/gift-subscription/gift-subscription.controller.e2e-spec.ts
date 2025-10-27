@@ -105,7 +105,6 @@ describe('[E2E] Gift subscription usecase', () => {
 
 			expect(response.body.userId).to.equal(recipient.id);
 			expect(response.body.subscriptionTierId).to.equal(premiumTier.id);
-			expect(response.body.status).to.equal('active');
 			expect(response.body.isGifted).to.equal(true);
 			expect(response.body.billingPeriodDays).to.equal(20);
 			expect(response.body.gracePeriodSize).to.equal(2);

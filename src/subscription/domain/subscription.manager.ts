@@ -79,7 +79,6 @@ export class SubscriptionManager {
 		const subscription: SubscriptionDraft = {
 			user_id: params.user.id,
 			subscription_tier_id: freeTier.id,
-			status: 'active',
 			price_on_purchase_rubles: 0,
 			is_gifted: true,
 			grace_period_size: this.defaultGracePeriodSize,
@@ -105,7 +104,6 @@ export class SubscriptionManager {
 			const subscription: SubscriptionDraft = {
 				user_id: params.user.id,
 				subscription_tier_id: params.targetTier.id,
-				status: 'active',
 				price_on_purchase_rubles: 0,
 				is_gifted: true,
 				grace_period_size: grace,
@@ -134,7 +132,6 @@ export class SubscriptionManager {
 		const updated: SubscriptionState = {
 			...existing,
 			subscription_tier_id: params.targetTier.id,
-			status: 'active',
 			is_gifted: true,
 			price_on_purchase_rubles: 0,
 			current_period_end: nextEnd,
@@ -159,7 +156,6 @@ export class SubscriptionManager {
 
 			const updated: SubscriptionState = {
 				...subscription,
-				status: 'active',
 				current_period_end: nextEnd,
 				last_billing_attempt: now,
 			};
@@ -198,7 +194,6 @@ export class SubscriptionManager {
 
 				const updated: SubscriptionState = {
 					...subscription,
-					status: 'active',
 					current_period_end: nextEnd,
 					last_billing_attempt: occurredAt,
 				};
@@ -265,7 +260,6 @@ export class SubscriptionManager {
 		return {
 			...subscription,
 			subscription_tier_id: freeTier.id,
-			status: 'active',
 			price_on_purchase_rubles: 0,
 			is_gifted: true,
 			grace_period_size: 0,

@@ -53,7 +53,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const newSubscriptionPayload: NewSubscription = {
 			user_id: user.id,
 			subscription_tier_id: premiumTier.id,
-			status: 'active',
 			price_on_purchase_rubles: 2500,
 			is_gifted: false,
 			grace_period_size: 3,
@@ -95,7 +94,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		}
 
 		const expectedEnd = addDays(currentPeriodEnd, newSubscriptionPayload.billing_period_days);
-		expect(updatedSubscription.status).to.equal('active');
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
@@ -116,7 +114,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const subscription = await subscriptionRepo.insert({
 			user_id: user.id,
 			subscription_tier_id: premiumTier.id,
-			status: 'active',
 			price_on_purchase_rubles: 2500,
 			is_gifted: false,
 			grace_period_size: 2,
@@ -155,7 +152,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			throw new Error('Subscription missing after downgrade');
 		}
 		expect(downgradedSubscription.subscription_tier_id).to.equal(freeTier.id);
-		expect(downgradedSubscription.status).to.equal('active');
 		expect(downgradedSubscription.billing_period_days).to.equal(0);
 		expect(downgradedSubscription.current_period_end).to.equal(null);
 		expect(downgradedSubscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
@@ -184,7 +180,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const subscription = await subscriptionRepo.insert({
 			user_id: user.id,
 			subscription_tier_id: premiumTier.id,
-			status: 'active',
 			price_on_purchase_rubles: 2500,
 			is_gifted: false,
 			grace_period_size: 5,
@@ -224,7 +219,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		}
 		expect(updatedSubscription.subscription_tier_id).to.equal(premiumTier.id);
 		expect(updatedSubscription.subscription_tier_id).to.not.equal(freeTier.id);
-		expect(updatedSubscription.status).to.equal('active');
 		expect(updatedSubscription.billing_period_days).to.equal(subscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
 		expect(updatedSubscription.is_gifted).to.equal(false);

@@ -40,7 +40,6 @@ const buildSubscriptionState = (overrides: Partial<SubscriptionState> = {}): Sub
 	id: overrides.id ?? 'sub-1',
 	user_id: overrides.user_id ?? 'user-1',
 	subscription_tier_id: overrides.subscription_tier_id ?? paidTier.id,
-	status: overrides.status ?? 'active',
 	price_on_purchase_rubles: overrides.price_on_purchase_rubles ?? 1500,
 	is_gifted: overrides.is_gifted ?? false,
 	grace_period_size: overrides.grace_period_size ?? 3,
@@ -72,7 +71,6 @@ describe('SubscriptionManager', () => {
 			expectDraftMatches(action.subscription, {
 				user_id: 'user-42',
 				subscription_tier_id: freeTier.id,
-				status: 'active',
 				is_gifted: true,
 				grace_period_size: 3,
 				billing_period_days: 0,
@@ -101,7 +99,6 @@ describe('SubscriptionManager', () => {
 				user_id: 'user-777',
 				subscription_tier_id: paidTier.id,
 				is_gifted: true,
-				status: 'active',
 				billing_period_days: 45,
 				grace_period_size: 2,
 				current_period_end: addDays(now, 45),
@@ -137,7 +134,6 @@ describe('SubscriptionManager', () => {
 				user_id: existing.user_id,
 				subscription_tier_id: paidTier.id,
 				is_gifted: true,
-				status: 'active',
 				billing_period_days: 40,
 				grace_period_size: 4,
 			});
@@ -151,7 +147,6 @@ describe('SubscriptionManager', () => {
 				subscription_tier_id: paidTier.id,
 				current_period_end: addDays(now, 10),
 				is_gifted: false,
-				status: 'active',
 				billing_period_days: 30,
 			});
 
@@ -168,7 +163,6 @@ describe('SubscriptionManager', () => {
 				id: existing.id,
 				user_id: existing.user_id,
 				subscription_tier_id: premiumTier.id,
-				status: 'active',
 				is_gifted: true,
 				price_on_purchase_rubles: 0,
 			});
@@ -201,7 +195,6 @@ describe('SubscriptionManager', () => {
 			const manager = createManager();
 			const now = new Date('2024-05-01T12:00:00.000Z');
 			const subscription = buildSubscriptionState({
-				status: 'active',
 				grace_period_size: 2,
 				is_gifted: false,
 				current_period_end: addDays(now, 5),
@@ -216,7 +209,6 @@ describe('SubscriptionManager', () => {
 			});
 
 			expect(action.do).to.equal('update_data');
-			expect(action.subscription.status).to.equal('active');
 			expect(action.subscription.subscription_tier_id).to.equal(subscription.subscription_tier_id);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
@@ -241,7 +233,6 @@ describe('SubscriptionManager', () => {
 
 			expect(action.do).to.equal('update_data');
 			expect(action.subscription.subscription_tier_id).to.equal(freeTier.id);
-			expect(action.subscription.status).to.equal('active');
 			expect(action.subscription.billing_period_days).to.equal(0);
 			expect(action.subscription.current_period_end).to.equal(null);
 			expect(action.subscription.is_gifted).to.equal(true);
@@ -293,7 +284,6 @@ describe('SubscriptionManager', () => {
 			const expectedEnd = addDays(now, subscription.billing_period_days);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
-			expect(action.subscription.status).to.equal('active');
 		});
 	});
 
@@ -317,7 +307,6 @@ describe('SubscriptionManager', () => {
 
 			expect(action.do).to.equal('prolong');
 			const expectedEnd = addDays(currentEnd, subscription.billing_period_days);
-			expect(action.subscription.status).to.equal('active');
 			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		});
@@ -340,7 +329,6 @@ describe('SubscriptionManager', () => {
 
 			expect(action.do).to.equal('update_data');
 			expect(action.subscription.subscription_tier_id).to.equal(freeTier.id);
-			expect(action.subscription.status).to.equal('active');
 			expect(action.subscription.current_period_end).to.equal(null);
 			expect(action.subscription.is_gifted).to.equal(true);
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());

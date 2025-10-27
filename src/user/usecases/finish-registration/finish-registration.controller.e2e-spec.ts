@@ -126,7 +126,6 @@ describe('[E2E] Finish registration usecase', () => {
 		expect(subscription?.subscription_tier_id).to.equal(freeTierId);
 		expect(subscription?.is_gifted).to.equal(true);
 		expect(subscription?.price_on_purchase_rubles).to.equal(0);
-		expect(subscription?.status).to.equal('active');
 		expect(subscription?.current_period_end).to.equal(null);
 		expect(subscription?.last_billing_attempt).to.equal(null);
 	});
