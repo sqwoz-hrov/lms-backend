@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { Switch } from '../../../common/utils/safe-guard';
 import { SubscriptionManagerFactory } from '../../domain/subscription-manager.factory';
@@ -22,8 +22,8 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 			return;
 		}
 
-		const metadata = this.extractMetadata(payload.object?.metadata);
-		if (!metadata) {
+		const metadata = payload.object.metadata;
+		if (!this.metadataIsValid(metadata)) {
 			this.logger.warn(`Webhook ${payload.event} missing subscription metadata, skipping`);
 			return;
 		}
@@ -31,28 +31,28 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 		const manager = await this.subscriptionManagerFactory.create();
 
 		await this.subscriptionRepository.transaction(async trx => {
-			const subscription = await this.subscriptionRepository.lockById(metadata.subscriptionId, trx);
-			if (!subscription) {
-				this.logger.warn(`Subscription ${metadata.subscriptionId} not found for webhook ${payload.event}`);
-				return;
-			}
-
 			const user = await trx
 				.selectFrom('user')
 				.selectAll()
-				.where('id', '=', subscription.user_id)
+				.where('id', '=', metadata.user_id)
 				.forUpdate()
 				.limit(1)
 				.executeTakeFirst();
 
 			if (!user) {
-				this.logger.warn(`User ${subscription.user_id} not found for webhook ${payload.event}`);
+				this.logger.warn(`User ${metadata.user_id} not found for webhook ${payload.event}`);
 				return;
 			}
 
-			if (metadata.userId !== subscription.user_id) {
+			const subscription = await this.subscriptionRepository.lockByUserId(metadata.user_id, trx);
+			if (!subscription) {
+				this.logger.warn(`Subscription for user_id ${metadata.user_id} not found for webhook ${payload.event}`);
+				return;
+			}
+
+			if (metadata.user_id !== subscription.user_id) {
 				this.logger.warn(
-					`Webhook metadata user ${metadata.userId} does not match subscription owner ${subscription.user_id}`,
+					`Webhook metadata user ${metadata.user_id} does not match subscription owner ${subscription.user_id}`,
 				);
 			}
 
@@ -91,31 +91,6 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 		});
 	}
 
-	private extractMetadata(metadata?: Record<string, unknown>): EventMetadata | undefined {
-		if (!metadata) {
-			return undefined;
-		}
-
-		const userId = this.pickString(metadata, ['user_id', 'userId']);
-		const subscriptionId = this.pickString(metadata, ['subscription_id', 'subscriptionId']);
-
-		if (!userId || !subscriptionId) {
-			return undefined;
-		}
-
-		return { userId, subscriptionId };
-	}
-
-	private pickString(source: Record<string, unknown>, keys: string[]): string | undefined {
-		for (const key of keys) {
-			const value = source[key];
-			if (typeof value === 'string' && value.length > 0) {
-				return value;
-			}
-		}
-		return undefined;
-	}
-
 	private buildEvent(payload: YookassaWebhookPayload): WebhookEvent {
 		const base = payload.object;
 		switch (payload.event) {
@@ -126,11 +101,17 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 			}
 			case 'payment.succeeded': {
 				const occurredAt = this.parseDate(base.created_at);
-				return { type: 'payment.succeeded', occurredAt };
+
+				if (!this.metadataIsValid(base.metadata)) throw new InternalServerErrorException('metadata is not valid');
+
+				return { type: 'payment.succeeded', meta: base.metadata, occurredAt };
 			}
 			case 'payment.canceled': {
 				const occurredAt = this.parseDate(base.created_at);
-				return { type: 'payment.canceled', occurredAt };
+
+				if (!this.metadataIsValid(base.metadata)) throw new InternalServerErrorException('metadata is not valid');
+
+				return { type: 'payment.canceled', meta: base.metadata, occurredAt };
 			}
 			default:
 				return Switch.safeGuard(payload, 'Build event failed');
@@ -142,5 +123,9 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 		const parsed = new Date(input);
 		if (Number.isNaN(parsed.getTime())) throw new Error();
 		return parsed;
+	}
+
+	private metadataIsValid(metadata: Record<string, unknown> | undefined): metadata is EventMetadata {
+		return typeof metadata?.user_id === 'string' && typeof metadata.subscription_tier_id === 'string';
 	}
 }

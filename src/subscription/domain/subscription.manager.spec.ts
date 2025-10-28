@@ -155,7 +155,7 @@ describe('SubscriptionManager', () => {
 				now,
 			});
 
-			expect(action.do).to.equal('update_data');
+			expect(action.do).to.equal('upgrade');
 			expect(action.subscription).to.include({
 				id: existing.id,
 				user_id: existing.user_id,
@@ -188,7 +188,7 @@ describe('SubscriptionManager', () => {
 	});
 
 	describe('handleBillingCron', () => {
-		it('keeps subscription active and schedules retry within grace period', () => {
+		it('keeps subscription active and marks last_billing_attempt within grace', () => {
 			const manager = createManager();
 			const now = new Date('2024-05-01T12:00:00.000Z');
 			const subscription = buildSubscriptionState({
@@ -205,7 +205,7 @@ describe('SubscriptionManager', () => {
 				now,
 			});
 
-			expect(action.do).to.equal('update_data');
+			expect(action.do).to.equal('update_billing_data');
 			expect(action.subscription.subscription_tier_id).to.equal(subscription.subscription_tier_id);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
@@ -228,7 +228,7 @@ describe('SubscriptionManager', () => {
 				now,
 			});
 
-			expect(action.do).to.equal('update_data');
+			expect(action.do).to.equal('downgrade');
 			expect(action.subscription.subscription_tier_id).to.equal(freeTier.id);
 			expect(action.subscription.billing_period_days).to.equal(0);
 			expect(action.subscription.current_period_end).to.equal(null);
@@ -298,12 +298,70 @@ describe('SubscriptionManager', () => {
 			const { action } = manager.handlePaymentEvent({
 				user: { id: subscription.user_id },
 				subscription,
-				event: { type: 'payment.succeeded', occurredAt },
+				event: {
+					type: 'payment.succeeded',
+					meta: { subscription_tier_id: subscription.subscription_tier_id, user_id: subscription.user_id },
+					occurredAt,
+				},
 				now: new Date('2024-08-01T13:00:00.000Z'),
 			});
 
 			expect(action.do).to.equal('prolong');
 			const expectedEnd = addDays(currentEnd, subscription.billing_period_days);
+			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
+		});
+
+		it('downgrades subscription tier on payment success when metadata tier has lower power', () => {
+			const manager = createManager();
+			const occurredAt = new Date('2024-08-10T12:00:00.000Z');
+			const currentEnd = new Date('2024-08-15T00:00:00.000Z');
+			const subscription = buildSubscriptionState({
+				subscription_tier_id: premiumTier.id,
+				current_period_end: currentEnd,
+				last_billing_attempt: addDays(currentEnd, -5),
+			});
+
+			const { action } = manager.handlePaymentEvent({
+				user: { id: subscription.user_id },
+				subscription,
+				event: {
+					type: 'payment.succeeded',
+					meta: { subscription_tier_id: paidTier.id, user_id: subscription.user_id },
+					occurredAt,
+				},
+			});
+
+			expect(action.do).to.equal('downgrade');
+			const expectedEnd = addDays(currentEnd, subscription.billing_period_days);
+			expect(action.subscription.subscription_tier_id).to.equal(paidTier.id);
+			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
+		});
+
+		it('upgrades subscription tier on payment success when metadata tier has higher power', () => {
+			const manager = createManager();
+			const occurredAt = new Date('2024-09-01T10:00:00.000Z');
+			const currentEnd = new Date('2024-09-05T00:00:00.000Z');
+			const subscription = buildSubscriptionState({
+				subscription_tier_id: paidTier.id,
+				current_period_end: currentEnd,
+				last_billing_attempt: addDays(currentEnd, -3),
+			});
+
+			const { action } = manager.handlePaymentEvent({
+				user: { id: subscription.user_id },
+				subscription,
+				event: {
+					type: 'payment.succeeded',
+					meta: { subscription_tier_id: premiumTier.id, user_id: subscription.user_id },
+					occurredAt,
+				},
+			});
+
+			expect(action.do).to.equal('upgrade');
+			const expectedEnd = addDays(currentEnd, subscription.billing_period_days);
+			expect(action.subscription.subscription_tier_id).to.equal(premiumTier.id);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		});
@@ -321,10 +379,14 @@ describe('SubscriptionManager', () => {
 			const { action } = manager.handlePaymentEvent({
 				user: { id: subscription.user_id },
 				subscription,
-				event: { type: 'payment.canceled', occurredAt: canceledAt },
+				event: {
+					type: 'payment.canceled',
+					meta: { subscription_tier_id: subscription.subscription_tier_id, user_id: subscription.user_id },
+					occurredAt: canceledAt,
+				},
 			});
 
-			expect(action.do).to.equal('update_data');
+			expect(action.do).to.equal('downgrade');
 			expect(action.subscription.subscription_tier_id).to.equal(freeTier.id);
 			expect(action.subscription.current_period_end).to.equal(null);
 			expect(action.subscription.is_gifted).to.equal(true);
@@ -344,10 +406,14 @@ describe('SubscriptionManager', () => {
 			const { action } = manager.handlePaymentEvent({
 				user: { id: subscription.user_id },
 				subscription,
-				event: { type: 'payment.canceled', occurredAt: canceledAt },
+				event: {
+					type: 'payment.canceled',
+					meta: { subscription_tier_id: subscription.subscription_tier_id, user_id: subscription.user_id },
+					occurredAt: canceledAt,
+				},
 			});
 
-			expect(action.do).to.equal('update_data');
+			expect(action.do).to.equal('update_billing_data');
 			expect(action.subscription.subscription_tier_id).to.equal(subscription.subscription_tier_id);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());

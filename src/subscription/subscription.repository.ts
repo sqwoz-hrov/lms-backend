@@ -85,11 +85,11 @@ export class SubscriptionRepository {
 			.executeTakeFirst();
 	}
 
-	async lockById(id: string, trx: SubscriptionTransaction): Promise<Subscription | undefined> {
+	async lockByUserId(user_id: string, trx: SubscriptionTransaction): Promise<Subscription | undefined> {
 		return await trx
 			.selectFrom('subscription')
 			.selectAll()
-			.where('id', '=', id)
+			.where('user_id', '=', user_id)
 			.forUpdate()
 			.limit(1)
 			.executeTakeFirst();

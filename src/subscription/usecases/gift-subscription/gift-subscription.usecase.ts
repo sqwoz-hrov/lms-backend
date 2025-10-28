@@ -50,10 +50,7 @@ export class GiftSubscriptionUsecase implements UsecaseInterface {
 				throw new NotFoundException('User not found');
 			}
 
-			const existing = await this.subscriptionRepository.findByUserId(user.id, trx);
-			const lockedSubscription = existing?.id
-				? await this.subscriptionRepository.lockById(existing.id, trx)
-				: undefined;
+			const lockedSubscription = await this.subscriptionRepository.lockByUserId(user.id, trx);
 
 			const { action } = manager.handleGift({
 				user: lockedUser,

@@ -4,12 +4,14 @@ import { PaymentWebhookEvent } from '../types/yookassa-webhook';
 
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
-export type SubscriptionActionType = 'create' | 'delete' | 'update_data' | 'prolong';
+export type SubscriptionActionType = 'create' | 'delete' | 'update_billing_data' | 'upgrade' | 'downgrade' | 'prolong';
 
 export type SubscriptionAction =
 	| { do: 'create'; subscription: SubscriptionDraft }
 	| { do: 'delete'; subscription: SubscriptionState }
-	| { do: 'update_data'; subscription: SubscriptionState }
+	| { do: 'update_billing_data'; subscription: SubscriptionState }
+	| { do: 'downgrade'; subscription: SubscriptionState }
+	| { do: 'upgrade'; subscription: SubscriptionState }
 	| { do: 'prolong'; subscription: SubscriptionState };
 
 interface SubscriptionManagerOptions {
@@ -128,7 +130,7 @@ export class SubscriptionManager {
 		};
 
 		const doAction: SubscriptionActionType =
-			existing.is_gifted && existing.subscription_tier_id === params.targetTier.id ? 'prolong' : 'update_data';
+			existing.is_gifted && existing.subscription_tier_id === params.targetTier.id ? 'prolong' : 'upgrade';
 
 		return { action: { do: doAction, subscription: updated } };
 	}
@@ -160,13 +162,13 @@ export class SubscriptionManager {
 			};
 
 			return {
-				action: { do: 'update_data', subscription: updated },
+				action: { do: 'update_billing_data', subscription: updated },
 			};
 		}
 
 		const downgraded = this.downgradeToFreeTier(subscription, now);
 
-		return { action: { do: 'update_data', subscription: downgraded } };
+		return { action: { do: 'downgrade', subscription: downgraded } };
 	}
 
 	handlePaymentEvent(params: PaymentEventParams): { action: SubscriptionAction } {
@@ -186,6 +188,21 @@ export class SubscriptionManager {
 					last_billing_attempt: occurredAt,
 				};
 
+				const targetTierId = params.event.meta.subscription_tier_id;
+				if (targetTierId !== subscription.subscription_tier_id) {
+					const targetTier = this.resolveTierById(targetTierId);
+					const currentTier = this.resolveTierById(subscription.subscription_tier_id);
+
+					const switched: SubscriptionState = {
+						...updated,
+						subscription_tier_id: targetTierId,
+					};
+
+					const actionType: SubscriptionActionType = targetTier.power > currentTier.power ? 'upgrade' : 'downgrade';
+
+					return { action: { do: actionType, subscription: switched } };
+				}
+
 				return { action: { do: 'prolong', subscription: updated } };
 			}
 			case 'payment.canceled': {
@@ -194,7 +211,7 @@ export class SubscriptionManager {
 
 				if (!withinGrace) {
 					const downgraded = this.downgradeToFreeTier(subscription, occurredAt);
-					return { action: { do: 'update_data', subscription: downgraded } };
+					return { action: { do: 'downgrade', subscription: downgraded } };
 				}
 
 				const updated: SubscriptionState = {
@@ -202,7 +219,7 @@ export class SubscriptionManager {
 					last_billing_attempt: occurredAt,
 				};
 
-				return { action: { do: 'update_data', subscription: updated } };
+				return { action: { do: 'update_billing_data', subscription: updated } };
 			}
 		}
 	}
@@ -221,6 +238,14 @@ export class SubscriptionManager {
 			throw new Error('Free subscription tier with power 0 not configured');
 		}
 		return freeTier;
+	}
+
+	private resolveTierById(tierId: string): SubscriptionTier {
+		const tier = this.tierById.get(tierId);
+		if (!tier) {
+			throw new Error(`Unknown subscription tier "${tierId}"`);
+		}
+		return tier;
 	}
 
 	private addDays(date: Date, days: number): Date {

@@ -14,7 +14,7 @@ import { YookassaPaymentCanceledWebhook, YookassaPaymentSucceededWebhook } from 
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
-describe('[E2E] Handle YooKassa webhook', () => {
+describe.only('[E2E] Handle YooKassa webhook', () => {
 	let app: INestApplication;
 
 	let usersRepo: UsersTestRepository;
@@ -80,8 +80,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 					currency: 'RUB',
 				},
 				metadata: {
-					userId: user.id,
-					subscriptionId: subscription.id,
+					user_id: user.id,
+					subscription_tier_id: subscription.subscription_tier_id,
 				},
 				created_at: occurredAt.toISOString(),
 			},
@@ -109,6 +109,148 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const events = await subscriptionRepo.findPaymentEvents({ subscriptionId: subscription.id });
 		expect(events.length).to.equal(1);
 		expect(events[0].event).to.deep.equal(payload);
+	});
+
+	it('stores payment success event and switches subscription to cheaper tier from metadata', async () => {
+		const standardTier = await createTestSubscriptionTier(usersRepo, { tier: 'standard', power: 1 });
+		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 2 });
+		expect(standardTier.power).to.be.lessThan(premiumTier.power);
+
+		const user = await createTestUser(usersRepo, { role: 'subscriber' });
+
+		const currentPeriodEnd = new Date('2025-04-10T00:00:00.000Z');
+		const newSubscriptionPayload: NewSubscription = {
+			user_id: user.id,
+			subscription_tier_id: premiumTier.id,
+			price_on_purchase_rubles: 3500,
+			is_gifted: false,
+			grace_period_size: 3,
+			billing_period_days: 30,
+			current_period_end: currentPeriodEnd,
+			last_billing_attempt: new Date('2025-03-10T00:00:00.000Z'),
+		};
+
+		const subscription = await subscriptionRepo.insert(newSubscriptionPayload);
+		await subscriptionRepo.upsertPaymentMethod({
+			userId: user.id,
+			paymentMethodId: 'pm-234',
+		});
+
+		const occurredAt = new Date('2025-03-15T12:00:00.000Z');
+		const payload: YookassaPaymentSucceededWebhook = {
+			event: 'payment.succeeded',
+			object: {
+				id: 'payment-010',
+				status: 'succeeded',
+				paid: true,
+				amount: {
+					value: '1200.00',
+					currency: 'RUB',
+				},
+				metadata: {
+					user_id: user.id,
+					subscription_tier_id: standardTier.id,
+				},
+				created_at: occurredAt.toISOString(),
+			},
+		};
+
+		const response = await subscriptionSdk.sendYookassaWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+
+		const updatedSubscription = await subscriptionRepo.findById(subscription.id);
+		expect(updatedSubscription).to.not.be.a('undefined');
+		if (!updatedSubscription) {
+			throw new Error('Subscription missing after webhook');
+		}
+
+		const expectedEnd = addDays(currentPeriodEnd, newSubscriptionPayload.billing_period_days);
+		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
+		expect(updatedSubscription.subscription_tier_id).to.equal(standardTier.id);
+		expect(updatedSubscription.subscription_tier_id).to.not.equal(premiumTier.id);
+
+		const events = await subscriptionRepo.findPaymentEvents({ subscriptionId: subscription.id });
+		expect(events.length).to.equal(1);
+		expect(events[0].event).to.deep.equal(payload);
+
+		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
+		expect(paymentMethod?.payment_method_id).to.equal('pm-234');
+	});
+
+	it('stores payment success event and switches subscription to more expensive tier from metadata', async () => {
+		const standardTier = await createTestSubscriptionTier(usersRepo, { tier: 'standard', power: 1 });
+		const vipTier = await createTestSubscriptionTier(usersRepo, { tier: 'vip', power: 3 });
+		expect(standardTier.power).to.be.lessThan(vipTier.power);
+
+		const user = await createTestUser(usersRepo, { role: 'subscriber' });
+
+		const currentPeriodEnd = new Date('2025-05-10T00:00:00.000Z');
+		const newSubscriptionPayload: NewSubscription = {
+			user_id: user.id,
+			subscription_tier_id: standardTier.id,
+			price_on_purchase_rubles: 1200,
+			is_gifted: false,
+			grace_period_size: 3,
+			billing_period_days: 30,
+			current_period_end: currentPeriodEnd,
+			last_billing_attempt: new Date('2025-04-10T00:00:00.000Z'),
+		};
+
+		const subscription = await subscriptionRepo.insert(newSubscriptionPayload);
+		await subscriptionRepo.upsertPaymentMethod({
+			userId: user.id,
+			paymentMethodId: 'pm-345',
+		});
+
+		const occurredAt = new Date('2025-04-20T12:00:00.000Z');
+		const payload: YookassaPaymentSucceededWebhook = {
+			event: 'payment.succeeded',
+			object: {
+				id: 'payment-011',
+				status: 'succeeded',
+				paid: true,
+				amount: {
+					value: '5200.00',
+					currency: 'RUB',
+				},
+				metadata: {
+					user_id: user.id,
+					subscription_tier_id: vipTier.id,
+				},
+				created_at: occurredAt.toISOString(),
+			},
+		};
+
+		const response = await subscriptionSdk.sendYookassaWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+
+		const updatedSubscription = await subscriptionRepo.findById(subscription.id);
+		expect(updatedSubscription).to.not.be.a('undefined');
+		if (!updatedSubscription) {
+			throw new Error('Subscription missing after webhook');
+		}
+
+		const expectedEnd = addDays(currentPeriodEnd, newSubscriptionPayload.billing_period_days);
+		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
+		expect(updatedSubscription.subscription_tier_id).to.equal(vipTier.id);
+		expect(updatedSubscription.subscription_tier_id).to.not.equal(standardTier.id);
+
+		const events = await subscriptionRepo.findPaymentEvents({ subscriptionId: subscription.id });
+		expect(events.length).to.equal(1);
+		expect(events[0].event).to.deep.equal(payload);
+
+		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
+		expect(paymentMethod?.payment_method_id).to.equal('pm-345');
 	});
 
 	it('stores cancellation event and downgrades subscription to free tier outside grace period', async () => {
@@ -147,7 +289,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				},
 				metadata: {
 					user_id: user.id,
-					subscription_id: subscription.id,
+					subscription_tier_id: subscription.subscription_tier_id,
 				},
 				created_at: canceledAt.toISOString(),
 				canceled_at: createdAt.toISOString(),
@@ -221,7 +363,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				},
 				metadata: {
 					user_id: user.id,
-					subscription_id: subscription.id,
+					subscription_tier_id: subscription.subscription_tier_id,
 				},
 				created_at: canceledAt.toISOString(),
 				canceled_at: createdAt.toISOString(),

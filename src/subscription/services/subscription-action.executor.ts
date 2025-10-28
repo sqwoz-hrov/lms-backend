@@ -23,7 +23,9 @@ export class SubscriptionActionExecutor {
 		switch (action.do) {
 			case 'create':
 				return this.subscriptionRepository.create(this.draftToNew(action.subscription), trx);
-			case 'update_data':
+			case 'update_billing_data':
+			case 'upgrade':
+			case 'downgrade':
 			case 'prolong': {
 				const subscriptionId = action.subscription.id;
 				const updated = await this.subscriptionRepository.update(

@@ -1,7 +1,7 @@
-export interface EventMetadata {
-	userId: string;
-	subscriptionId: string;
-}
+export type EventMetadata = {
+	user_id: string;
+	subscription_tier_id: string;
+};
 
 export const SUPPORTED_EVENTS = new Set(['payment.succeeded', 'payment.canceled', 'payment_method.active']);
 
@@ -101,10 +101,12 @@ export type YookassaWebhookPayload =
 export type PaymentWebhookEvent =
 	| {
 			type: 'payment.succeeded';
+			meta: EventMetadata;
 			occurredAt: Date;
 	  }
 	| {
 			type: 'payment.canceled';
+			meta: EventMetadata;
 			occurredAt: Date;
 	  };
 
