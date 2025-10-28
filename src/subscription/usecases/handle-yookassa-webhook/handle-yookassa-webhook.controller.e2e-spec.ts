@@ -14,7 +14,7 @@ import { YookassaPaymentCanceledWebhook, YookassaPaymentSucceededWebhook } from 
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
-describe.only('[E2E] Handle YooKassa webhook', () => {
+describe('[E2E] Handle YooKassa webhook', () => {
 	let app: INestApplication;
 
 	let usersRepo: UsersTestRepository;

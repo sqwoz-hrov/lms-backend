@@ -172,12 +172,11 @@ export class SubscriptionManager {
 	}
 
 	handlePaymentEvent(params: PaymentEventParams): { action: SubscriptionAction } {
-		const now = params.now ?? new Date();
 		const subscription = params.subscription;
 
 		switch (params.event.type) {
 			case 'payment.succeeded': {
-				const occurredAt = params.event.occurredAt ?? now;
+				const occurredAt = params.event.occurredAt;
 				const base = this.maxDate(subscription.current_period_end, occurredAt);
 				const periodDays = this.normalizePeriodDays(subscription.billing_period_days || this.defaultBillingPeriodDays);
 				const nextEnd = this.addDays(base, periodDays);
@@ -206,7 +205,7 @@ export class SubscriptionManager {
 				return { action: { do: 'prolong', subscription: updated } };
 			}
 			case 'payment.canceled': {
-				const occurredAt = params.event.occurredAt ?? now;
+				const occurredAt = params.event.occurredAt;
 				const withinGrace = this.isWithinGracePeriod(subscription, occurredAt);
 
 				if (!withinGrace) {
