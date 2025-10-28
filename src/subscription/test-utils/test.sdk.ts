@@ -2,6 +2,7 @@ import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
 import { GiftSubscriptionDto } from '../dto/gift-subscription.dto';
 import { SubscriptionResponseDto } from '../dto/subscription-response.dto';
+import { YookassaWebhookPayload } from '../types/yookassa-webhook';
 
 export class SubscriptionTestSdk implements ValidateSDK<SubscriptionTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -15,7 +16,7 @@ export class SubscriptionTestSdk implements ValidateSDK<SubscriptionTestSdk> {
 		});
 	}
 
-	async sendYookassaWebhook({ params, userMeta }: { params: Record<string, unknown>; userMeta: UserMeta }) {
+	async sendYookassaWebhook({ params, userMeta }: { params: YookassaWebhookPayload; userMeta: UserMeta }) {
 		return this.testClient.request<Record<string, never>>({
 			path: '/webhooks/yookassa',
 			method: 'POST',

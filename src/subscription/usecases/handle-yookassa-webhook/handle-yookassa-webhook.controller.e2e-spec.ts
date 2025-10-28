@@ -10,6 +10,7 @@ import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { NewSubscription } from '../../subscription.entity';
 import { SubscriptionTestRepository } from '../../test-utils/test.repo';
 import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
+import { YookassaPaymentCanceledWebhook, YookassaPaymentSucceededWebhook } from '../../types/yookassa-webhook';
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
@@ -68,15 +69,21 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		});
 
 		const occurredAt = new Date('2024-12-15T12:00:00.000Z');
-		const payload = {
+		const payload: YookassaPaymentSucceededWebhook = {
 			event: 'payment.succeeded',
 			object: {
 				id: 'payment-001',
+				status: 'succeeded',
+				paid: true,
+				amount: {
+					value: '200.00',
+					currency: 'RUB',
+				},
 				metadata: {
 					userId: user.id,
 					subscriptionId: subscription.id,
 				},
-				captured_at: occurredAt.toISOString(),
+				created_at: occurredAt.toISOString(),
 			},
 		};
 
@@ -126,16 +133,24 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			paymentMethodId: 'pm-456',
 		});
 
+		const createdAt = new Date('2025-01-20T07:00:00.000Z');
 		const canceledAt = new Date('2025-01-20T08:00:00.000Z');
-		const payload = {
+		const payload: YookassaPaymentCanceledWebhook = {
 			event: 'payment.canceled',
 			object: {
 				id: 'payment-002',
+				status: 'canceled',
+				paid: false,
+				amount: {
+					value: '200.00',
+					currency: 'RUB',
+				},
 				metadata: {
 					user_id: user.id,
 					subscription_id: subscription.id,
 				},
-				canceled_at: canceledAt.toISOString(),
+				created_at: canceledAt.toISOString(),
+				canceled_at: createdAt.toISOString(),
 			},
 		};
 
@@ -192,16 +207,24 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			paymentMethodId: 'pm-789',
 		});
 
+		const createdAt = new Date('2025-01-20T07:00:00.000Z');
 		const canceledAt = new Date('2025-03-12T12:00:00.000Z');
-		const payload = {
+		const payload: YookassaPaymentCanceledWebhook = {
 			event: 'payment.canceled',
 			object: {
 				id: 'payment-003',
+				status: 'canceled',
+				paid: false,
+				amount: {
+					value: '200.00',
+					currency: 'RUB',
+				},
 				metadata: {
 					user_id: user.id,
 					subscription_id: subscription.id,
 				},
-				canceled_at: canceledAt.toISOString(),
+				created_at: canceledAt.toISOString(),
+				canceled_at: createdAt.toISOString(),
 			},
 		};
 

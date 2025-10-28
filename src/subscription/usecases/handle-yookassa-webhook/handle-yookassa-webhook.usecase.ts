@@ -1,29 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
-import { SubscriptionRepository } from '../../subscription.repository';
+import { Switch } from '../../../common/utils/safe-guard';
 import { SubscriptionManagerFactory } from '../../domain/subscription-manager.factory';
 import { SubscriptionActionExecutor } from '../../services/subscription-action.executor';
-
-interface YookassaWebhookPayload {
-	event: string;
-	object?: {
-		id?: string;
-		metadata?: Record<string, unknown>;
-		payment_method?: {
-			id?: string;
-		};
-		captured_at?: string;
-		created_at?: string;
-		canceled_at?: string;
-	};
-}
-
-interface EventMetadata {
-	userId: string;
-	subscriptionId: string;
-}
-
-const SUPPORTED_EVENTS = new Set(['payment.succeeded', 'payment.canceled', 'payment_method.active']);
+import { SubscriptionRepository } from '../../subscription.repository';
+import { EventMetadata, SUPPORTED_EVENTS, WebhookEvent, YookassaWebhookPayload } from '../../types/yookassa-webhook';
 
 @Injectable()
 export class HandleYookassaWebhookUsecase implements UsecaseInterface {
@@ -135,34 +116,31 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 		return undefined;
 	}
 
-	private buildEvent(payload: YookassaWebhookPayload) {
-		const base = payload.object ?? {};
+	private buildEvent(payload: YookassaWebhookPayload): WebhookEvent {
+		const base = payload.object;
 		switch (payload.event) {
 			case 'payment_method.active': {
-				const paymentMethodId = base.payment_method?.id ?? base.id;
-				if (!paymentMethodId) {
-					return undefined;
-				}
-				return { type: 'payment_method.active', paymentMethodId } as const;
+				const occurredAt = this.parseDate(base.created_at);
+				const paymentMethodId = base.id;
+				return { type: 'payment_method.active', paymentMethodId, occurredAt };
 			}
 			case 'payment.succeeded': {
-				const occurredAt = this.parseDate(base.captured_at ?? base.created_at);
-				return { type: 'payment.succeeded', occurredAt } as const;
+				const occurredAt = this.parseDate(base.created_at);
+				return { type: 'payment.succeeded', occurredAt };
 			}
 			case 'payment.canceled': {
-				const occurredAt = this.parseDate(base.canceled_at ?? base.created_at);
-				return { type: 'payment.canceled', occurredAt } as const;
+				const occurredAt = this.parseDate(base.created_at);
+				return { type: 'payment.canceled', occurredAt };
 			}
 			default:
-				return undefined;
+				return Switch.safeGuard(payload, 'Build event failed');
 		}
 	}
 
-	private parseDate(input?: string): Date | undefined {
-		if (!input) {
-			return undefined;
-		}
+	private parseDate(input?: string): Date {
+		if (input === undefined) return new Date();
 		const parsed = new Date(input);
-		return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+		if (Number.isNaN(parsed.getTime())) throw new Error();
+		return parsed;
 	}
 }

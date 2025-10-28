@@ -1,4 +1,4 @@
-const safeGuard = (arg: never, message: string = 'Safe guard executed!') => {
+const safeGuard = (arg: never, message: string = 'Safe guard executed!'): never => {
 	throw new Error(message);
 };
 

@@ -1,5 +1,6 @@
 import { SubscriptionTier, User } from '../../user/user.entity';
 import { SubscriptionDraft, SubscriptionState } from '../subscription.entity';
+import { PaymentWebhookEvent } from '../types/yookassa-webhook';
 
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
@@ -23,16 +24,6 @@ interface BillingCronParams {
 	now?: Date;
 }
 
-type PaymentWebhookEvent =
-	| {
-			type: 'payment.succeeded';
-			occurredAt?: Date;
-	  }
-	| {
-			type: 'payment.canceled';
-			occurredAt?: Date;
-	  };
-
 interface PaymentEventParams {
 	user: Pick<User, 'id'>;
 	subscription: SubscriptionState;
@@ -51,7 +42,6 @@ interface GiftSubscriptionParams {
 
 interface RegistrationParams {
 	user: Pick<User, 'id'>;
-	now?: Date;
 }
 
 export class SubscriptionManager {

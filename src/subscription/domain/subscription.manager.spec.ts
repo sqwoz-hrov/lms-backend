@@ -59,11 +59,9 @@ describe('SubscriptionManager', () => {
 	describe('handleRegistration', () => {
 		it('creates free tier subscription for new user', () => {
 			const manager = createManager();
-			const now = new Date('2024-03-01T10:00:00.000Z');
 
 			const { action } = manager.handleRegistration({
 				user: { id: 'user-42' },
-				now,
 			});
 
 			expect(action.do).to.equal('create');
