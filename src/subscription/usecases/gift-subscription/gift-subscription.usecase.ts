@@ -60,7 +60,6 @@ export class GiftSubscriptionUsecase implements UsecaseInterface {
 				targetTier,
 				durationDays: payload.durationDays ?? 30,
 				existingSubscription: lockedSubscription ?? undefined,
-				gracePeriodSize: payload.gracePeriodSize,
 			});
 
 			const persisted = await this.subscriptionActionExecutor.execute({

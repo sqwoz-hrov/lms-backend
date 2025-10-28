@@ -21,16 +21,4 @@ export class GiftSubscriptionDto {
 	@Max(365)
 	@IsOptional()
 	durationDays?: number = 30;
-
-	@ApiProperty({
-		description: 'Размер грайс-периода при биллинге (количество попыток до деактивации)',
-		minimum: 0,
-		maximum: 10,
-		required: false,
-	})
-	@IsInt()
-	@Min(0)
-	@Max(10)
-	@IsOptional()
-	gracePeriodSize?: number;
 }

@@ -37,7 +37,6 @@ interface GiftSubscriptionParams {
 	durationDays: number;
 	existingSubscription?: SubscriptionState;
 	now?: Date;
-	gracePeriodSize?: number;
 }
 
 interface RegistrationParams {
@@ -84,8 +83,6 @@ export class SubscriptionManager {
 	handleGift(params: GiftSubscriptionParams): { action: SubscriptionAction } {
 		const now = params.now ?? new Date();
 		const periodDays = this.normalizePeriodDays(params.durationDays);
-		const grace =
-			params.gracePeriodSize ?? params.existingSubscription?.grace_period_size ?? this.defaultGracePeriodSize;
 
 		const existing = params.existingSubscription;
 
@@ -96,7 +93,7 @@ export class SubscriptionManager {
 				subscription_tier_id: params.targetTier.id,
 				price_on_purchase_rubles: 0,
 				is_gifted: true,
-				grace_period_size: grace,
+				grace_period_size: 0,
 				billing_period_days: periodDays,
 				current_period_end: newPeriodEnd,
 				last_billing_attempt: null,
@@ -117,6 +114,8 @@ export class SubscriptionManager {
 			throw new Error(`Cannot downgrade subscription tier from "${existingTier.tier}" to "${params.targetTier.tier}"`);
 		}
 
+		const grace = params.existingSubscription?.grace_period_size ?? this.defaultGracePeriodSize;
+
 		const base = this.maxDate(existing.current_period_end, now);
 		const nextEnd = this.addDays(base, periodDays);
 		const updated: SubscriptionState = {
@@ -126,7 +125,6 @@ export class SubscriptionManager {
 			price_on_purchase_rubles: 0,
 			current_period_end: nextEnd,
 			grace_period_size: grace,
-			last_billing_attempt: null,
 		};
 
 		const doAction: SubscriptionActionType =

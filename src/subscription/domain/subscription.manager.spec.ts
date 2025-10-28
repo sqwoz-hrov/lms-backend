@@ -87,7 +87,6 @@ describe('SubscriptionManager', () => {
 				user: { id: 'user-777' },
 				targetTier: paidTier,
 				durationDays: 45,
-				gracePeriodSize: 2,
 				now,
 			});
 
@@ -98,7 +97,7 @@ describe('SubscriptionManager', () => {
 				subscription_tier_id: paidTier.id,
 				is_gifted: true,
 				billing_period_days: 45,
-				grace_period_size: 2,
+				grace_period_size: 0,
 				current_period_end: addDays(now, 45),
 				price_on_purchase_rubles: 0,
 			});

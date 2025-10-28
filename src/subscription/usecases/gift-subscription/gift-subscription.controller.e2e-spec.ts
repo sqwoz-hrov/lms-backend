@@ -87,7 +87,6 @@ describe('[E2E] Gift subscription usecase', () => {
 					userId: recipient.id,
 					subscriptionTierId: premiumTier.id,
 					durationDays: 20,
-					gracePeriodSize: 2,
 				},
 				userMeta: {
 					userId: admin.id,
@@ -107,7 +106,7 @@ describe('[E2E] Gift subscription usecase', () => {
 			expect(response.body.subscriptionTierId).to.equal(premiumTier.id);
 			expect(response.body.isGifted).to.equal(true);
 			expect(response.body.billingPeriodDays).to.equal(20);
-			expect(response.body.gracePeriodSize).to.equal(2);
+			expect(response.body.gracePeriodSize).to.equal(0);
 			expect(response.body.paymentMethodId).to.equal(null);
 
 			const persistedSubscription = await subscriptionRepo.findById(response.body.id);
@@ -120,7 +119,7 @@ describe('[E2E] Gift subscription usecase', () => {
 			expect(persistedSubscription.user_id).to.equal(recipient.id);
 			expect(persistedSubscription.is_gifted).to.equal(true);
 			expect(persistedSubscription.billing_period_days).to.equal(20);
-			expect(persistedSubscription.grace_period_size).to.equal(2);
+			expect(persistedSubscription.grace_period_size).to.equal(0);
 			expect(persistedSubscription.current_period_end).to.not.equal(null);
 			expect(persistedSubscription.current_period_end?.getTime()).to.equal(expectedPeriodEnd.getTime());
 			expect(persistedSubscription.last_billing_attempt).to.equal(null);

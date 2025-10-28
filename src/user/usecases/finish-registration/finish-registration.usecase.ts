@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { SubscriptionManagerFactory } from '../../../subscription/domain/subscription-manager.factory';
 import { SubscriptionActionExecutor } from '../../../subscription/services/subscription-action.executor';
@@ -52,7 +52,7 @@ export class FinishRegistrationUsecase implements UsecaseInterface {
 			const existingSubscription = await this.subscriptionRepository.findByUserId(lockedUser.id, trx);
 
 			if (existingSubscription) {
-				return;
+				throw new InternalServerErrorException('Subscription already exists');
 			}
 
 			const { action } = manager.handleRegistration({
