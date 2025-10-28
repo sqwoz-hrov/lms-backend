@@ -36,7 +36,7 @@ export interface YookassaPaymentResponse {
 		title?: string;
 	};
 	metadata?: Record<string, unknown>;
-	created_at?: string;
+	created_at: string;
 }
 
 export interface CreatePaymentFormParams {
