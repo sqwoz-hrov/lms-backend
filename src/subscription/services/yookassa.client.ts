@@ -76,21 +76,13 @@ export class YookassaClient implements OnModuleInit {
 	async onModuleInit(): Promise<void> {
 		if (!this.oauthToken) {
 			this.logger.warn('oauthToken is not configured — skipping API webhook setup.');
-			this.logger.log('payment_method.active webhook must be enabled via YooKassa manager.');
 			return;
 		}
 
 		const webhookUrl = this.config.webhookUrl;
-		if (!webhookUrl) {
-			this.logger.warn('config.webhookUrl is empty — cannot ensure webhooks.');
-			return;
-		}
 
 		try {
-			const desired: Array<Extract<YookassaWebhookEvent, 'payment.succeeded' | 'payment.canceled'>> = [
-				'payment.succeeded',
-				'payment.canceled',
-			];
+			const desired: YookassaWebhookEvent[] = ['payment.succeeded', 'payment.canceled', 'payment_method.active'];
 			const existing = await this.listWebhooks();
 			for (const event of desired) {
 				const already = existing.items?.some(w => w.event === event && w.url === webhookUrl);
@@ -101,7 +93,6 @@ export class YookassaClient implements OnModuleInit {
 					this.logger.log(`webhook already present for ${event} → ${webhookUrl}`);
 				}
 			}
-			this.logger.log('payment_method.active webhook must be enabled via YooKassa manager.');
 		} catch (err) {
 			this.logger.error(`ensuring webhooks failed: ${(err as Error).message}`);
 		}
@@ -169,7 +160,7 @@ export class YookassaClient implements OnModuleInit {
 		return await this.req<YookassaListWebhooksResponse>('GET', 'webhooks', { authorizationType: 'Bearer' });
 	}
 
-	async createWebhook(event: Extract<YookassaWebhookEvent, 'payment.succeeded' | 'payment.canceled'>, url: string) {
+	async createWebhook(event: YookassaWebhookEvent, url: string) {
 		return await this.req<YookassaWebhook>('POST', 'webhooks', {
 			authorizationType: 'Bearer',
 			body: { event, url },

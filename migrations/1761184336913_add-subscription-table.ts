@@ -1,10 +1,6 @@
 import { Kysely, sql } from 'kysely';
 
-const SUBSCRIPTION_STATUS_VALUES = ['pending', 'active', 'past_due', 'canceled'] as const;
-
 export async function up(db: Kysely<any>): Promise<void> {
-	await db.schema.createType('subscription_status').asEnum(SUBSCRIPTION_STATUS_VALUES).execute();
-
 	await sql`ALTER TABLE "user" DROP CONSTRAINT IF EXISTS user_billable_fields_check`.execute(db);
 	await sql`ALTER TABLE "user" DROP CONSTRAINT IF EXISTS user_subscription_tier_id_fkey`.execute(db);
 
@@ -25,7 +21,6 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('subscription_tier_id', 'uuid', col =>
 			col.notNull().references('subscription_tier.id').onDelete('restrict'),
 		)
-		.addColumn('status', sql`subscription_status`, col => col.notNull().defaultTo(sql`'pending'::subscription_status`))
 		.addColumn('price_on_purchase_rubles', 'integer', col => col.notNull())
 		.addColumn('is_gifted', 'boolean', col => col.notNull().defaultTo(false))
 		.addColumn('grace_period_size', 'smallint', col => col.notNull().defaultTo(3))
@@ -63,6 +58,13 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 	await db.schema.alterTable('payment_event').addColumn('subscription_id', 'uuid').execute();
 
+	await db.schema.alterTable('payment_event').dropConstraint('payment_event_user_id_fkey').execute();
+
+	await db.schema
+		.alterTable('payment_event')
+		.alterColumn('user_id', col => col.dropNotNull())
+		.execute();
+
 	await db.schema
 		.alterTable('user')
 		.dropColumn('subscription_tier_id')
@@ -74,6 +76,16 @@ export async function up(db: Kysely<any>): Promise<void> {
 export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.alterTable('subscription_tier').dropConstraint('subscription_tier_power_unique').execute();
 	await db.schema.alterTable('subscription_tier').dropColumn('power').execute();
+
+	await db.schema
+		.alterTable('payment_event')
+		.addForeignKeyConstraint('payment_event_user_id_fkey', ['user_id'], 'user', ['id'], cb => cb.onDelete('cascade'))
+		.execute();
+
+	await db.schema
+		.alterTable('payment_event')
+		.alterColumn('user_id', col => col.setNotNull())
+		.execute();
 
 	await db.schema.alterTable('payment_event').dropColumn('subscription_id').execute();
 
@@ -121,5 +133,4 @@ export async function down(db: Kysely<any>): Promise<void> {
 
 	await db.schema.dropTable('payment_method').ifExists().execute();
 	await db.schema.dropTable('subscription').ifExists().execute();
-	await db.schema.dropType('subscription_status').ifExists().execute();
 }

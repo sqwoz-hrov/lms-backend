@@ -30,7 +30,6 @@ interface PaymentEventParams {
 	user: Pick<User, 'id'>;
 	subscription: SubscriptionState;
 	event: PaymentWebhookEvent;
-	now?: Date;
 }
 
 interface GiftSubscriptionParams {

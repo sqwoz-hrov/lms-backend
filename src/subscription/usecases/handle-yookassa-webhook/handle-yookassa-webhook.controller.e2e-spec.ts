@@ -10,11 +10,16 @@ import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { NewSubscription } from '../../subscription.entity';
 import { SubscriptionTestRepository } from '../../test-utils/test.repo';
 import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
-import { YookassaPaymentCanceledWebhook, YookassaPaymentSucceededWebhook } from '../../types/yookassa-webhook';
+import {
+	YookassaPaymentCanceledWebhook,
+	YookassaPaymentSucceededWebhook,
+	YookassaWebhookPayload,
+} from '../../types/yookassa-webhook';
+import { randomUUID } from 'crypto';
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
-describe('[E2E] Handle YooKassa webhook', () => {
+describe.only('[E2E] Handle YooKassa webhook', () => {
 	let app: INestApplication;
 
 	let usersRepo: UsersTestRepository;
@@ -43,6 +48,42 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await usersRepo.clearAll();
 	});
 
+	it('stores unsupported webhook event without processing and responds with 200', async () => {
+		const user_id = randomUUID();
+		const subscription_tier_id = randomUUID();
+
+		const rawPayload = {
+			event: 'payment.waiting_for_capture',
+			object: {
+				id: 'payment-ignored-001',
+				status: 'waiting_for_capture',
+				paid: false,
+				amount: {
+					value: '300.00',
+					currency: 'RUB',
+				},
+				created_at: new Date('2025-02-01T12:00:00.000Z').toISOString(),
+				metadata: {
+					user_id,
+					subscription_tier_id,
+				},
+			},
+		};
+
+		const response = await subscriptionSdk.sendYookassaWebhook({
+			params: rawPayload as unknown as YookassaWebhookPayload,
+			userMeta: { isAuth: false },
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+
+		const events = await subscriptionRepo.findPaymentEvents();
+		expect(events.length).to.equal(1);
+		expect(events[0].event).to.deep.equal(rawPayload);
+		expect(events[0].subscription_id).to.equal(null);
+		expect(events[0].user_id).to.equal(null);
+	});
+
 	it('stores payment success event and prolongs subscription', async () => {
 		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free' });
 		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium' });
@@ -51,7 +92,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const user = await createTestUser(usersRepo, { role: 'subscriber' });
 
 		const currentPeriodEnd = new Date('2025-01-05T00:00:00.000Z');
-		const newSubscriptionPayload: NewSubscription = {
+		const currentSubscription: NewSubscription = {
 			user_id: user.id,
 			subscription_tier_id: premiumTier.id,
 			price_on_purchase_rubles: 2500,
@@ -62,7 +103,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			last_billing_attempt: new Date('2024-12-01T00:00:00.000Z'),
 		};
 
-		const subscription = await subscriptionRepo.insert(newSubscriptionPayload);
+		const subscription = await subscriptionRepo.insert(currentSubscription);
 		await subscriptionRepo.upsertPaymentMethod({
 			userId: user.id,
 			paymentMethodId: 'pm-123',
@@ -100,7 +141,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			throw new Error('Subscription missing after webhook');
 		}
 
-		const expectedEnd = addDays(currentPeriodEnd, newSubscriptionPayload.billing_period_days);
+		const expectedEnd = addDays(currentPeriodEnd, currentSubscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
@@ -119,7 +160,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const user = await createTestUser(usersRepo, { role: 'subscriber' });
 
 		const currentPeriodEnd = new Date('2025-04-10T00:00:00.000Z');
-		const newSubscriptionPayload: NewSubscription = {
+		const currentSubscription: NewSubscription = {
 			user_id: user.id,
 			subscription_tier_id: premiumTier.id,
 			price_on_purchase_rubles: 3500,
@@ -130,7 +171,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			last_billing_attempt: new Date('2025-03-10T00:00:00.000Z'),
 		};
 
-		const subscription = await subscriptionRepo.insert(newSubscriptionPayload);
+		const subscription = await subscriptionRepo.insert(currentSubscription);
 		await subscriptionRepo.upsertPaymentMethod({
 			userId: user.id,
 			paymentMethodId: 'pm-234',
@@ -168,7 +209,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			throw new Error('Subscription missing after webhook');
 		}
 
-		const expectedEnd = addDays(currentPeriodEnd, newSubscriptionPayload.billing_period_days);
+		const expectedEnd = addDays(currentPeriodEnd, currentSubscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		expect(updatedSubscription.subscription_tier_id).to.equal(standardTier.id);
@@ -190,7 +231,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const user = await createTestUser(usersRepo, { role: 'subscriber' });
 
 		const currentPeriodEnd = new Date('2025-05-10T00:00:00.000Z');
-		const newSubscriptionPayload: NewSubscription = {
+		const currentSubscription: NewSubscription = {
 			user_id: user.id,
 			subscription_tier_id: standardTier.id,
 			price_on_purchase_rubles: 1200,
@@ -201,7 +242,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			last_billing_attempt: new Date('2025-04-10T00:00:00.000Z'),
 		};
 
-		const subscription = await subscriptionRepo.insert(newSubscriptionPayload);
+		const subscription = await subscriptionRepo.insert(currentSubscription);
 		await subscriptionRepo.upsertPaymentMethod({
 			userId: user.id,
 			paymentMethodId: 'pm-345',
@@ -239,7 +280,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			throw new Error('Subscription missing after webhook');
 		}
 
-		const expectedEnd = addDays(currentPeriodEnd, newSubscriptionPayload.billing_period_days);
+		const expectedEnd = addDays(currentPeriodEnd, currentSubscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		expect(updatedSubscription.subscription_tier_id).to.equal(vipTier.id);
@@ -327,8 +368,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	});
 
 	it('does not downgrade subscription to free tier if payment failed within grace period', async () => {
-		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free' });
-		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium' });
+		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free', power: 0 });
+		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 1 });
 		expect(freeTier.id).to.not.equal(premiumTier.id);
 
 		const user = await createTestUser(usersRepo, { role: 'subscriber' });

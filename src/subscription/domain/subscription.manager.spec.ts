@@ -303,7 +303,6 @@ describe('SubscriptionManager', () => {
 					meta: { subscription_tier_id: subscription.subscription_tier_id, user_id: subscription.user_id },
 					occurredAt,
 				},
-				now: new Date('2024-08-01T13:00:00.000Z'),
 			});
 
 			expect(action.do).to.equal('prolong');

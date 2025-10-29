@@ -17,77 +17,94 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 	) {}
 
 	async execute(payload: YookassaWebhookPayload): Promise<void> {
-		if (!SUPPORTED_EVENTS.has(payload.event)) {
-			this.logger.debug(`Ignoring unsupported event ${payload.event}`);
-			return;
-		}
-
-		const metadata = payload.object.metadata;
-		if (!this.metadataIsValid(metadata)) {
-			this.logger.warn(`Webhook ${payload.event} missing subscription metadata, skipping`);
-			return;
-		}
-
-		const manager = await this.subscriptionManagerFactory.create();
-
 		await this.subscriptionRepository.transaction(async trx => {
-			const user = await trx
-				.selectFrom('user')
-				.selectAll()
-				.where('id', '=', metadata.user_id)
-				.forUpdate()
-				.limit(1)
-				.executeTakeFirst();
+			let userId: string | null = null;
+			let subscriptionId: string | null = null;
 
-			if (!user) {
-				this.logger.warn(`User ${metadata.user_id} not found for webhook ${payload.event}`);
-				return;
-			}
+			try {
+				const metadata = payload.object.metadata;
 
-			const subscription = await this.subscriptionRepository.lockByUserId(metadata.user_id, trx);
-			if (!subscription) {
-				this.logger.warn(`Subscription for user_id ${metadata.user_id} not found for webhook ${payload.event}`);
-				return;
-			}
+				if (!this.metadataIsValid(metadata)) {
+					this.logger.error(`Webhook ${payload.event} missing subscription metadata, skipping`);
 
-			if (metadata.user_id !== subscription.user_id) {
-				this.logger.warn(
-					`Webhook metadata user ${metadata.user_id} does not match subscription owner ${subscription.user_id}`,
-				);
-			}
+					throw new Error();
+				}
 
-			await this.subscriptionRepository.insertPaymentEvent(
-				{
-					user_id: subscription.user_id,
+				const manager = await this.subscriptionManagerFactory.create();
+				const user = await trx
+					.selectFrom('user')
+					.selectAll()
+					.where('id', '=', metadata.user_id)
+					.forUpdate()
+					.limit(1)
+					.executeTakeFirst();
+
+				if (!user) {
+					this.logger.warn(`User ${metadata.user_id} not found for webhook ${payload.event}`);
+
+					throw new Error();
+				}
+
+				userId = user.id;
+
+				const subscription = await this.subscriptionRepository.lockByUserId(metadata.user_id, trx);
+
+				if (!subscription) {
+					this.logger.warn(`Subscription for user_id ${metadata.user_id} not found for webhook ${payload.event}`);
+
+					throw new Error();
+				}
+
+				subscriptionId = subscription.id;
+
+				if (!SUPPORTED_EVENTS.has(payload.event)) {
+					this.logger.debug(`Ignoring unsupported event ${payload.event}`);
+
+					throw new Error();
+				}
+
+				if (metadata.user_id !== subscription.user_id) {
+					this.logger.warn(
+						`Webhook metadata user ${metadata.user_id} does not match subscription owner ${subscription.user_id}`,
+					);
+				}
+
+				const event = this.buildEvent(payload);
+				if (!event) {
+					this.logger.warn(`Failed to build event payload for ${payload.event}`);
+					return;
+				}
+
+				if (event.type === 'payment_method.active') {
+					await this.subscriptionRepository.upsertPaymentMethod(
+						{
+							userId: subscription.user_id,
+							paymentMethodId: event.paymentMethodId,
+						},
+						trx,
+					);
+					return;
+				}
+
+				const { action } = manager.handlePaymentEvent({ user, subscription, event });
+
+				await this.subscriptionActionExecutor.execute({
+					action,
+					trx,
+				});
+
+				await this.subscriptionRepository.insertPaymentEvent({
+					user_id: user.id,
 					subscription_id: subscription.id,
 					event: payload,
-				},
-				trx,
-			);
-
-			const event = this.buildEvent(payload);
-			if (!event) {
-				this.logger.warn(`Failed to build event payload for ${payload.event}`);
-				return;
+				});
+			} catch {
+				await this.subscriptionRepository.insertPaymentEvent({
+					user_id: userId,
+					subscription_id: subscriptionId,
+					event: payload,
+				});
 			}
-
-			if (event.type === 'payment_method.active') {
-				await this.subscriptionRepository.upsertPaymentMethod(
-					{
-						userId: subscription.user_id,
-						paymentMethodId: event.paymentMethodId,
-					},
-					trx,
-				);
-				return;
-			}
-
-			const { action } = manager.handlePaymentEvent({ user, subscription, event, now: new Date() });
-
-			await this.subscriptionActionExecutor.execute({
-				action,
-				trx,
-			});
 		});
 	}
 

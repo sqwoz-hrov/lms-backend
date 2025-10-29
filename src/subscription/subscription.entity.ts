@@ -39,7 +39,7 @@ export type PaymentMethodUpdate = Updateable<PaymentMethodTable>;
 
 export interface PaymentEventTable {
 	id: Generated<string>;
-	user_id: string;
+	user_id: ColumnType<string | null, string | null | undefined>;
 	subscription_id: ColumnType<string | null, string | null | undefined>;
 	event: ColumnType<unknown, unknown>;
 	created_at: Generated<Date>;
