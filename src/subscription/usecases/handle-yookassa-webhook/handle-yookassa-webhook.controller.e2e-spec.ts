@@ -19,7 +19,7 @@ import { randomUUID } from 'crypto';
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
-describe.only('[E2E] Handle YooKassa webhook', () => {
+describe('[E2E] Handle YooKassa webhook', () => {
 	let app: INestApplication;
 
 	let usersRepo: UsersTestRepository;
@@ -67,6 +67,29 @@ describe.only('[E2E] Handle YooKassa webhook', () => {
 					user_id,
 					subscription_tier_id,
 				},
+			},
+		};
+
+		const response = await subscriptionSdk.sendYookassaWebhook({
+			params: rawPayload as unknown as YookassaWebhookPayload,
+			userMeta: { isAuth: false },
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+
+		const events = await subscriptionRepo.findPaymentEvents();
+		expect(events.length).to.equal(1);
+		expect(events[0].event).to.deep.equal(rawPayload);
+		expect(events[0].subscription_id).to.equal(null);
+		expect(events[0].user_id).to.equal(null);
+	});
+
+	it('stores unsupported webhook event without processing and responds with 200 even without metadata', async () => {
+		const rawPayload = {
+			event: 'payment.non_existend_event',
+			object: {
+				paid: false,
+				created_at: new Date('2025-02-01T12:00:00.000Z').toISOString(),
 			},
 		};
 
