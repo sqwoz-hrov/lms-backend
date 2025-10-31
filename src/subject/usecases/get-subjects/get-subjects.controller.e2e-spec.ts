@@ -7,13 +7,14 @@ import {
 	createTestSubscriber,
 	createTestSubscriptionTier,
 	createTestUser,
+	type TestSubscriber,
 } from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { User } from '../../../user/user.entity';
+import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { BaseSubjectDto } from '../../dto/base-subject.dto';
 import { Subject } from '../../subject.entity';
 import { SubjectsTestRepository } from '../../test-utils/test.repo';
@@ -116,8 +117,8 @@ describe('[E2E] Get subjects usecase', () => {
 	});
 
 	describe('Subscriber access tests', () => {
-		let admin: User;
-		let subscriber: User;
+		let admin: UserWithSubscriptionTier;
+		let subscriber: TestSubscriber;
 		let accessibleSubject: Subject;
 		let subjectForAnotherTier: Subject;
 		let assignedSubject: Subject;
@@ -128,7 +129,7 @@ describe('[E2E] Get subjects usecase', () => {
 			subscriber = await createTestSubscriber(userUtilRepository);
 			const otherTier = await createTestSubscriptionTier(userUtilRepository);
 
-			expect(subscriber.subscription_tier_id).to.be.a('string');
+			expect(subscriber.subscription.subscription_tier_id).to.be.a('string');
 
 			accessibleSubject = await createTestSubject(subjectUtilRepository, {
 				name: 'Accessible Subject',
@@ -149,7 +150,7 @@ describe('[E2E] Get subjects usecase', () => {
 
 			const allowRes = await subjectTestSdk.openSubjectForTiers({
 				subjectId: accessibleSubject.id,
-				params: { tier_ids: [subscriber.subscription_tier_id!] },
+				params: { tier_ids: [subscriber.subscription.subscription_tier_id] },
 				userMeta: {
 					userId: admin.id,
 					isAuth: true,

@@ -33,9 +33,11 @@ describe('[E2E] Get user by id usecase', () => {
 		finished_registration: user.finished_registration ?? true,
 		telegram_id: user.telegram_id ?? undefined,
 		telegram_username: user.telegram_username,
-		subscription_tier_id: user.subscription_tier_id ?? null,
-		active_until: user.active_until ? new Date(user.active_until).toISOString() : null,
-		is_billable: user.is_billable ?? false,
+		subscription_tier_id: user.subscription?.subscription_tier_id ?? null,
+		active_until: user.subscription?.current_period_end
+			? new Date(user.subscription.current_period_end).toISOString()
+			: null,
+		is_billable: user.subscription ? !user.subscription.is_gifted : false,
 		is_archived: user.is_archived ?? false,
 		subscription_tier: user.subscription_tier ?? null,
 		...overrides,
@@ -106,7 +108,6 @@ describe('[E2E] Get user by id usecase', () => {
 
 	it('User can access self and receives all user fields', async () => {
 		const user = await createTestUser(utilRepository, {
-			is_billable: false,
 			is_archived: true,
 		});
 
@@ -169,6 +170,7 @@ describe('[E2E] Get user by id usecase', () => {
 				subscription_tier: {
 					id: subscriptionTier.id,
 					tier: subscriptionTier.tier,
+					power: subscriptionTier.power,
 					permissions: subscriptionTier.permissions ?? [],
 				},
 			}),

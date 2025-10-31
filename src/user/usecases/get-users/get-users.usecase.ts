@@ -2,13 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserRepository } from '../../user.repository';
 import { toUserResponseDto, UserResponseDto } from '../../dto/user.dto';
-import { User } from '../../user.entity';
+import { UserWithSubscriptionTier } from '../../user.entity';
 
 @Injectable()
 export class GetUsersUsecase implements UsecaseInterface {
 	constructor(private readonly userRepository: UserRepository) {}
 
-	async execute({ requester }: { requester: User }): Promise<UserResponseDto[]> {
+	async execute({ requester }: { requester: UserWithSubscriptionTier }): Promise<UserResponseDto[]> {
 		if (requester.role === 'subscriber') {
 			const user = await this.userRepository.findByIdWithSubscriptionTier(requester.id);
 			if (!user) {

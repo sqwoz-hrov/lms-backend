@@ -1,3 +1,4 @@
+import { Subscription } from '../../src/subscription/subscription.entity';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
 import { SubscriptionTier, User, UserWithSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
@@ -18,14 +19,24 @@ export const createTestSubscriptionTier = async (
 	userRepository: UsersTestRepository,
 	overrides: Partial<SubscriptionTier> = {},
 ): Promise<SubscriptionTier> => {
-	const tierName = overrides.tier ?? `tier-${randomWord()}`;
+	const { power: overridePower, ...restOverrides } = overrides;
+	const tierName = restOverrides.tier ?? `tier-${randomWord()}`;
+
+	const powerResult = await userRepository.connection
+		.selectFrom('subscription_tier')
+		.select(({ fn }) => fn.max<number>('power').as('maxPower'))
+		.limit(1)
+		.executeTakeFirst();
+
+	const resolvedPower = overridePower ?? (powerResult?.maxPower ?? -1) + 1;
 
 	return userRepository.connection
 		.insertInto('subscription_tier')
 		.values({
 			tier: tierName,
 			permissions: [],
-			...overrides,
+			power: resolvedPower,
+			...restOverrides,
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
@@ -69,27 +80,33 @@ export const createTestAdmin = async (
 		.executeTakeFirstOrThrow();
 };
 
+type SubscriberFixtureOverrides = Partial<User> & {
+	subscription_tier_id?: string | null;
+	active_until?: Date | null;
+	is_billable?: boolean;
+};
+
 export const createTestSubscriber = async (
 	userRepository: UsersTestRepository,
-	overrides: Partial<User> = {},
-): Promise<UserWithSubscriptionTier> => {
-	const { subscription_tier_id, active_until, is_billable, is_archived, ...restOverrides } = overrides;
+	overrides: SubscriberFixtureOverrides = {},
+): Promise<UserWithSubscriptionTier & { subscription: Subscription; subscription_tier: SubscriptionTier }> => {
+	const { subscription_tier_id, active_until, is_billable, is_archived, ...userOverrides } = overrides;
 
 	const billable = is_billable ?? true;
-	let resolvedTierId = subscription_tier_id ?? null;
-	let resolvedActiveUntil = active_until ?? null;
 
-	let subscriptionTier: SubscriptionTier | null = null;
-	if (billable) {
-		if (!resolvedTierId) {
-			subscriptionTier = await createTestSubscriptionTier(userRepository);
-			resolvedTierId = subscriptionTier.id;
-		}
+	const subscriptionTier = subscription_tier_id
+		? await userRepository.connection
+				.selectFrom('subscription_tier')
+				.selectAll()
+				.where('id', '=', subscription_tier_id)
+				.limit(1)
+				.executeTakeFirstOrThrow()
+		: await createTestSubscriptionTier(userRepository);
+	const resolvedTierId = subscriptionTier.id;
 
-		if (!resolvedActiveUntil) {
-			resolvedActiveUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-		}
-	}
+	const now = new Date();
+	const defaultActiveUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+	const currentPeriodEnd = active_until ?? defaultActiveUntil;
 
 	const user = await userRepository.connection
 		.insertInto('user')
@@ -100,14 +117,32 @@ export const createTestSubscriber = async (
 			telegram_id: randomNumericId(),
 			finished_registration: true,
 			email: createEmail(),
-			is_billable: billable,
 			is_archived: is_archived ?? false,
-			subscription_tier_id: resolvedTierId,
-			active_until: resolvedActiveUntil,
-			...restOverrides,
+			...userOverrides,
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
 
-	return { ...user, ...{ subscription_tier: subscriptionTier } };
+	const subscription = await userRepository.connection
+		.insertInto('subscription')
+		.values({
+			user_id: user.id,
+			subscription_tier_id: resolvedTierId,
+			price_on_purchase_rubles: billable ? 1500 : 0,
+			is_gifted: !billable,
+			grace_period_size: 3,
+			billing_period_days: billable ? 30 : 0,
+			current_period_end: billable ? currentPeriodEnd : null,
+			last_billing_attempt: null,
+		})
+		.returningAll()
+		.executeTakeFirstOrThrow();
+
+	return {
+		...user,
+		subscription,
+		subscription_tier: subscriptionTier,
+	};
 };
+
+export type TestSubscriber = Awaited<ReturnType<typeof createTestSubscriber>>;

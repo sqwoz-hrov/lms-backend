@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { JwtService } from '../../../infra/services/jwt.service';
@@ -11,6 +11,8 @@ export class RoleGuard implements CanActivate {
 		private readonly userRepo: UserRepository,
 		private readonly reflector: Reflector,
 	) {}
+
+	private readonly logger = new Logger(RoleGuard.name);
 
 	private getAccessTokenFromCookies(request: Request): string {
 		const token = request.cookies?.['access_token'] as string | undefined;
@@ -39,6 +41,15 @@ export class RoleGuard implements CanActivate {
 
 		if (!user) {
 			throw new UnauthorizedException('User not found');
+		}
+
+		if (!user.finished_registration) {
+			throw new UnauthorizedException('Registration not finished');
+		}
+
+		if (user.role === 'subscriber' && !user.subscription) {
+			this.logger.error('fatal user has no subscription', { userId: user.id });
+			throw new UnauthorizedException('Subscriber has no subscription');
 		}
 
 		request['user'] = user;

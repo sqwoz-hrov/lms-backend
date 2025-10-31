@@ -60,7 +60,6 @@ describe('[E2E] Get me usecase', () => {
 
 	it('Returns current user with all fields', async () => {
 		const user = await createTestUser(utilRepository, {
-			is_billable: false,
 			is_archived: true,
 		});
 

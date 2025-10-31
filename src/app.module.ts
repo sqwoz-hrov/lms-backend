@@ -9,6 +9,8 @@ import {
 	otpConfig,
 	redisConfig,
 	s3Config,
+	yookassaConfig,
+	subscriptionConfig,
 } from './config';
 import { ImageModule } from './image/image.module';
 import { InfraModule } from './infra/infra.module';
@@ -24,11 +26,23 @@ import { HrConnectionModule } from './hr-connection/hr-connection.module';
 import { InterviewModule } from './interview/interview.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
 	imports: [
 		ConfigModule.forRoot({
-			load: [appConfig, dbConfig, imageStorageConfig, jwtConfig, otpBotConfig, otpConfig, redisConfig, s3Config],
+			load: [
+				appConfig,
+				dbConfig,
+				imageStorageConfig,
+				jwtConfig,
+				otpBotConfig,
+				otpConfig,
+				redisConfig,
+				s3Config,
+				yookassaConfig,
+				subscriptionConfig,
+			],
 			isGlobal: true,
 		}),
 		FeedbackModule,
@@ -43,6 +57,7 @@ import { MetricsModule } from './metrics/metrics.module';
 		SubjectModule,
 		TaskModule,
 		TelegramModule.forRoot({ useTelegramAPI: true }),
+		SubscriptionModule,
 		UserModule,
 		VideoModule,
 	],

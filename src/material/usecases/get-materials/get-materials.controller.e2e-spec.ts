@@ -7,6 +7,7 @@ import {
 	createTestSubscriber,
 	createTestSubscriptionTier,
 	createTestUser,
+	type TestSubscriber,
 } from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
@@ -15,7 +16,7 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { MarkDownContentTestRepository } from '../../../markdown-content/test-utils/test.repo';
 import { SubjectsTestRepository } from '../../../subject/test-utils/test.repo';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { User } from '../../../user/user.entity';
+import { User, UserWithSubscriptionTier } from '../../../user/user.entity';
 import { MaterialsTestRepository } from '../../test-utils/test.repo';
 import { MaterialsTestSdk } from '../../test-utils/test.sdk';
 import { Material } from '../../material.entity';
@@ -197,9 +198,9 @@ describe('[E2E] Get materials usecase', () => {
 	});
 
 	describe('Subscriber access tests', () => {
-		let admin: User;
-		let student: User;
-		let subscriber: User;
+		let admin: UserWithSubscriptionTier;
+		let student: UserWithSubscriptionTier;
+		let subscriber: TestSubscriber;
 		let accessibleMaterial: Material;
 		let materialForAnotherTier: Material;
 		let assignedMaterial: Material;
@@ -213,7 +214,7 @@ describe('[E2E] Get materials usecase', () => {
 
 			const otherTier = await createTestSubscriptionTier(userUtilRepository);
 
-			expect(subscriber.subscription_tier_id).to.be.a('string');
+			expect(subscriber.subscription.subscription_tier_id).to.be.a('string');
 
 			accessibleMaterial = await createMaterial({});
 			materialForAnotherTier = await createMaterial({});
@@ -223,7 +224,7 @@ describe('[E2E] Get materials usecase', () => {
 
 			const allowRes = await materialTestSdk.openMaterialForTiers({
 				materialId: accessibleMaterial.id,
-				params: { tier_ids: [subscriber.subscription_tier_id!] },
+				params: { tier_ids: [subscriber.subscription.subscription_tier_id] },
 				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
