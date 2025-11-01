@@ -8,6 +8,7 @@ export interface SubscriptionTierTable {
 	tier: string;
 	power: ColumnType<number, number | undefined, number | undefined>;
 	permissions: ColumnType<string[], string[] | undefined, string[] | undefined>;
+	price_rubles: number;
 }
 
 export type SubscriptionTier = Selectable<SubscriptionTierTable>;
@@ -35,7 +36,12 @@ export interface UserAggregation {
 	subscription_tier: SubscriptionTierTable;
 }
 
-export type UserWithSubscriptionTier = User & {
+export type UserWithNullableSubscriptionTier = User & {
 	subscription?: Subscription | null;
 	subscription_tier?: SubscriptionTier | null;
+};
+
+export type UserWithSubscriptionTier = User & {
+	subscription: Subscription;
+	subscription_tier: SubscriptionTier;
 };

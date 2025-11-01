@@ -16,7 +16,7 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { MarkDownContentTestRepository } from '../../../markdown-content/test-utils/test.repo';
 import { SubjectsTestRepository } from '../../../subject/test-utils/test.repo';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { User, UserWithSubscriptionTier } from '../../../user/user.entity';
+import { User, UserWithNullableSubscriptionTier } from '../../../user/user.entity';
 import { MaterialsTestRepository } from '../../test-utils/test.repo';
 import { MaterialsTestSdk } from '../../test-utils/test.sdk';
 import { Material } from '../../material.entity';
@@ -198,8 +198,8 @@ describe('[E2E] Get materials usecase', () => {
 	});
 
 	describe('Subscriber access tests', () => {
-		let admin: UserWithSubscriptionTier;
-		let student: UserWithSubscriptionTier;
+		let admin: UserWithNullableSubscriptionTier;
+		let student: UserWithNullableSubscriptionTier;
 		let subscriber: TestSubscriber;
 		let accessibleMaterial: Material;
 		let materialForAnotherTier: Material;

@@ -12,6 +12,10 @@ export class SubscriptionTierDto {
 	@IsNotEmpty()
 	tier: string;
 
+	@ApiProperty({ description: 'Subsription tier price' })
+	@IsNumber()
+	price_rubles: number;
+
 	@ApiProperty({ description: 'Subscription tier power' })
 	@IsNumber()
 	@IsNotEmpty()

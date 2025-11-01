@@ -27,6 +27,8 @@ import { InterviewModule } from './interview/interview.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { YookassaModule } from './yookassa/yookassa.module';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
 	imports: [
@@ -57,7 +59,9 @@ import { SubscriptionModule } from './subscription/subscription.module';
 		SubjectModule,
 		TaskModule,
 		TelegramModule.forRoot({ useTelegramAPI: true }),
+		YookassaModule.forRoot({ useYookassaAPI: true }),
 		SubscriptionModule,
+		PaymentModule,
 		UserModule,
 		VideoModule,
 	],
