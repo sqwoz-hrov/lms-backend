@@ -180,3 +180,5 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 data/*
+
+OpenAPI.json

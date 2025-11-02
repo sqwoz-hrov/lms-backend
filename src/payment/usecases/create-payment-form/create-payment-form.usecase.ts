@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
-import { SubscriptionTierRepository } from '../../../subscription/subscription-tier.repository';
+import { SubscriptionTierRepository } from '../../../subscription-tier/subscription-tier.repository';
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { YOOKASSA_CLIENT } from '../../../yookassa/constants';
 import { YookassaClientPort } from '../../../yookassa/services/yookassa-client.interface';

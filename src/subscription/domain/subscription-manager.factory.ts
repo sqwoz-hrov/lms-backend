@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { subscriptionConfig } from '../../config/subscription.config';
-import { SubscriptionTierRepository } from '../subscription-tier.repository';
+import { SubscriptionTierRepository } from '../../subscription-tier/subscription-tier.repository';
 import { SubscriptionManager } from './subscription.manager';
 
 @Injectable()
