@@ -1,6 +1,6 @@
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
-import { CreatePaymentFormDto, PaymentFormResponseDto } from '../usecases/create-payment-form/create-payment-form.dto';
+import { CreatePaymentFormDto, PaymentFormResponseDto } from '../dto/create-payment-form.dto';
 
 export class PaymentTestSdk implements ValidateSDK<PaymentTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}

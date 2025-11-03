@@ -4,7 +4,7 @@ import { SubscriptionTierRepository } from '../../../subscription/subscription-t
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { YOOKASSA_CLIENT } from '../../../yookassa/constants';
 import { YookassaClientPort } from '../../../yookassa/services/yookassa-client.interface';
-import { PaymentFormResponseDto } from './create-payment-form.dto';
+import { PaymentFormResponseDto } from '../../dto/create-payment-form.dto';
 
 @Injectable()
 export class CreatePaymentFormUsecase implements UsecaseInterface {

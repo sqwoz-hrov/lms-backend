@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from '../../../common/interface/request-with-user.interface';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
-import { CreatePaymentFormDto, PaymentFormResponseDto } from './create-payment-form.dto';
+import { CreatePaymentFormDto, PaymentFormResponseDto } from '../../dto/create-payment-form.dto';
 import { CreatePaymentFormUsecase } from './create-payment-form.usecase';
 
 @ApiTags('Payments')

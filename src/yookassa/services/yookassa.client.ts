@@ -13,15 +13,6 @@ import {
 	YookassaWebhookEvent,
 } from './yookassa-client.interface';
 
-export type {
-	YookassaWebhookEvent,
-	YookassaWebhook,
-	YookassaListWebhooksResponse,
-	YookassaPaymentResponse,
-	CreatePaymentFormParams,
-	ChargeSavedPaymentParams,
-} from './yookassa-client.interface';
-
 @Injectable()
 export class YookassaClient implements YookassaClientPort, OnModuleInit {
 	private readonly logger = new Logger(YookassaClient.name);

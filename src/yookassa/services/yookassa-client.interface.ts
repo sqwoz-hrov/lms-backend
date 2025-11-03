@@ -22,9 +22,9 @@ export interface YookassaPaymentResponse {
 		value: string;
 		currency: string;
 	};
-	confirmation?: {
+	confirmation: {
 		type: string;
-		confirmation_url?: string;
+		confirmation_url: string;
 	};
 	payment_method?: {
 		type?: string;
