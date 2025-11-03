@@ -3,7 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import Redis from 'ioredis';
 import { randomWord } from '../../../../test/fixtures/common.fixture';
-import { createEmail, createName } from '../../../../test/fixtures/user.fixture';
+import { createEmail, createName, createTestSubscriptionTier } from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
@@ -41,15 +41,7 @@ describe('[E2E] Finish registration usecase', () => {
 	});
 
 	beforeEach(async () => {
-		const tier = await utilRepository.connection
-			.insertInto('subscription_tier')
-			.values({
-				tier: `free-${randomWord()}`,
-				permissions: [],
-				power: 0,
-			})
-			.returningAll()
-			.executeTakeFirstOrThrow();
+		const tier = await createTestSubscriptionTier(utilRepository, { power: 0, price_rubles: 0 });
 
 		freeTierId = tier.id;
 	});

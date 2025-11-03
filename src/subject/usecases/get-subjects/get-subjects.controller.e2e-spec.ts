@@ -14,7 +14,7 @@ import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { UserWithSubscriptionTier } from '../../../user/user.entity';
+import { UserWithNullableSubscriptionTier } from '../../../user/user.entity';
 import { BaseSubjectDto } from '../../dto/base-subject.dto';
 import { Subject } from '../../subject.entity';
 import { SubjectsTestRepository } from '../../test-utils/test.repo';
@@ -117,7 +117,7 @@ describe('[E2E] Get subjects usecase', () => {
 	});
 
 	describe('Subscriber access tests', () => {
-		let admin: UserWithSubscriptionTier;
+		let admin: UserWithNullableSubscriptionTier;
 		let subscriber: TestSubscriber;
 		let accessibleSubject: Subject;
 		let subjectForAnotherTier: Subject;

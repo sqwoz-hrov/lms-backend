@@ -14,7 +14,7 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UserResponseDto } from '../../dto/user.dto';
 import { UsersTestRepository } from '../../test-utils/test.repo';
 import { UsersTestSdk } from '../../test-utils/test.sdk';
-import { UserWithSubscriptionTier } from '../../user.entity';
+import { UserWithNullableSubscriptionTier } from '../../user.entity';
 
 describe('[E2E] Get user by id usecase', () => {
 	let app: INestApplication;
@@ -23,7 +23,7 @@ describe('[E2E] Get user by id usecase', () => {
 	let userTestSdk: UsersTestSdk;
 
 	const toExpectedUserResponse = (
-		user: UserWithSubscriptionTier,
+		user: UserWithNullableSubscriptionTier,
 		overrides: Partial<UserResponseDto> = {},
 	): UserResponseDto => ({
 		id: user.id,
@@ -171,6 +171,7 @@ describe('[E2E] Get user by id usecase', () => {
 					id: subscriptionTier.id,
 					tier: subscriptionTier.tier,
 					power: subscriptionTier.power,
+					price_rubles: subscriptionTier.price_rubles,
 					permissions: subscriptionTier.permissions ?? [],
 				},
 			}),

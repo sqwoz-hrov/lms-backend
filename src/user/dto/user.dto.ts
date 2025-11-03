@@ -12,7 +12,7 @@ import {
 	IsUUID,
 	ValidateNested,
 } from 'class-validator';
-import { UserRole, UserWithSubscriptionTier } from '../user.entity';
+import { UserRole, UserWithNullableSubscriptionTier } from '../user.entity';
 import { SubscriptionTierDto } from './subsription-tier.dto';
 import { string } from 'zod';
 
@@ -99,7 +99,7 @@ export class UserResponseDto extends BaseUserDto {
 	subscription_tier?: SubscriptionTierDto | null;
 }
 
-export const toUserResponseDto = (user: UserWithSubscriptionTier): UserResponseDto => {
+export const toUserResponseDto = (user: UserWithNullableSubscriptionTier): UserResponseDto => {
 	const subscription = user.subscription ?? null;
 	const subscriptionTier = user.subscription_tier ?? null;
 
@@ -124,6 +124,7 @@ export const toUserResponseDto = (user: UserWithSubscriptionTier): UserResponseD
 					id: subscriptionTier.id,
 					tier: subscriptionTier.tier,
 					power: subscriptionTier.power,
+					price_rubles: subscriptionTier.price_rubles,
 					permissions: subscriptionTier.permissions ?? [],
 				}
 			: null,

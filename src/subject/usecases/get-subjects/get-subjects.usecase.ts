@@ -10,11 +10,7 @@ export class GetSubjectsUsecase implements UsecaseInterface {
 
 	async execute(user: UserWithSubscriptionTier): Promise<SubjectResponseDto[]> {
 		if (user.role === 'subscriber') {
-			const subscriptionTierId = user.subscription?.subscription_tier_id;
-
-			if (!subscriptionTierId) {
-				return [];
-			}
+			const subscriptionTierId = user.subscription.subscription_tier_id;
 
 			return await this.subjectRepository.findBySubscriptionTier(subscriptionTierId);
 		}

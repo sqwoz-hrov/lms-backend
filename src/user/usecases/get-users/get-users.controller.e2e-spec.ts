@@ -103,6 +103,7 @@ describe('[E2E] Get users usecase', () => {
 			tier: subscriptionTier.tier,
 			power: subscriptionTier.power,
 			permissions: subscriptionTier.permissions ?? [],
+			price_rubles: subscriptionTier.price_rubles,
 		});
 	});
 

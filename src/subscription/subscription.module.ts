@@ -7,9 +7,10 @@ import { SubscriptionManagerFactory } from './domain/subscription-manager.factor
 import { SubscriptionActionExecutor } from './services/subscription-action.executor';
 import { HandleYookassaWebhookController } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.controller';
 import { HandleYookassaWebhookUsecase } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.usecase';
-import { YookassaClient } from './services/yookassa.client';
+import { YookassaModule } from '../yookassa/yookassa.module';
 
 @Module({
+	imports: [YookassaModule],
 	controllers: [GiftSubscriptionController, HandleYookassaWebhookController],
 	providers: [
 		GiftSubscriptionUsecase,
@@ -18,8 +19,7 @@ import { YookassaClient } from './services/yookassa.client';
 		SubscriptionTierRepository,
 		SubscriptionManagerFactory,
 		SubscriptionActionExecutor,
-		YookassaClient,
 	],
-	exports: [SubscriptionRepository, SubscriptionManagerFactory, SubscriptionActionExecutor],
+	exports: [SubscriptionRepository, SubscriptionTierRepository, SubscriptionManagerFactory, SubscriptionActionExecutor],
 })
 export class SubscriptionModule {}

@@ -2,66 +2,19 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { yookassaConfig } from '../../config/yookassa.config';
-
-const CURRENCY_RUB = 'RUB';
-
-export type YookassaWebhookEvent = 'payment.succeeded' | 'payment.canceled' | 'payment_method.active';
-
-export interface YookassaWebhook {
-	id: string;
-	event: YookassaWebhookEvent;
-	url: string;
-}
-
-export interface YookassaListWebhooksResponse {
-	items: YookassaWebhook[];
-}
-
-export interface YookassaPaymentResponse {
-	id: string;
-	status: string;
-	paid: boolean;
-	amount: {
-		value: string;
-		currency: string;
-	};
-	confirmation?: {
-		type: string;
-		confirmation_url?: string;
-	};
-	payment_method?: {
-		type?: string;
-		id?: string;
-		saved?: boolean;
-		title?: string;
-	};
-	metadata?: Record<string, unknown>;
-	created_at: string;
-}
-
-export interface CreatePaymentFormParams {
-	amountRubles: number;
-	description: string;
-	userId: string;
-	subscriptionId: string;
-	returnUrl?: string;
-	savePaymentMethod?: boolean;
-	metadata?: Record<string, unknown>;
-	idempotenceKey?: string;
-}
-
-export interface ChargeSavedPaymentParams {
-	amountRubles: number;
-	description: string;
-	userId: string;
-	subscriptionId: string;
-	paymentMethodId: string;
-	metadata?: Record<string, unknown>;
-	idempotenceKey?: string;
-}
+import {
+	ChargeSavedPaymentParams,
+	CreatePaymentFormParams,
+	YOOKASSA_CURRENCY_RUB,
+	YookassaClientPort,
+	YookassaListWebhooksResponse,
+	YookassaPaymentResponse,
+	YookassaWebhook,
+	YookassaWebhookEvent,
+} from './yookassa-client.interface';
 
 @Injectable()
-export class YookassaClient implements OnModuleInit {
+export class YookassaClient implements YookassaClientPort, OnModuleInit {
 	private readonly logger = new Logger(YookassaClient.name);
 	private readonly baseUrl: string;
 	private readonly basicAuthToken: string | null;
@@ -108,7 +61,7 @@ export class YookassaClient implements OnModuleInit {
 		if (!Number.isFinite(valueRubles) || valueRubles <= 0) {
 			throw new Error('Payment amount must be a positive number');
 		}
-		return { value: valueRubles.toFixed(2), currency: CURRENCY_RUB };
+		return { value: valueRubles.toFixed(2), currency: YOOKASSA_CURRENCY_RUB };
 	}
 
 	private getAuthorizationToken(authorizationType: 'Basic' | 'Bearer') {
@@ -172,11 +125,6 @@ export class YookassaClient implements OnModuleInit {
 	}
 
 	async createPaymentForm(params: CreatePaymentFormParams): Promise<YookassaPaymentResponse> {
-		const metadata = {
-			user_id: params.userId,
-			subscription_id: params.subscriptionId,
-			...params.metadata,
-		};
 		const body = {
 			amount: this.serializeAmount(params.amountRubles),
 			capture: true,
@@ -186,7 +134,7 @@ export class YookassaClient implements OnModuleInit {
 				return_url: this.ensureReturnUrl(params.returnUrl),
 			},
 			save_payment_method: params.savePaymentMethod ?? true,
-			metadata,
+			metadata: params.metadata,
 		};
 		return await this.req<YookassaPaymentResponse>('POST', 'payments', {
 			body,
@@ -195,17 +143,12 @@ export class YookassaClient implements OnModuleInit {
 	}
 
 	async chargeSavedPaymentMethod(params: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse> {
-		const metadata = {
-			user_id: params.userId,
-			subscription_id: params.subscriptionId,
-			...params.metadata,
-		};
 		const body = {
 			amount: this.serializeAmount(params.amountRubles),
 			capture: true,
 			description: params.description,
 			payment_method_id: params.paymentMethodId,
-			metadata,
+			metadata: params.metadata,
 		};
 		return await this.req<YookassaPaymentResponse>('POST', 'payments', {
 			body,

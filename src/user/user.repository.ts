@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { Subscription } from '../subscription/subscription.entity';
-import { NewUser, SubscriptionTier, User, UserAggregation, UserWithSubscriptionTier } from './user.entity';
+import { NewUser, SubscriptionTier, User, UserAggregation, UserWithNullableSubscriptionTier } from './user.entity';
 import { Inject } from '@nestjs/common';
 
 type PrefixedValues<T, Prefix extends string> = {
@@ -19,7 +19,7 @@ export class UserRepository {
 		this.connection = dbProvider.getDatabase<UserAggregation>();
 	}
 
-	public async findAll(): Promise<UserWithSubscriptionTier[]> {
+	public async findAll(): Promise<UserWithNullableSubscriptionTier[]> {
 		const rows = await this.connection
 			.selectFrom('user')
 			.leftJoin('subscription', 'subscription.user_id', 'user.id')
@@ -41,6 +41,7 @@ export class UserRepository {
 				'subscription_tier.tier as subscription_tier__tier',
 				'subscription_tier.power as subscription_tier__power',
 				'subscription_tier.permissions as subscription_tier__permissions',
+				'subscription_tier.price_rubles as subscription_tier__price_rubles',
 			])
 			.execute();
 
@@ -54,7 +55,7 @@ export class UserRepository {
 		return user;
 	}
 
-	public async findByIdWithSubscriptionTier(id: string): Promise<UserWithSubscriptionTier | undefined> {
+	public async findByIdWithSubscriptionTier(id: string): Promise<UserWithNullableSubscriptionTier | undefined> {
 		const row = await this.connection
 			.selectFrom('user')
 			.leftJoin('subscription', 'subscription.user_id', 'user.id')
@@ -76,6 +77,7 @@ export class UserRepository {
 				'subscription_tier.tier as subscription_tier__tier',
 				'subscription_tier.power as subscription_tier__power',
 				'subscription_tier.permissions as subscription_tier__permissions',
+				'subscription_tier.price_rubles as subscription_tier__price_rubles',
 			])
 			.where('user.id', '=', id)
 			.limit(1)
@@ -127,7 +129,7 @@ export class UserRepository {
 		return res;
 	}
 
-	private mapRow(row: UserJoinRow): UserWithSubscriptionTier {
+	private mapRow(row: UserJoinRow): UserWithNullableSubscriptionTier {
 		const {
 			subscription__id,
 			subscription__user_id,
@@ -144,6 +146,7 @@ export class UserRepository {
 			subscription_tier__tier,
 			subscription_tier__power,
 			subscription_tier__permissions,
+			subscription_tier__price_rubles,
 			...user
 		} = row;
 
@@ -165,18 +168,22 @@ export class UserRepository {
 				: null;
 
 		const subscriptionTier: SubscriptionTier | null =
-			subscription_tier__id !== null && subscription_tier__tier !== null && subscription_tier__power !== null
+			subscription_tier__id !== null &&
+			subscription_tier__tier !== null &&
+			subscription_tier__power !== null &&
+			subscription_tier__price_rubles
 				? {
 						id: subscription_tier__id,
 						tier: subscription_tier__tier,
 						power: subscription_tier__power,
 						permissions: subscription_tier__permissions ?? [],
+						price_rubles: subscription_tier__price_rubles,
 					}
 				: null;
 
 		const baseUser: User = user;
 
-		const result: UserWithSubscriptionTier = {
+		const result: UserWithNullableSubscriptionTier = {
 			...baseUser,
 			subscription,
 			subscription_tier: subscriptionTier,

@@ -1,6 +1,6 @@
 import { Subscription } from '../../src/subscription/subscription.entity';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { SubscriptionTier, User, UserWithSubscriptionTier } from '../../src/user/user.entity';
+import { SubscriptionTier, User, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
 
 export const createName = () => {
@@ -36,6 +36,7 @@ export const createTestSubscriptionTier = async (
 			tier: tierName,
 			permissions: [],
 			power: resolvedPower,
+			price_rubles: 1000,
 			...restOverrides,
 		})
 		.returningAll()
@@ -89,7 +90,7 @@ type SubscriberFixtureOverrides = Partial<User> & {
 export const createTestSubscriber = async (
 	userRepository: UsersTestRepository,
 	overrides: SubscriberFixtureOverrides = {},
-): Promise<UserWithSubscriptionTier & { subscription: Subscription; subscription_tier: SubscriptionTier }> => {
+): Promise<UserWithNullableSubscriptionTier & { subscription: Subscription; subscription_tier: SubscriptionTier }> => {
 	const { subscription_tier_id, active_until, is_billable, is_archived, ...userOverrides } = overrides;
 
 	const billable = is_billable ?? true;

@@ -8,6 +8,7 @@ const freeTier: SubscriptionTier = {
 	tier: 'free',
 	power: 0,
 	permissions: [],
+	price_rubles: 0,
 };
 
 const paidTier: SubscriptionTier = {
@@ -15,6 +16,7 @@ const paidTier: SubscriptionTier = {
 	tier: 'paid',
 	power: 1,
 	permissions: [],
+	price_rubles: 2000,
 };
 
 const premiumTier: SubscriptionTier = {
@@ -22,6 +24,7 @@ const premiumTier: SubscriptionTier = {
 	tier: 'premium',
 	power: 2,
 	permissions: [],
+	price_rubles: 4000,
 };
 
 const defaultTiers = [freeTier, paidTier, premiumTier];
