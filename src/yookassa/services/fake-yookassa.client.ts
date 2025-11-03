@@ -67,6 +67,7 @@ export class FakeYookassaClient implements YookassaClientPort {
 				id: params.paymentMethodId,
 				saved: true,
 			},
+			confirmation: { confirmation_url: '', type: '' },
 			created_at: new Date().toISOString(),
 		});
 	}

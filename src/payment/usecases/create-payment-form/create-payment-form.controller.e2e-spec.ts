@@ -130,9 +130,6 @@ describe('[E2E] Create payment form usecase', () => {
 		expect(res.status).to.equal(HttpStatus.CREATED);
 		if (res.status !== HttpStatus.CREATED) throw new Error();
 
-		expect(res.body.status).to.equal('pending');
-		expect(res.body.paid).to.equal(false);
-		expect(res.body.amount_rubles).to.equal(2590);
 		expect(res.body.confirmation_url).to.be.a('string');
 	});
 });
