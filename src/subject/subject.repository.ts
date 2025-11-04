@@ -53,6 +53,8 @@ export class SubjectRepository {
 	}
 
 	async openForTiers(subjectId: string, tierIds: string[]): Promise<void> {
+		await this.connection.deleteFrom('subject_tier').where('subject_id', '=', subjectId).execute();
+
 		if (!tierIds.length) {
 			return;
 		}

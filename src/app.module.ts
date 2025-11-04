@@ -27,6 +27,7 @@ import { InterviewModule } from './interview/interview.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { SubscriptionTierModule } from './subscription-tier/subscription-tier.module';
 import { YookassaModule } from './yookassa/yookassa.module';
 import { PaymentModule } from './payment/payment.module';
 
@@ -60,6 +61,7 @@ import { PaymentModule } from './payment/payment.module';
 		TaskModule,
 		TelegramModule.forRoot({ useTelegramAPI: true }),
 		YookassaModule.forRoot({ useYookassaAPI: true }),
+		SubscriptionTierModule,
 		SubscriptionModule,
 		PaymentModule,
 		UserModule,

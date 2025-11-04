@@ -43,7 +43,7 @@ export class RoleGuard implements CanActivate {
 			throw new UnauthorizedException('User not found');
 		}
 
-		if (!user.finished_registration) {
+		if (user.role === 'subscriber' && !user.finished_registration) {
 			throw new UnauthorizedException('Registration not finished');
 		}
 

@@ -8,7 +8,7 @@ import { GetUserUsecase } from './get-user.usecase';
 
 @ApiTags('Users')
 @Controller('users')
-@Roles('admin', 'user')
+@Roles('admin', 'user', 'subscriber')
 export class GetUserController {
 	constructor(private readonly getUserUsecase: GetUserUsecase) {}
 

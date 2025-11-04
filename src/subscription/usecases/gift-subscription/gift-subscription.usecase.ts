@@ -5,7 +5,7 @@ import { SubscriptionManagerFactory } from '../../domain/subscription-manager.fa
 import { GiftSubscriptionDto } from '../../dto/gift-subscription.dto';
 import { SubscriptionResponseDto } from '../../dto/subscription-response.dto';
 import { SubscriptionActionExecutor } from '../../services/subscription-action.executor';
-import { SubscriptionTierRepository } from '../../subscription-tier.repository';
+import { SubscriptionTierRepository } from '../../../subscription-tier/subscription-tier.repository';
 import { SubscriptionRepository } from '../../subscription.repository';
 
 @Injectable()

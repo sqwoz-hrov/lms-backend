@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { DEFAULT_ERROR_MESSAGE } from './common/nest/const';
+import { writeFileSync } from 'fs';
 
 export const createSwagger = (nestApplication: INestApplication) => {
 	const config = new DocumentBuilder()
@@ -33,5 +34,9 @@ export const createSwagger = (nestApplication: INestApplication) => {
 		jsonDocumentUrl: '/api/openapi.json',
 	});
 
-	return JSON.stringify(document);
+	const jsonDocs = JSON.stringify(document);
+
+	writeFileSync('OpenAPI.json', jsonDocs);
+
+	return jsonDocs;
 };

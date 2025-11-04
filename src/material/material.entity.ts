@@ -32,4 +32,5 @@ export interface MaterialAggregation {
 
 export type MaterialWithContent = Material & {
 	markdown_content?: string;
+	subscription_tier_ids?: string[];
 };
