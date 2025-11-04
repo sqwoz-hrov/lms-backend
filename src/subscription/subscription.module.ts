@@ -19,6 +19,6 @@ import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.m
 		SubscriptionManagerFactory,
 		SubscriptionActionExecutor,
 	],
-	exports: [SubscriptionRepository, SubscriptionTierModule, SubscriptionManagerFactory, SubscriptionActionExecutor],
+	exports: [SubscriptionRepository, SubscriptionManagerFactory, SubscriptionActionExecutor],
 })
 export class SubscriptionModule {}
