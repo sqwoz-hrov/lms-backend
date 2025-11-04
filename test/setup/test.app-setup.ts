@@ -33,6 +33,7 @@ import { VideoModule } from '../../src/video/video.module';
 import { SubscriptionModule } from '../../src/subscription/subscription.module';
 import { PaymentModule } from '../../src/payment/payment.module';
 import { YookassaModule } from '../../src/yookassa/yookassa.module';
+import { PostModule } from '../../src/post/post.module';
 import { setupValidation } from '../../src/validation';
 import { startAllContainers } from './test.start-all-containers';
 import { SilentLogger } from '../test.silent-logger';
@@ -85,6 +86,7 @@ export const mochaHooks = {
 				TaskModule,
 				TelegramModule.forRoot({ useTelegramAPI: false }),
 				SubscriptionModule,
+				PostModule,
 				UserModule,
 				VideoModule,
 			],
