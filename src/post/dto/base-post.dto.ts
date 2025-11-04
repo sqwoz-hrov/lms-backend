@@ -35,11 +35,6 @@ export class BasePostDto {
 }
 
 export class LockedPostPreviewDto {
-	@ApiProperty({ example: '********' })
-	@IsString()
-	@IsNotEmpty()
-	masked_text: string;
-
 	@ApiProperty()
 	@IsBoolean()
 	has_video: boolean;

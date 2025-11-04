@@ -5,6 +5,7 @@ import { PostResponseDto } from '../dto/base-post.dto';
 import { UpdatePostDto } from '../dto/update-post.dto';
 import { DeletePostDto } from '../dto/delete-post.dto';
 import { GetPostsDto } from '../dto/get-posts.dto';
+import { OpenPostForTiersDto } from '../dto/open-post-for-tiers.dto';
 
 export class PostsTestSdk implements ValidateSDK<PostsTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -45,6 +46,14 @@ export class PostsTestSdk implements ValidateSDK<PostsTestSdk> {
 		});
 	}
 
+	async getPostById({ params, userMeta }: { params: { id: string }; userMeta: UserMeta }) {
+		return this.testClient.request<PostResponseDto>({
+			path: `/posts/${params.id}`,
+			method: 'GET',
+			userMeta,
+		});
+	}
+
 	async updatePost({ params, userMeta }: { params: UpdatePostDto; userMeta: UserMeta }) {
 		return this.testClient.request<PostResponseDto>({
 			path: '/posts',
@@ -58,6 +67,23 @@ export class PostsTestSdk implements ValidateSDK<PostsTestSdk> {
 		return this.testClient.request<PostResponseDto>({
 			path: '/posts',
 			method: 'DELETE',
+			body: params,
+			userMeta,
+		});
+	}
+
+	async openPostForTiers({
+		postId,
+		params,
+		userMeta,
+	}: {
+		postId: string;
+		params: OpenPostForTiersDto;
+		userMeta: UserMeta;
+	}) {
+		return this.testClient.request<void>({
+			path: `/posts/${postId}/open-for-tiers`,
+			method: 'POST',
 			body: params,
 			userMeta,
 		});

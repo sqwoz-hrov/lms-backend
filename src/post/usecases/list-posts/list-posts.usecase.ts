@@ -76,23 +76,12 @@ export class ListPostsUsecase implements UsecaseInterface {
 			};
 		}
 
-		const maskedText = this.maskMarkdown(post.markdown_content);
-
 		return {
 			video_id: undefined,
-			markdown_content: maskedText,
+			markdown_content: undefined,
 			locked_preview: {
-				masked_text: maskedText,
 				has_video: hasVideo,
 			},
 		};
-	}
-
-	private maskMarkdown(markdown: string): string {
-		if (!markdown) {
-			return '';
-		}
-
-		return markdown.replace(/[^\r\n]/g, '*');
 	}
 }

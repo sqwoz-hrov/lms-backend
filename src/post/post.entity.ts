@@ -14,7 +14,7 @@ export type PostUpdate = Updateable<PostTable>;
 
 export interface PostTierTable {
 	post_id: string;
-	subscription_tier_id: string;
+	tier_id: string;
 }
 
 export type PostTier = Selectable<PostTierTable>;

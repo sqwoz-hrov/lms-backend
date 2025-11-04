@@ -42,6 +42,28 @@ export class PostRepository {
 		return await this.connection.selectFrom('post').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
+	async findByIdWithContent(id: string): Promise<PostWithContent | undefined> {
+		const row = await this.connection
+			.selectFrom('post')
+			.innerJoin('markdown_content', 'markdown_content.id', 'post.markdown_content_id')
+			.selectAll('post')
+			.select(eb => [eb.ref('markdown_content.content_text').as('markdown_content')])
+			.where('post.id', '=', id)
+			.limit(1)
+			.executeTakeFirst();
+
+		if (!row) {
+			return undefined;
+		}
+
+		const { markdown_content, ...post } = row;
+
+		return {
+			...post,
+			markdown_content: markdown_content ?? '',
+		};
+	}
+
 	async list(params: PaginatedPostsParams = {}): Promise<PostWithContent[]> {
 		const { pagination, subscriptionTierId } = params;
 
@@ -59,7 +81,7 @@ export class PostRepository {
 							.selectFrom('post_tier')
 							.select('post_tier.post_id')
 							.whereRef('post_tier.post_id', '=', 'post.id')
-							.where('post_tier.subscription_tier_id', '=', subscriptionTierId),
+							.where('post_tier.tier_id', '=', subscriptionTierId),
 					),
 					eb.not(
 						eb.exists(
@@ -95,7 +117,7 @@ export class PostRepository {
 
 		const rows = await this.connection
 			.selectFrom('post_tier')
-			.select(['post_tier.post_id as post_id', 'post_tier.subscription_tier_id as subscription_tier_id'])
+			.select(['post_tier.post_id as post_id', 'post_tier.tier_id as tier_id'])
 			.where('post_tier.post_id', 'in', Array.from(postIds))
 			.execute();
 
@@ -104,8 +126,22 @@ export class PostRepository {
 				acc[row.post_id] = [];
 			}
 
-			acc[row.post_id].push(row.subscription_tier_id);
+			acc[row.post_id].push(row.tier_id);
 			return acc;
 		}, {});
+	}
+
+	async openForTiers(postId: string, tierIds: string[]): Promise<void> {
+		await this.connection.deleteFrom('post_tier').where('post_id', '=', postId).execute();
+
+		if (!tierIds.length) {
+			return;
+		}
+
+		await this.connection
+			.insertInto('post_tier')
+			.values(tierIds.map(subscriptionTierId => ({ post_id: postId, tier_id: subscriptionTierId })))
+			.onConflict(oc => oc.columns(['post_id', 'tier_id']).doNothing())
+			.execute();
 	}
 }

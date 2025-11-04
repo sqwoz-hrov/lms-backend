@@ -229,11 +229,11 @@ describe('[E2E] List posts usecase', () => {
 				.values([
 					{
 						post_id: accessiblePost.post.id,
-						subscription_tier_id: subscriber.subscription.subscription_tier_id,
+						tier_id: subscriber.subscription.subscription_tier_id,
 					},
 					{
 						post_id: restrictedPost.post.id,
-						subscription_tier_id: otherTier.id,
+						tier_id: otherTier.id,
 					},
 				])
 				.execute();
@@ -266,11 +266,8 @@ describe('[E2E] List posts usecase', () => {
 			expect(publicEntry.markdown_content).to.equal(publicPost.markdown.content_text);
 			expect(publicEntry.locked_preview).to.be.an('undefined');
 
-			const expectedMasked = restrictedPost.markdown.content_text.replace(/[^\r\n]/g, '*');
-			expect(restricted.markdown_content).to.equal(expectedMasked);
 			expect(restricted.video_id).to.equal(undefined);
 			expect(restricted.locked_preview).to.deep.equal({
-				masked_text: expectedMasked,
 				has_video: true,
 			});
 		});
@@ -288,11 +285,11 @@ describe('[E2E] List posts usecase', () => {
 				.values([
 					{
 						post_id: accessiblePost.post.id,
-						subscription_tier_id: subscriber.subscription.subscription_tier_id,
+						tier_id: subscriber.subscription.subscription_tier_id,
 					},
 					{
 						post_id: restrictedPost.post.id,
-						subscription_tier_id: otherTier.id,
+						tier_id: otherTier.id,
 					},
 				])
 				.execute();
@@ -323,10 +320,7 @@ describe('[E2E] List posts usecase', () => {
 
 			expect(accessible.locked_preview).to.be.an('undefined');
 
-			const expectedMasked = restrictedPost.markdown.content_text.replace(/[^\r\n]/g, '*');
-			expect(restricted.markdown_content).to.equal(expectedMasked);
 			expect(restricted.locked_preview).to.deep.equal({
-				masked_text: expectedMasked,
 				has_video: false,
 			});
 		});

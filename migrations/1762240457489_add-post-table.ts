@@ -13,7 +13,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable('post_tier')
 		.addColumn('post_id', 'uuid', col => col.references('post.id').onDelete('cascade'))
-		.addColumn('subscription_tier_id', 'uuid', col => col.references('subscription_tier.id').onDelete('cascade'))
+		.addColumn('tier_id', 'uuid', col => col.references('subscription_tier.id').onDelete('cascade'))
+		.addPrimaryKeyConstraint('post_tier_pkey', ['tier_id', 'post_id'])
 		.execute();
 }
 
