@@ -26,6 +26,7 @@ export class CreatePostUsecase implements UsecaseInterface {
 			...post,
 			video_id: post.video_id ?? undefined,
 			markdown_content: markdown.content_text,
+			locked_preview: undefined,
 		};
 	}
 }

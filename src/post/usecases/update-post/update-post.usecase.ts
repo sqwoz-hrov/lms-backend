@@ -31,6 +31,7 @@ export class UpdatePostUsecase implements UsecaseInterface {
 			...updated,
 			video_id: updated.video_id ?? undefined,
 			markdown_content: markdown.content_text,
+			locked_preview: undefined,
 		};
 	}
 }

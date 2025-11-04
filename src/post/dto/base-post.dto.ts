@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 
 export class BasePostDto {
 	@ApiProperty()
@@ -33,4 +34,21 @@ export class BasePostDto {
 	created_at: Date;
 }
 
-export class PostResponseDto extends BasePostDto {}
+export class LockedPostPreviewDto {
+	@ApiProperty({ example: '********' })
+	@IsString()
+	@IsNotEmpty()
+	masked_text: string;
+
+	@ApiProperty()
+	@IsBoolean()
+	has_video: boolean;
+}
+
+export class PostResponseDto extends BasePostDto {
+	@ApiPropertyOptional({ type: () => LockedPostPreviewDto })
+	@ValidateNested()
+	@Type(() => LockedPostPreviewDto)
+	@IsOptional()
+	locked_preview?: LockedPostPreviewDto;
+}

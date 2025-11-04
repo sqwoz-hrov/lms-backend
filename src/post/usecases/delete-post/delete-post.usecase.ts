@@ -29,6 +29,7 @@ export class DeletePostUsecase implements UsecaseInterface {
 			...deleted,
 			video_id: deleted.video_id ?? undefined,
 			markdown_content: markdown.content_text,
+			locked_preview: undefined,
 		};
 	}
 }

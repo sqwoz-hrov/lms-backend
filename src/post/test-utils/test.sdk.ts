@@ -4,6 +4,7 @@ import { CreatePostDto } from '../dto/create-post.dto';
 import { PostResponseDto } from '../dto/base-post.dto';
 import { UpdatePostDto } from '../dto/update-post.dto';
 import { DeletePostDto } from '../dto/delete-post.dto';
+import { GetPostsDto } from '../dto/get-posts.dto';
 
 export class PostsTestSdk implements ValidateSDK<PostsTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -13,6 +14,33 @@ export class PostsTestSdk implements ValidateSDK<PostsTestSdk> {
 			path: '/posts',
 			method: 'POST',
 			body: params,
+			userMeta,
+		});
+	}
+
+	async getPosts({ query, userMeta }: { query?: Partial<GetPostsDto>; userMeta: UserMeta }) {
+		let path = '/posts';
+
+		if (query && Object.keys(query).length > 0) {
+			const queryParams = new URLSearchParams();
+
+			for (const [key, value] of Object.entries(query)) {
+				if (value === undefined || value === null) {
+					continue;
+				}
+
+				queryParams.append(key, String(value));
+			}
+
+			const queryString = queryParams.toString();
+			if (queryString) {
+				path = `${path}?${queryString}`;
+			}
+		}
+
+		return this.testClient.request<PostResponseDto[]>({
+			path,
+			method: 'GET',
 			userMeta,
 		});
 	}

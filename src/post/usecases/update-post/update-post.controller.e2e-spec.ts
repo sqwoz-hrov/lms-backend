@@ -2,7 +2,7 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { createTestPost } from '../../../../test/fixtures/post.fixture';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import { createTestAdmin, createTestSubscriber, createTestUser } from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
@@ -80,7 +80,7 @@ describe('[E2E] Update post usecase', () => {
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('Non-admin gets 401', async () => {
+	it('Regular user gets 401', async () => {
 		const user = await createTestUser(userUtilRepository);
 		const { post } = await createTestPost(postUtilRepository, markdownUtilRepository);
 
@@ -91,6 +91,25 @@ describe('[E2E] Update post usecase', () => {
 			},
 			userMeta: {
 				userId: user.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
+	});
+
+	it('Subscriber gets 401', async () => {
+		const subscriber = await createTestSubscriber(userUtilRepository);
+		const { post } = await createTestPost(postUtilRepository, markdownUtilRepository);
+
+		const res = await postTestSdk.updatePost({
+			params: {
+				id: post.id,
+				title: 'Updated title',
+			},
+			userMeta: {
+				userId: subscriber.id,
 				isAuth: true,
 				isWrongAccessJwt: false,
 			},

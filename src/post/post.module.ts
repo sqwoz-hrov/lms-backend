@@ -6,9 +6,11 @@ import { CreatePostUsecase } from './usecases/create-post/create-post.usecase';
 import { UpdatePostUsecase } from './usecases/update-post/update-post.usecase';
 import { DeletePostUsecase } from './usecases/delete-post/delete-post.usecase';
 import { PostRepository } from './post.repository';
+import { ListPostsController } from './usecases/list-posts/list-posts.controller';
+import { ListPostsUsecase } from './usecases/list-posts/list-posts.usecase';
 
 @Module({
-	controllers: [CreatePostController, UpdatePostController, DeletePostController],
-	providers: [CreatePostUsecase, UpdatePostUsecase, DeletePostUsecase, PostRepository],
+	controllers: [CreatePostController, UpdatePostController, DeletePostController, ListPostsController],
+	providers: [CreatePostUsecase, UpdatePostUsecase, DeletePostUsecase, ListPostsUsecase, PostRepository],
 })
 export class PostModule {}
