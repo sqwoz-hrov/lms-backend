@@ -30,6 +30,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { SubscriptionTierModule } from './subscription-tier/subscription-tier.module';
 import { YookassaModule } from './yookassa/yookassa.module';
 import { PaymentModule } from './payment/payment.module';
+import { PostModule } from './post/post.module';
 
 @Module({
 	imports: [
@@ -66,6 +67,7 @@ import { PaymentModule } from './payment/payment.module';
 		PaymentModule,
 		UserModule,
 		VideoModule,
+		PostModule,
 	],
 	controllers: [],
 	providers: [],
