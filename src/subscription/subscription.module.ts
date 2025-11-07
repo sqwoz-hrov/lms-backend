@@ -4,6 +4,8 @@ import { GiftSubscriptionUsecase } from './usecases/gift-subscription/gift-subsc
 import { SubscriptionRepository } from './subscription.repository';
 import { SubscriptionManagerFactory } from './domain/subscription-manager.factory';
 import { SubscriptionActionExecutor } from './services/subscription-action.executor';
+import { SubscriptionBillingService } from './services/subscription-billing.service';
+import { SubscriptionBillingScheduler } from './services/subscription-billing.scheduler';
 import { HandleYookassaWebhookController } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.controller';
 import { HandleYookassaWebhookUsecase } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.usecase';
 import { DeletePaymentMethodController } from './usecases/delete-payment-method/delete-payment-method.controller';
@@ -21,6 +23,8 @@ import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.m
 		SubscriptionRepository,
 		SubscriptionManagerFactory,
 		SubscriptionActionExecutor,
+		SubscriptionBillingService,
+		SubscriptionBillingScheduler,
 	],
 	exports: [SubscriptionRepository, SubscriptionManagerFactory, SubscriptionActionExecutor],
 })

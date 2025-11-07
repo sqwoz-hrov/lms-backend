@@ -11,6 +11,7 @@ import {
 	s3Config,
 	yookassaConfig,
 	subscriptionConfig,
+	subscriptionBillingConfig,
 } from './config';
 import { ImageModule } from './image/image.module';
 import { InfraModule } from './infra/infra.module';
@@ -46,6 +47,7 @@ import { PostModule } from './post/post.module';
 				s3Config,
 				yookassaConfig,
 				subscriptionConfig,
+				subscriptionBillingConfig,
 			],
 			isGlobal: true,
 		}),

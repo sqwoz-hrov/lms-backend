@@ -29,6 +29,7 @@ export default tseslint.config(
   },
   {
     rules: {
+      '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/interface-name-prefix': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',

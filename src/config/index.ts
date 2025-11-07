@@ -8,3 +8,4 @@ export { redisConfig } from './redis.config';
 export { s3Config } from './s3.config';
 export { yookassaConfig } from './yookassa.config';
 export { subscriptionConfig } from './subscription.config';
+export { subscriptionBillingConfig } from './subscription-billing.config';

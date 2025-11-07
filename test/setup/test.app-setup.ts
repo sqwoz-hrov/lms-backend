@@ -16,6 +16,7 @@ import {
 	s3Config,
 	yookassaConfig,
 	subscriptionConfig,
+	subscriptionBillingConfig,
 } from '../../src/config';
 import { FeedbackModule } from '../../src/feedback/feedback.module';
 import { HrConnectionModule } from '../../src/hr-connection/hr-connection.module';
@@ -68,6 +69,7 @@ export const mochaHooks = {
 						s3Config,
 						yookassaConfig,
 						subscriptionConfig,
+						subscriptionBillingConfig,
 					],
 					isGlobal: true,
 					envFilePath: '.env.test',

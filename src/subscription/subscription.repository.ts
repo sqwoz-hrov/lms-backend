@@ -23,11 +23,26 @@ export type SubscriptionTransaction = Transaction<SubscriptionDatabase>;
 
 type SubscriptionQueryExecutor = Kysely<SubscriptionDatabase> | SubscriptionTransaction;
 
+const MS_IN_DAY = 24 * 60 * 60 * 1000;
+
 type UpsertPaymentMethodParams = {
 	user_id: string;
 	payment_method_id: string;
 	type: PaymentMethodType;
 	last4?: string | null;
+};
+
+type FindBillableSubscriptionsParams = {
+	runDate: Date;
+	leadTimeDays: number;
+	retryWindowDays: number;
+	limit: number;
+	trx?: SubscriptionTransaction;
+};
+
+export type BillableSubscriptionRow = Subscription & {
+	billing_payment_method_id: string;
+	billing_payment_method_type: PaymentMethodType;
 };
 
 @Injectable()
@@ -101,6 +116,32 @@ export class SubscriptionRepository {
 			.forUpdate()
 			.limit(1)
 			.executeTakeFirst();
+	}
+
+	async findBillableSubscriptions(params: FindBillableSubscriptionsParams): Promise<BillableSubscriptionRow[]> {
+		const executor = this.getExecutor(params.trx);
+		const chargeBefore = new Date(params.runDate.getTime() + params.leadTimeDays * MS_IN_DAY);
+		const retryAfter = new Date(params.runDate.getTime() - params.retryWindowDays * MS_IN_DAY);
+
+		return await executor
+			.selectFrom('subscription')
+			.innerJoin('payment_method', 'payment_method.user_id', 'subscription.user_id')
+			.selectAll('subscription')
+			.select(eb => [
+				eb.ref('payment_method.payment_method_id').as('billing_payment_method_id'),
+				eb.ref('payment_method.type').as('billing_payment_method_type'),
+			])
+			.where('subscription.is_gifted', '=', false)
+			.where('subscription.billing_period_days', '>', 0)
+			.where(
+				sql<boolean>`(subscription.current_period_end IS NULL OR subscription.current_period_end <= ${chargeBefore})`,
+			)
+			.where(
+				sql<boolean>`(subscription.last_billing_attempt IS NULL OR subscription.last_billing_attempt <= ${retryAfter})`,
+			)
+			.orderBy('subscription.current_period_end', 'asc')
+			.limit(params.limit)
+			.execute();
 	}
 
 	async insertPaymentEvent(data: NewPaymentEvent, trx?: SubscriptionTransaction): Promise<PaymentEvent> {
