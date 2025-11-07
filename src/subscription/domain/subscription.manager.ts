@@ -19,13 +19,6 @@ interface SubscriptionManagerOptions {
 	defaultGracePeriodSize?: number;
 }
 
-interface BillingCronParams {
-	user: Pick<User, 'id'>;
-	subscription: SubscriptionState;
-	outcome: 'success' | 'failure';
-	now?: Date;
-}
-
 interface PaymentEventParams {
 	user: Pick<User, 'id'>;
 	subscription: SubscriptionState;
@@ -132,42 +125,6 @@ export class SubscriptionManager {
 			existing.is_gifted && existing.subscription_tier_id === params.targetTier.id ? 'prolong' : 'upgrade';
 
 		return { action: { do: doAction, subscription: updated } };
-	}
-
-	handleBillingCron(params: BillingCronParams): { action: SubscriptionAction } {
-		const now = params.now ?? new Date();
-		const subscription = params.subscription;
-
-		if (params.outcome === 'success') {
-			const base = this.maxDate(subscription.current_period_end, now);
-			const periodDays = this.normalizePeriodDays(subscription.billing_period_days || this.defaultBillingPeriodDays);
-			const nextEnd = this.addDays(base, periodDays);
-
-			const updated: SubscriptionState = {
-				...subscription,
-				current_period_end: nextEnd,
-				last_billing_attempt: now,
-			};
-
-			return { action: { do: 'prolong', subscription: updated } };
-		}
-
-		const withinGrace = this.isWithinGracePeriod(subscription, now);
-
-		if (withinGrace) {
-			const updated: SubscriptionState = {
-				...subscription,
-				last_billing_attempt: now,
-			};
-
-			return {
-				action: { do: 'update_billing_data', subscription: updated },
-			};
-		}
-
-		const downgraded = this.downgradeToFreeTier(subscription, now);
-
-		return { action: { do: 'downgrade', subscription: downgraded } };
 	}
 
 	handlePaymentEvent(params: PaymentEventParams): { action: SubscriptionAction } {

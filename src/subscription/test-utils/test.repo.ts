@@ -7,6 +7,7 @@ import {
 	Subscription,
 	PaymentMethod,
 	PaymentMethodTable,
+	PaymentMethodType,
 	SubscriptionTable,
 } from '../subscription.entity';
 
@@ -50,16 +51,28 @@ export class SubscriptionTestRepository {
 		return await query.execute();
 	}
 
-	async upsertPaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<void> {
+	async upsertPaymentMethod(params: {
+		userId: string;
+		paymentMethodId: string;
+		type?: PaymentMethodType;
+		last4?: string | null;
+	}): Promise<void> {
+		const type = params.type ?? 'bank_card';
+		const normalizedLast4 = type === 'bank_card' ? (params.last4 ?? null) : null;
+
 		await this.connection
 			.insertInto('payment_method')
 			.values({
 				user_id: params.userId,
 				payment_method_id: params.paymentMethodId,
+				type,
+				last4: normalizedLast4,
 			})
 			.onConflict(oc =>
 				oc.column('user_id').doUpdateSet({
 					payment_method_id: params.paymentMethodId,
+					type,
+					last4: normalizedLast4,
 				}),
 			)
 			.execute();

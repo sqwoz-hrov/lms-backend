@@ -7,14 +7,18 @@ export const SUPPORTED_EVENTS = new Set(['payment.succeeded', 'payment.canceled'
 
 type YookassaCurrency = 'RUB';
 
-type YookassaPaymentMethodType =
+export type YookassaPaymentMethodType =
 	| 'bank_card'
 	| 'yoo_money'
+	| 'electronic_certificate'
 	| 'sberbank'
 	| 'tinkoff_bank'
 	| 'sbp'
+	| 'sber_loan'
+	| 'sber_bnpl'
 	| 'b2b_sberbank'
-	| 'sber_loan';
+	| 'mobile_balance'
+	| 'cash';
 
 interface YookassaAmount {
 	value: string;
@@ -33,8 +37,8 @@ interface YookassaCardInfo {
 
 interface YookassaPaymentMethod {
 	type: YookassaPaymentMethodType;
-	id?: string;
-	saved?: boolean;
+	id: string;
+	saved: boolean;
 	title?: string;
 	card?: YookassaCardInfo;
 }
@@ -79,41 +83,18 @@ export interface YookassaPaymentCanceledWebhook {
 	};
 }
 
-export interface YookassaPaymentMethodActiveWebhook {
-	event: 'payment_method.active';
-	object: {
-		type: YookassaPaymentMethodType;
-		id: string;
-		saved: true;
-		status: 'active';
-		title?: string;
-		created_at?: string;
-		metadata?: Record<string, unknown>;
-		card?: YookassaCardInfo;
-	};
-}
-
-export type YookassaWebhookPayload =
-	| YookassaPaymentSucceededWebhook
-	| YookassaPaymentCanceledWebhook
-	| YookassaPaymentMethodActiveWebhook;
+export type YookassaWebhookPayload = YookassaPaymentSucceededWebhook | YookassaPaymentCanceledWebhook;
 
 export type PaymentWebhookEvent =
 	| {
 			type: 'payment.succeeded';
 			meta: EventMetadata;
+			paymentMethod?: YookassaPaymentMethod;
 			occurredAt: Date;
 	  }
 	| {
 			type: 'payment.canceled';
 			meta: EventMetadata;
+			paymentMethod?: YookassaPaymentMethod;
 			occurredAt: Date;
 	  };
-
-export type PaymentMethodActiveWebhookEvent = {
-	type: 'payment_method.active';
-	occurredAt: Date;
-	paymentMethodId: string;
-};
-
-export type WebhookEvent = PaymentWebhookEvent | PaymentMethodActiveWebhookEvent;

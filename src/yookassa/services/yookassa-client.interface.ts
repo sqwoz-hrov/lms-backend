@@ -54,9 +54,6 @@ export interface ChargeSavedPaymentParams {
 }
 
 export interface YookassaClientPort {
-	listWebhooks(): Promise<YookassaListWebhooksResponse>;
-	createWebhook(event: YookassaWebhookEvent, url: string): Promise<YookassaWebhook>;
-	deleteWebhook(id: string): Promise<void>;
 	createPaymentForm(params: CreatePaymentFormParams): Promise<YookassaPaymentResponse>;
 	chargeSavedPaymentMethod(params: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse>;
 }

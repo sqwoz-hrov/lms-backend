@@ -1,17 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Kysely, Transaction, sql } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
+import { UserAggregation } from '../user/user.entity';
 import {
 	NewPaymentEvent,
 	NewSubscription,
 	PaymentEvent,
 	PaymentEventTable,
 	PaymentMethod,
+	PaymentMethodType,
 	Subscription,
 	SubscriptionAggregation,
 	SubscriptionUpdate,
 } from './subscription.entity';
-import { UserAggregation } from '../user/user.entity';
 
 export type SubscriptionDatabase = SubscriptionAggregation &
 	UserAggregation & {
@@ -21,6 +22,13 @@ export type SubscriptionDatabase = SubscriptionAggregation &
 export type SubscriptionTransaction = Transaction<SubscriptionDatabase>;
 
 type SubscriptionQueryExecutor = Kysely<SubscriptionDatabase> | SubscriptionTransaction;
+
+type UpsertPaymentMethodParams = {
+	user_id: string;
+	payment_method_id: string;
+	type: PaymentMethodType;
+	last4?: string | null;
+};
 
 @Injectable()
 export class SubscriptionRepository {
@@ -100,20 +108,23 @@ export class SubscriptionRepository {
 		return await executor.insertInto('payment_event').values(data).returningAll().executeTakeFirstOrThrow();
 	}
 
-	async upsertPaymentMethod(
-		params: { userId: string; paymentMethodId: string },
-		trx?: SubscriptionTransaction,
-	): Promise<PaymentMethod> {
+	async upsertPaymentMethod(params: UpsertPaymentMethodParams, trx?: SubscriptionTransaction): Promise<PaymentMethod> {
 		const executor = this.getExecutor(trx);
+		const normalizedLast4 = params.type === 'bank_card' ? (params.last4 ?? null) : null;
+
 		return await executor
 			.insertInto('payment_method')
 			.values({
-				user_id: params.userId,
-				payment_method_id: params.paymentMethodId,
+				user_id: params.user_id,
+				payment_method_id: params.payment_method_id,
+				type: params.type,
+				last4: normalizedLast4,
 			})
 			.onConflict(oc =>
 				oc.column('user_id').doUpdateSet({
-					payment_method_id: params.paymentMethodId,
+					payment_method_id: params.payment_method_id,
+					type: params.type,
+					last4: normalizedLast4,
 					updated_at: sql`now()`,
 				}),
 			)
@@ -129,5 +140,10 @@ export class SubscriptionRepository {
 			.where('user_id', '=', userId)
 			.limit(1)
 			.executeTakeFirst();
+	}
+
+	async deletePaymentMethodByUserId(userId: string, trx?: SubscriptionTransaction): Promise<void> {
+		const executor = this.getExecutor(trx);
+		await executor.deleteFrom('payment_method').where('user_id', '=', userId).execute();
 	}
 }

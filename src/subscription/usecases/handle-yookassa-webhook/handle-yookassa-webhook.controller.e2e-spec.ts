@@ -130,6 +130,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await subscriptionRepo.upsertPaymentMethod({
 			userId: user.id,
 			paymentMethodId: 'pm-123',
+			type: 'bank_card',
 		});
 
 		const occurredAt = new Date('2024-12-15T12:00:00.000Z');
@@ -148,6 +149,12 @@ describe('[E2E] Handle YooKassa webhook', () => {
 					subscription_tier_id: subscription.subscription_tier_id,
 				},
 				created_at: occurredAt.toISOString(),
+				payment_method: {
+					id: 'pm-123',
+					type: 'bank_card',
+					saved: true,
+					card: { last4: '4242' },
+				},
 			},
 		};
 
@@ -169,10 +176,76 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
 		expect(paymentMethod?.payment_method_id).to.equal('pm-123');
+		expect(paymentMethod?.type).to.equal('bank_card');
+		expect(paymentMethod?.last4).to.equal('4242');
 
 		const events = await subscriptionRepo.findPaymentEvents({ subscriptionId: subscription.id });
 		expect(events.length).to.equal(1);
 		expect(events[0].event).to.deep.equal(payload);
+	});
+
+	it('stores payment method if present in webhook', async () => {
+		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free' });
+		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium' });
+		expect(freeTier.id).to.not.equal(premiumTier.id);
+
+		const user = await createTestUser(usersRepo, { role: 'subscriber' });
+
+		const subscription = await subscriptionRepo.insert({
+			user_id: user.id,
+			subscription_tier_id: premiumTier.id,
+			price_on_purchase_rubles: 2500,
+			is_gifted: false,
+			grace_period_size: 3,
+			billing_period_days: 30,
+			current_period_end: new Date('2025-02-01T00:00:00.000Z'),
+			last_billing_attempt: new Date('2025-01-01T00:00:00.000Z'),
+		});
+
+		const before = await subscriptionRepo.findPaymentMethod(user.id);
+		expect(before).to.be.a('undefined');
+
+		const occurredAt = new Date('2025-01-15T10:00:00.000Z');
+		const payload: YookassaPaymentSucceededWebhook = {
+			event: 'payment.succeeded',
+			object: {
+				id: 'payment-store-method-001',
+				status: 'succeeded',
+				paid: true,
+				amount: {
+					value: '2500.00',
+					currency: 'RUB',
+				},
+				metadata: {
+					user_id: user.id,
+					subscription_tier_id: subscription.subscription_tier_id,
+				},
+				created_at: occurredAt.toISOString(),
+				payment_method: {
+					id: 'pm-999',
+					type: 'bank_card',
+					saved: true,
+					card: { last4: '9999' },
+				},
+			},
+		};
+
+		const response = await subscriptionSdk.sendYookassaWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+
+		const storedPaymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
+		expect(storedPaymentMethod).to.not.be.a('undefined');
+		if (!storedPaymentMethod) {
+			throw new Error('Payment method not persisted');
+		}
+
+		expect(storedPaymentMethod.payment_method_id).to.equal('pm-999');
+		expect(storedPaymentMethod.type).to.equal('bank_card');
+		expect(storedPaymentMethod.last4).to.equal('9999');
 	});
 
 	it('stores payment success event and switches subscription to cheaper tier from metadata', async () => {
@@ -198,6 +271,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await subscriptionRepo.upsertPaymentMethod({
 			userId: user.id,
 			paymentMethodId: 'pm-234',
+			type: 'bank_card',
 		});
 
 		const occurredAt = new Date('2025-03-15T12:00:00.000Z');
@@ -244,6 +318,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
 		expect(paymentMethod?.payment_method_id).to.equal('pm-234');
+		expect(paymentMethod?.type).to.equal('bank_card');
+		expect(paymentMethod?.last4).to.equal(null);
 	});
 
 	it('stores payment success event and switches subscription to more expensive tier from metadata', async () => {
@@ -269,6 +345,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await subscriptionRepo.upsertPaymentMethod({
 			userId: user.id,
 			paymentMethodId: 'pm-345',
+			type: 'bank_card',
 		});
 
 		const occurredAt = new Date('2025-04-20T12:00:00.000Z');
@@ -315,6 +392,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
 		expect(paymentMethod?.payment_method_id).to.equal('pm-345');
+		expect(paymentMethod?.type).to.equal('bank_card');
+		expect(paymentMethod?.last4).to.equal(null);
 	});
 
 	it('stores cancellation event and downgrades subscription to free tier outside grace period', async () => {
@@ -337,6 +416,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await subscriptionRepo.upsertPaymentMethod({
 			userId: user.id,
 			paymentMethodId: 'pm-456',
+			type: 'bank_card',
 		});
 
 		const createdAt = new Date('2025-01-20T07:00:00.000Z');
@@ -388,6 +468,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
 		expect(paymentMethod?.payment_method_id).to.equal('pm-456');
+		expect(paymentMethod?.type).to.equal('bank_card');
+		expect(paymentMethod?.last4).to.equal(null);
 	});
 
 	it('does not downgrade subscription to free tier if payment failed within grace period', async () => {
@@ -411,6 +493,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await subscriptionRepo.upsertPaymentMethod({
 			userId: user.id,
 			paymentMethodId: 'pm-789',
+			type: 'bank_card',
 		});
 
 		const createdAt = new Date('2025-01-20T07:00:00.000Z');
@@ -460,5 +543,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const paymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
 		expect(paymentMethod?.payment_method_id).to.equal('pm-789');
+		expect(paymentMethod?.type).to.equal('bank_card');
+		expect(paymentMethod?.last4).to.equal(null);
 	});
 });

@@ -6,15 +6,18 @@ import { SubscriptionManagerFactory } from './domain/subscription-manager.factor
 import { SubscriptionActionExecutor } from './services/subscription-action.executor';
 import { HandleYookassaWebhookController } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.controller';
 import { HandleYookassaWebhookUsecase } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.usecase';
+import { DeletePaymentMethodController } from './usecases/delete-payment-method/delete-payment-method.controller';
+import { DeletePaymentMethodUsecase } from './usecases/delete-payment-method/delete-payment-method.usecase';
 import { YookassaModule } from '../yookassa/yookassa.module';
 import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.module';
 
 @Module({
 	imports: [YookassaModule, SubscriptionTierModule],
-	controllers: [GiftSubscriptionController, HandleYookassaWebhookController],
+	controllers: [GiftSubscriptionController, HandleYookassaWebhookController, DeletePaymentMethodController],
 	providers: [
 		GiftSubscriptionUsecase,
 		HandleYookassaWebhookUsecase,
+		DeletePaymentMethodUsecase,
 		SubscriptionRepository,
 		SubscriptionManagerFactory,
 		SubscriptionActionExecutor,
