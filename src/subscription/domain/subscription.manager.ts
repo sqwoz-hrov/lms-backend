@@ -32,6 +32,11 @@ interface GiftSubscriptionParams {
 	now?: Date;
 }
 
+interface DowngradeSubscriptionParams {
+	subscription: SubscriptionState;
+	targetTier: SubscriptionTier;
+}
+
 interface RegistrationParams {
 	user: Pick<User, 'id'>;
 }
@@ -124,6 +129,33 @@ export class SubscriptionManager {
 			existing.is_gifted && existing.subscription_tier_id === params.targetTier.id ? 'prolong' : 'upgrade';
 
 		return { action: { do: doAction, subscription: updated } };
+	}
+
+	handleDowngrade(params: DowngradeSubscriptionParams): { action: SubscriptionAction } {
+		const currentTier = this.resolveTierById(params.subscription.subscription_tier_id);
+		const targetTier = this.resolveTierById(params.targetTier.id);
+
+		if (targetTier.power > currentTier.power) {
+			throw new Error(`Cannot downgrade subscription tier from "${currentTier.tier}" to "${targetTier.tier}"`);
+		}
+
+		const isTargetBillable = targetTier.price_rubles > 0;
+
+		const updated: SubscriptionState = {
+			...params.subscription,
+			subscription_tier_id: targetTier.id,
+			price_on_purchase_rubles: isTargetBillable ? targetTier.price_rubles : 0,
+			is_gifted: isTargetBillable ? params.subscription.is_gifted : true,
+		};
+
+		if (!isTargetBillable) {
+			updated.billing_period_days = 0;
+			updated.grace_period_size = 0;
+			updated.current_period_end = null;
+			updated.last_billing_attempt = null;
+		}
+
+		return { action: { do: 'downgrade', subscription: updated } };
 	}
 
 	handlePaymentEvent(params: PaymentEventParams): { action: SubscriptionAction } {
