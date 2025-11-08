@@ -7,18 +7,21 @@ export const SUPPORTED_EVENTS = new Set(['payment.succeeded', 'payment.canceled'
 
 type YookassaCurrency = 'RUB';
 
-export type YookassaPaymentMethodType =
-	| 'bank_card'
-	| 'yoo_money'
-	| 'electronic_certificate'
-	| 'sberbank'
-	| 'tinkoff_bank'
-	| 'sbp'
-	| 'sber_loan'
-	| 'sber_bnpl'
-	| 'b2b_sberbank'
-	| 'mobile_balance'
-	| 'cash';
+export const PAYMENT_METHOD_TYPES = [
+	'bank_card',
+	'yoo_money',
+	'electronic_certificate',
+	'sberbank',
+	'tinkoff_bank',
+	'sbp',
+	'sber_loan',
+	'sber_bnpl',
+	'b2b_sberbank',
+	'mobile_balance',
+	'cash',
+] as const;
+
+export type YookassaPaymentMethodType = (typeof PAYMENT_METHOD_TYPES)[number];
 
 interface YookassaAmount {
 	value: string;
@@ -35,7 +38,7 @@ interface YookassaCardInfo {
 	issuer_name?: string;
 }
 
-interface YookassaPaymentMethod {
+export interface YookassaPaymentMethod {
 	type: YookassaPaymentMethodType;
 	id: string;
 	saved: boolean;

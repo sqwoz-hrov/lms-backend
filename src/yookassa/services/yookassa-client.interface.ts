@@ -1,4 +1,4 @@
-import { EventMetadata } from '../../subscription/types/yookassa-webhook';
+import { EventMetadata, YookassaPaymentMethod } from '../../subscription/types/yookassa-webhook';
 
 export const YOOKASSA_CURRENCY_RUB = 'RUB';
 
@@ -26,12 +26,7 @@ export interface YookassaPaymentResponse {
 		type: string;
 		confirmation_url: string;
 	};
-	payment_method?: {
-		type?: string;
-		id?: string;
-		saved?: boolean;
-		title?: string;
-	};
+	payment_method?: YookassaPaymentMethod;
 	metadata?: Record<string, unknown>;
 	created_at: string;
 }
@@ -51,6 +46,14 @@ export interface ChargeSavedPaymentParams {
 	paymentMethodId: string;
 	metadata: EventMetadata;
 	idempotenceKey?: string;
+}
+
+export interface GetPaymentMethodParams {
+	paymentMethodId: string;
+}
+
+export interface YookassaClientPaymentMethodPort {
+	getPaymentMethod(params: GetPaymentMethodParams): Promise<YookassaPaymentMethod>;
 }
 
 export interface YookassaClientPort {

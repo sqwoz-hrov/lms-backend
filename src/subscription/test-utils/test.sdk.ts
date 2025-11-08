@@ -4,6 +4,7 @@ import { GiftSubscriptionDto } from '../dto/gift-subscription.dto';
 import { SubscriptionResponseDto } from '../dto/subscription-response.dto';
 import { YookassaWebhookPayload } from '../types/yookassa-webhook';
 import { DowngradeSubscriptionDto } from '../dto/downgrade-subscription.dto';
+import { PaymentMethodResponseDto } from '../dto/payment-method-response.dto';
 
 export class SubscriptionTestSdk implements ValidateSDK<SubscriptionTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -39,6 +40,14 @@ export class SubscriptionTestSdk implements ValidateSDK<SubscriptionTestSdk> {
 		return this.testClient.request<Record<string, never>>({
 			path: '/subscriptions/payment-method',
 			method: 'DELETE',
+			userMeta,
+		});
+	}
+
+	async getActivePaymentMethod({ userMeta }: { userMeta: UserMeta }) {
+		return this.testClient.request<PaymentMethodResponseDto>({
+			path: '/subscriptions/payment-method',
+			method: 'GET',
 			userMeta,
 		});
 	}
