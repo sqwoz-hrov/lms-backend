@@ -10,6 +10,7 @@ import {
 	PreparedBillingAttempt,
 } from '../ports/billing-persistence';
 import { isDueNow } from '../utils/is-due-now';
+import { BillingEventType } from '../constants';
 
 @Injectable()
 export class SubscriptionBillingPersistence implements BillingPersistencePort {
@@ -18,12 +19,36 @@ export class SubscriptionBillingPersistence implements BillingPersistencePort {
 		@Inject(subscriptionBillingConfig.KEY) private readonly config: ConfigType<typeof subscriptionBillingConfig>,
 	) {}
 
-	async fetchBillableSubscriptions(params: { runDate: Date; limit: number }): Promise<BillableSubscriptionRow[]> {
-		return await this.subscriptionRepository.findBillableSubscriptions({
-			runDate: params.runDate,
-			retryWindowDays: this.config.retryWindowDays,
-			limit: params.limit,
-		});
+	async *fetchBillableSubscriptions(params: {
+		runDate: Date;
+		limit: number;
+		signal?: AbortSignal;
+	}): AsyncGenerator<BillableSubscriptionRow> {
+		const { runDate, limit, signal } = params;
+
+		while (!signal?.aborted) {
+			const batch = await this.subscriptionRepository.findBillableSubscriptions({
+				runDate,
+				retryWindowDays: this.config.retryWindowDays,
+				limit,
+			});
+
+			if (signal?.aborted || batch.length === 0) {
+				return;
+			}
+
+			for (const candidate of batch) {
+				if (signal?.aborted) {
+					return;
+				}
+
+				yield candidate;
+			}
+
+			if (batch.length < limit) {
+				return;
+			}
+		}
 	}
 
 	async prepareAttempt(
@@ -53,7 +78,7 @@ export class SubscriptionBillingPersistence implements BillingPersistencePort {
 					user_id: locked.user_id,
 					subscription_id: locked.id,
 					event: {
-						type: 'billing.attempt',
+						type: BillingEventType.ATTEMPT_PREPARED,
 						attemptId: context.attemptId,
 						scheduled_for: context.runDate.toISOString(),
 						attempted_at: context.attemptTime.toISOString(),
@@ -77,7 +102,7 @@ export class SubscriptionBillingPersistence implements BillingPersistencePort {
 			user_id: params.subscription.user_id,
 			subscription_id: params.subscription.id,
 			event: {
-				type: 'billing.success',
+				type: BillingEventType.CHARGE_REQUESTED,
 				attemptId: params.context.attemptId,
 				payment_id: params.payment.id,
 				occurredAt: params.payment.created_at,
@@ -95,7 +120,7 @@ export class SubscriptionBillingPersistence implements BillingPersistencePort {
 			user_id: params.subscription.user_id,
 			subscription_id: params.subscription.id,
 			event: {
-				type: 'billing.failure',
+				type: BillingEventType.CHARGE_REQUEST_FAILED,
 				attemptId: params.context.attemptId,
 				error: params.error,
 				attempted_at: params.context.attemptTime.toISOString(),

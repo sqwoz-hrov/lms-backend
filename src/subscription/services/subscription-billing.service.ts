@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { subscriptionBillingConfig } from '../../config/subscription-billing.config';
@@ -19,8 +19,9 @@ export interface BillingRunSummary {
 }
 
 @Injectable()
-export class SubscriptionBillingService {
+export class SubscriptionBillingService implements OnApplicationShutdown {
 	private readonly logger = new Logger(SubscriptionBillingService.name);
+	private activeRunController?: AbortController;
 
 	constructor(
 		@Inject(BILLING_PERSISTENCE) private readonly billingPersistence: BillingPersistencePort,
@@ -41,17 +42,20 @@ export class SubscriptionBillingService {
 			return summary;
 		}
 
-		while (true) {
-			const candidates = await this.billingPersistence.fetchBillableSubscriptions({
+		const controller = new AbortController();
+		this.setActiveRunController(controller);
+
+		try {
+			for await (const candidate of this.billingPersistence.fetchBillableSubscriptions({
 				runDate: now,
 				limit: this.config.batchSize,
-			});
+				signal: controller.signal,
+			})) {
+				if (controller.signal.aborted) {
+					this.logger.warn('Subscription billing run aborted, stopping processing loop');
+					break;
+				}
 
-			if (candidates.length === 0) {
-				break;
-			}
-
-			for (const candidate of candidates) {
 				summary.processed += 1;
 				const outcome = await this.handleCandidate(candidate, now);
 				switch (outcome) {
@@ -69,13 +73,34 @@ export class SubscriptionBillingService {
 						break;
 				}
 			}
-
-			if (candidates.length < this.config.batchSize) {
-				break;
-			}
+		} finally {
+			this.clearActiveRunController(controller);
 		}
 
 		return summary;
+	}
+
+	onApplicationShutdown(signal?: string): void {
+		if (this.activeRunController && !this.activeRunController.signal.aborted) {
+			const extra = signal ? ` (${signal})` : '';
+			this.logger.warn(`Aborting subscription billing run due to application shutdown${extra}`);
+			this.activeRunController.abort();
+		}
+	}
+
+	private setActiveRunController(controller: AbortController): void {
+		if (this.activeRunController && !this.activeRunController.signal.aborted) {
+			this.logger.warn('Aborting previous subscription billing run before starting a new one');
+			this.activeRunController.abort();
+		}
+
+		this.activeRunController = controller;
+	}
+
+	private clearActiveRunController(controller: AbortController): void {
+		if (this.activeRunController === controller) {
+			this.activeRunController = undefined;
+		}
 	}
 
 	private async handleCandidate(candidate: BillableSubscriptionRow, runDate: Date): Promise<BillingOutcome> {

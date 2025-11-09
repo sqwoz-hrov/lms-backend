@@ -3,6 +3,7 @@ import { YookassaClientPort, YookassaPaymentResponse } from '../../yookassa/serv
 import { BillableSubscriptionRow } from '../subscription.repository';
 import { InMemoryBillingPersistence } from '../test-utils/in-memory-billing-persistence';
 import { SubscriptionBillingService } from './subscription-billing.service';
+import { BillingEventType } from '../constants';
 
 const baseConfig = {
 	enabled: true,
@@ -60,13 +61,17 @@ describe('SubscriptionBillingService', () => {
 		expect(summary).to.deep.equal({ processed: 1, charged: 1, skipped: 0, failed: 0 });
 
 		expect(yookassa.chargeCalls).to.equal(1);
-		const attemptEvents = persistence.recordedEvents.filter(event => event.type === 'billing.attempt') as Array<{
-			type: 'billing.attempt';
+		const attemptEvents = persistence.recordedEvents.filter(
+			event => event.type === BillingEventType.ATTEMPT_PREPARED,
+		) as Array<{
+			type: BillingEventType.ATTEMPT_PREPARED;
 			subscriptionId: string;
 			attemptId: string;
 		}>;
-		const successEvents = persistence.recordedEvents.filter(event => event.type === 'billing.success') as Array<{
-			type: 'billing.success';
+		const successEvents = persistence.recordedEvents.filter(
+			event => event.type === BillingEventType.CHARGE_REQUESTED,
+		) as Array<{
+			type: BillingEventType.CHARGE_REQUESTED;
 			subscriptionId: string;
 			attemptId: string;
 			paymentId: string;
@@ -78,11 +83,41 @@ describe('SubscriptionBillingService', () => {
 		expect(successEvents[0]?.paymentId).to.equal('payment-1');
 		expect(successEvents[0]?.attemptId).to.equal(attemptEvents[0]?.attemptId);
 	});
+
+	it('stops processing when application shutdown interrupts a billing run', async () => {
+		const persistence = new InMemoryBillingPersistence({ retryWindowDays: baseConfig.retryWindowDays });
+		const yookassa = new DelayedYookassaClient(25, {
+			nextPayment: createPaymentResponse({ id: 'payment-delayed' }),
+		});
+
+		const service = new SubscriptionBillingService(persistence, yookassa, baseConfig);
+
+		for (let i = 0; i < 3; i += 1) {
+			persistence.addCandidate(
+				createCandidate({
+					id: `sub-${i}`,
+					user_id: `user-${i}`,
+					billing_payment_method_id: `pm-${i}`,
+				}),
+			);
+		}
+
+		const runPromise = service.runBillingCycle(new Date());
+		await wait(5);
+		service.onApplicationShutdown();
+
+		const summary = await runPromise;
+
+		expect(summary).to.deep.equal({ processed: 1, charged: 1, skipped: 0, failed: 0 });
+		expect(persistence.recordedEvents.filter(event => event.type === BillingEventType.ATTEMPT_PREPARED)).to.have.length(
+			1,
+		);
+	});
 });
 
 class FakeYookassaClient implements YookassaClientPort {
 	public chargeCalls = 0;
-	private readonly nextPayment: YookassaPaymentResponse;
+	protected readonly nextPayment: YookassaPaymentResponse;
 
 	constructor(params?: { nextPayment?: YookassaPaymentResponse }) {
 		this.nextPayment = params?.nextPayment ?? createPaymentResponse();
@@ -95,6 +130,20 @@ class FakeYookassaClient implements YookassaClientPort {
 
 	createPaymentForm(): Promise<YookassaPaymentResponse> {
 		throw new Error('Not implemented in FakeYookassaClient');
+	}
+}
+
+class DelayedYookassaClient extends FakeYookassaClient {
+	private readonly delayMs: number;
+
+	constructor(delayMs: number, params?: { nextPayment?: YookassaPaymentResponse }) {
+		super(params);
+		this.delayMs = delayMs;
+	}
+
+	async chargeSavedPaymentMethod(): Promise<YookassaPaymentResponse> {
+		await wait(this.delayMs);
+		return super.chargeSavedPaymentMethod();
 	}
 }
 
@@ -112,3 +161,5 @@ const createPaymentResponse = (overrides: Partial<YookassaPaymentResponse> = {})
 	metadata: overrides.metadata ?? {},
 	created_at: overrides.created_at ?? new Date().toISOString(),
 });
+
+const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));

@@ -1,3 +1,4 @@
+import { BillingEventType } from '../constants';
 import { isDueNow } from '../utils/is-due-now';
 import {
 	BillingAttemptContext,
@@ -9,9 +10,9 @@ import { BillableSubscriptionRow } from '../subscription.repository';
 import { Subscription } from '../subscription.entity';
 
 type RecordedEvent =
-	| { type: 'billing.attempt'; subscriptionId: string; attemptId: string }
-	| { type: 'billing.success'; subscriptionId: string; attemptId: string; paymentId: string }
-	| { type: 'billing.failure'; subscriptionId: string; attemptId: string; error: string };
+	| { type: BillingEventType.ATTEMPT_PREPARED; subscriptionId: string; attemptId: string }
+	| { type: BillingEventType.CHARGE_REQUESTED; subscriptionId: string; attemptId: string; paymentId: string }
+	| { type: BillingEventType.CHARGE_REQUEST_FAILED; subscriptionId: string; attemptId: string; error: string };
 
 export class InMemoryBillingPersistence implements BillingPersistencePort {
 	private readonly subscriptions = new Map<string, Subscription>();
@@ -31,13 +32,24 @@ export class InMemoryBillingPersistence implements BillingPersistencePort {
 		this.subscriptions.set(candidate.user_id, structuredCloneSubscription(subscription));
 	}
 
-	fetchBillableSubscriptions(params: { runDate: Date; limit: number }): Promise<BillableSubscriptionRow[]> {
+	// eslint-disable-next-line @typescript-eslint/require-await
+	async *fetchBillableSubscriptions(params: {
+		runDate: Date;
+		limit: number;
+		signal?: AbortSignal;
+	}): AsyncGenerator<BillableSubscriptionRow> {
 		this.fetchCalls += 1;
-		if (this.queue.length === 0) {
-			return Promise.resolve([]);
-		}
 
-		return Promise.resolve(this.queue.splice(0, params.limit).map(candidate => ({ ...candidate })));
+		while (this.queue.length > 0 && !params.signal?.aborted) {
+			const batch = this.queue.splice(0, params.limit);
+			for (const candidate of batch) {
+				if (params.signal?.aborted) {
+					return;
+				}
+
+				yield { ...candidate };
+			}
+		}
 	}
 
 	prepareAttempt(candidate: BillableSubscriptionRow, context: BillingAttemptContext): Promise<PreparedBillingAttempt> {
@@ -52,7 +64,7 @@ export class InMemoryBillingPersistence implements BillingPersistencePort {
 
 		subscription.last_billing_attempt = new Date(context.attemptTime);
 		this.recordedEvents.push({
-			type: 'billing.attempt',
+			type: BillingEventType.ATTEMPT_PREPARED,
 			subscriptionId: subscription.id,
 			attemptId: context.attemptId,
 		});
@@ -66,7 +78,7 @@ export class InMemoryBillingPersistence implements BillingPersistencePort {
 		payment: BillingPaymentRecord;
 	}): Promise<void> {
 		this.recordedEvents.push({
-			type: 'billing.success',
+			type: BillingEventType.CHARGE_REQUESTED,
 			subscriptionId: params.subscription.id,
 			attemptId: params.context.attemptId,
 			paymentId: params.payment.id,
@@ -76,7 +88,7 @@ export class InMemoryBillingPersistence implements BillingPersistencePort {
 
 	recordFailure(params: { subscription: Subscription; context: BillingAttemptContext; error: string }): Promise<void> {
 		this.recordedEvents.push({
-			type: 'billing.failure',
+			type: BillingEventType.CHARGE_REQUEST_FAILED,
 			subscriptionId: params.subscription.id,
 			attemptId: params.context.attemptId,
 			error: params.error,

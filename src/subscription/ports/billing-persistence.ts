@@ -18,7 +18,11 @@ export type PreparedBillingAttempt =
 	| { status: 'skip'; reason: 'subscription-missing' | 'not-due' };
 
 export interface BillingPersistencePort {
-	fetchBillableSubscriptions(params: { runDate: Date; limit: number }): Promise<BillableSubscriptionRow[]>;
+	fetchBillableSubscriptions(params: {
+		runDate: Date;
+		limit: number;
+		signal?: AbortSignal;
+	}): AsyncGenerator<BillableSubscriptionRow>;
 	prepareAttempt(candidate: BillableSubscriptionRow, context: BillingAttemptContext): Promise<PreparedBillingAttempt>;
 	recordSuccess(params: {
 		subscription: Subscription;
