@@ -6,12 +6,14 @@ import { SubscriptionManagerFactory } from './domain/subscription-manager.factor
 import { SubscriptionActionExecutor } from './services/subscription-action.executor';
 import { SubscriptionBillingService } from './services/subscription-billing.service';
 import { SubscriptionBillingScheduler } from './services/subscription-billing.scheduler';
+import { SubscriptionBillingPersistence } from './services/subscription-billing.persistence';
 import { HandleYookassaWebhookController } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.controller';
 import { HandleYookassaWebhookUsecase } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.usecase';
 import { DeletePaymentMethodController } from './usecases/delete-payment-method/delete-payment-method.controller';
 import { DeletePaymentMethodUsecase } from './usecases/delete-payment-method/delete-payment-method.usecase';
 import { YookassaModule } from '../yookassa/yookassa.module';
 import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.module';
+import { BILLING_PERSISTENCE } from './constants';
 
 @Module({
 	imports: [YookassaModule, SubscriptionTierModule],
@@ -21,6 +23,10 @@ import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.m
 		HandleYookassaWebhookUsecase,
 		DeletePaymentMethodUsecase,
 		SubscriptionRepository,
+		{
+			provide: BILLING_PERSISTENCE,
+			useClass: SubscriptionBillingPersistence,
+		},
 		SubscriptionManagerFactory,
 		SubscriptionActionExecutor,
 		SubscriptionBillingService,

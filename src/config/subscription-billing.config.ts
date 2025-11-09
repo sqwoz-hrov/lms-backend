@@ -13,7 +13,6 @@ export const subscriptionBillingConfig = registerAs('subscriptionBilling', () =>
 	enabled: get('SUBSCRIPTION_BILLING_ENABLED').default('false').asBool(),
 	dailyTime: ensureTimeFormat(get('SUBSCRIPTION_BILLING_TIME').default('05:00').asString()),
 	batchSize: get('SUBSCRIPTION_BILLING_BATCH_SIZE').default('100').asIntPositive(),
-	leadDays: Math.max(0, get('SUBSCRIPTION_BILLING_LEAD_DAYS').default('3').asInt()),
 	retryWindowDays: Math.max(0, get('SUBSCRIPTION_BILLING_RETRY_WINDOW_DAYS').default('1').asInt()),
 	description: get('SUBSCRIPTION_BILLING_DESCRIPTION').default('Продление подписки').asString(),
 }));

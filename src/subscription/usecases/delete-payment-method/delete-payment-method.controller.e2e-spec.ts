@@ -44,8 +44,6 @@ describe('[E2E] Delete payment method usecase', () => {
 		await subscriptionRepo.upsertPaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-delete-1',
-			type: 'bank_card',
-			last4: '7777',
 		});
 
 		const response = await subscriptionSdk.deletePaymentMethod({

@@ -81,14 +81,10 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 				}
 
 				if (event.paymentMethod) {
-					const last4 = event.paymentMethod.type === 'bank_card' ? (event.paymentMethod.card?.last4 ?? null) : null;
-
 					await this.subscriptionRepository.upsertPaymentMethod(
 						{
 							user_id: subscription.user_id,
 							payment_method_id: event.paymentMethod.id,
-							type: event.paymentMethod.type,
-							last4,
 						},
 						trx,
 					);

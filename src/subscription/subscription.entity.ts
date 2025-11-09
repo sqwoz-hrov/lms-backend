@@ -1,5 +1,4 @@
 import { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
-import { YookassaPaymentMethodType } from './types/yookassa-webhook';
 
 export interface SubscriptionTable {
 	id: Generated<string>;
@@ -26,14 +25,10 @@ export interface SubscriptionAggregation {
 	payment_method: PaymentMethodTable;
 }
 
-export type PaymentMethodType = YookassaPaymentMethodType;
-
 export interface PaymentMethodTable {
 	id: Generated<string>;
 	user_id: string;
 	payment_method_id: string;
-	type: ColumnType<PaymentMethodType, PaymentMethodType, PaymentMethodType | undefined>;
-	last4: ColumnType<string | null, string | null | undefined>;
 	created_at: Generated<Date>;
 	updated_at: ColumnType<Date, Date | string | undefined, Date | string | undefined>;
 }

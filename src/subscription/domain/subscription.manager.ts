@@ -1,8 +1,7 @@
 import { SubscriptionTier, User } from '../../user/user.entity';
+import { MS_IN_DAY } from '../constants';
 import { SubscriptionDraft, SubscriptionState } from '../subscription.entity';
 import { PaymentWebhookEvent } from '../types/yookassa-webhook';
-
-const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
 export type SubscriptionActionType = 'create' | 'delete' | 'update_billing_data' | 'upgrade' | 'downgrade' | 'prolong';
 
