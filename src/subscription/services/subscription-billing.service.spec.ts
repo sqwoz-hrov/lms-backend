@@ -1,7 +1,11 @@
 import { expect } from 'chai';
-import { YookassaClientPort, YookassaPaymentResponse } from '../../yookassa/services/yookassa-client.interface';
+import {
+	ChargeSavedPaymentParams,
+	YookassaClientPort,
+	YookassaPaymentResponse,
+} from '../../yookassa/services/yookassa-client.interface';
 import { BillableSubscriptionRow } from '../subscription.repository';
-import { InMemoryBillingPersistence } from '../test-utils/in-memory-billing-persistence';
+import { InMemorySubscriptionRepository } from '../test-utils/in-memory-subscription-repository';
 import { SubscriptionBillingService } from './subscription-billing.service';
 import { BillingEventType } from '../constants';
 
@@ -33,8 +37,8 @@ const createCandidate = (overrides: Partial<BillableSubscriptionRow> = {}): Bill
 
 describe('SubscriptionBillingService', () => {
 	it('skips execution when billing disabled', async () => {
-		const persistence = new InMemoryBillingPersistence({ retryWindowDays: baseConfig.retryWindowDays });
-		const service = new SubscriptionBillingService(persistence, new FakeYookassaClient(), {
+		const repository = new InMemorySubscriptionRepository();
+		const service = new SubscriptionBillingService(repository, new FakeYookassaClient(), {
 			...baseConfig,
 			enabled: false,
 		});
@@ -42,29 +46,26 @@ describe('SubscriptionBillingService', () => {
 		const summary = await service.runBillingCycle();
 
 		expect(summary).to.deep.equal({ processed: 0, charged: 0, skipped: 0, failed: 0 });
-		expect(persistence.fetchCalls).to.equal(0);
+		expect(repository.fetchCalls).to.equal(0);
 	});
 
 	it('skips billing when persistence cannot load the subscription', async () => {
-		const persistence = new InMemoryBillingPersistence({ retryWindowDays: baseConfig.retryWindowDays });
-		const service = new SubscriptionBillingService(persistence, new FakeYookassaClient(), baseConfig);
+		const repository = new InMemorySubscriptionRepository();
+		const service = new SubscriptionBillingService(repository, new FakeYookassaClient(), baseConfig);
 
 		const candidate = createCandidate({ user_id: 'user-missing' });
-		persistence.addCandidate(candidate);
+		repository.addCandidate(candidate);
+		repository.removeSubscriptionByUserId(candidate.user_id);
 
-		// Simulate a stale queue entry whose subscription was removed upstream.
-		const internals = persistence as unknown as { subscriptions: Map<string, unknown> };
-		internals.subscriptions.delete(candidate.user_id);
-
-		const summary = await service.runBillingCycle(new Date());
+		const summary = await service.runBillingCycle({ now: new Date() });
 
 		expect(summary).to.deep.equal({ processed: 1, charged: 0, skipped: 1, failed: 0 });
-		expect(persistence.recordedEvents).to.have.length(0);
+		expect(repository.recordedEvents).to.have.length(0);
 	});
 
 	it('skips billing when subscription is not due yet', async () => {
-		const persistence = new InMemoryBillingPersistence({ retryWindowDays: baseConfig.retryWindowDays });
-		const service = new SubscriptionBillingService(persistence, new FakeYookassaClient(), baseConfig);
+		const repository = new InMemorySubscriptionRepository();
+		const service = new SubscriptionBillingService(repository, new FakeYookassaClient(), baseConfig);
 
 		const runDate = new Date('2024-05-10T06:00:00Z');
 		const candidate = createCandidate({
@@ -72,63 +73,140 @@ describe('SubscriptionBillingService', () => {
 			current_period_end: new Date('2024-05-15T00:00:00Z'),
 		});
 
-		persistence.addCandidate(candidate);
+		repository.addCandidate(candidate);
 
-		const summary = await service.runBillingCycle(runDate);
+		const summary = await service.runBillingCycle({ now: runDate });
 
 		expect(summary).to.deep.equal({ processed: 1, charged: 0, skipped: 1, failed: 0 });
-		expect(persistence.recordedEvents).to.have.length(0);
+		expect(repository.recordedEvents).to.have.length(0);
 	});
 
 	it('charges due subscriptions and records success', async () => {
-		const persistence = new InMemoryBillingPersistence({ retryWindowDays: baseConfig.retryWindowDays });
+		const repository = new InMemorySubscriptionRepository();
 		const yookassa = new FakeYookassaClient({
 			nextPayment: createPaymentResponse({ id: 'payment-1' }),
 		});
 
-		const service = new SubscriptionBillingService(persistence, yookassa, baseConfig);
+		const service = new SubscriptionBillingService(repository, yookassa, baseConfig);
 
 		const candidate = createCandidate();
-		persistence.addCandidate(candidate);
+		repository.addCandidate(candidate);
 
-		const summary = await service.runBillingCycle(new Date());
+		const summary = await service.runBillingCycle({ now: new Date() });
 
 		expect(summary).to.deep.equal({ processed: 1, charged: 1, skipped: 0, failed: 0 });
 
 		expect(yookassa.chargeCalls).to.equal(1);
-		const attemptEvents = persistence.recordedEvents.filter(
-			event => event.type === BillingEventType.ATTEMPT_PREPARED,
-		) as Array<{
-			type: BillingEventType.ATTEMPT_PREPARED;
-			subscriptionId: string;
-			attemptId: string;
-		}>;
-		const successEvents = persistence.recordedEvents.filter(
-			event => event.type === BillingEventType.CHARGE_REQUESTED,
-		) as Array<{
-			type: BillingEventType.CHARGE_REQUESTED;
-			subscriptionId: string;
-			attemptId: string;
-			paymentId: string;
-		}>;
+		const attemptEvents = repository.recordedEvents.filter(event => event.type === BillingEventType.ATTEMPT_PREPARED);
+		const successEvents = repository.recordedEvents.filter(event => event.type === BillingEventType.CHARGE_REQUESTED);
 
 		expect(attemptEvents).to.have.length(1);
 		expect(successEvents).to.have.length(1);
-		expect(successEvents[0]?.subscriptionId).to.equal(candidate.id);
-		expect(successEvents[0]?.paymentId).to.equal('payment-1');
-		expect(successEvents[0]?.attemptId).to.equal(attemptEvents[0]?.attemptId);
+
+		const attemptId = attemptEvents[0]?.event.attemptId as string | undefined;
+		expect(successEvents[0]?.event.payment_id).to.equal('payment-1');
+		expect(successEvents[0]?.event.type).to.equal(BillingEventType.CHARGE_REQUESTED);
+		expect(attemptId).to.be.a('string');
+		expect(successEvents[0]?.event.attemptId).to.equal(attemptId);
+	});
+
+	it('processes all due subscriptions even when total exceeds batch size', async () => {
+		const repository = new InMemorySubscriptionRepository();
+		const service = new SubscriptionBillingService(repository, new FakeYookassaClient(), {
+			...baseConfig,
+			batchSize: 2,
+		});
+
+		for (let i = 0; i < 5; i += 1) {
+			repository.addCandidate(
+				createCandidate({
+					id: `sub-${i}`,
+					user_id: `user-${i}`,
+					current_period_end: new Date(`2024-01-0${i + 1}T00:00:00Z`),
+					billing_payment_method_id: `pm-${i}`,
+				}),
+			);
+		}
+
+		const summary = await service.runBillingCycle({ now: new Date('2024-02-01T00:00:00Z') });
+
+		expect(summary).to.deep.equal({ processed: 5, charged: 5, skipped: 0, failed: 0 });
+		expect(repository.fetchCalls).to.be.greaterThan(1);
+	});
+
+	it('does not charge the same subscription twice when queue mutates mid-run', async () => {
+		const repository = new InMemorySubscriptionRepository();
+		let duplicateScheduled = false;
+
+		const yookassa = new HookedYookassaClient({
+			onCharge: params => {
+				const userId = params.metadata.user_id;
+
+				if (userId === 'user-1' && !duplicateScheduled) {
+					duplicateScheduled = true;
+
+					// Re-queue the already processed subscription with a later period end.
+					repository.addCandidate(
+						createCandidate({
+							id: 'sub-1',
+							user_id: 'user-1',
+							current_period_end: new Date('2024-01-05T00:00:00Z'),
+							billing_payment_method_id: 'pm-1',
+						}),
+					);
+
+					// Also add a brand new subscription that should still be processed.
+					repository.addCandidate(
+						createCandidate({
+							id: 'sub-3',
+							user_id: 'user-3',
+							current_period_end: new Date('2024-01-03T00:00:00Z'),
+							billing_payment_method_id: 'pm-3',
+						}),
+					);
+				}
+			},
+		});
+
+		const service = new SubscriptionBillingService(repository, yookassa, {
+			...baseConfig,
+			batchSize: 1,
+		});
+
+		repository.addCandidate(
+			createCandidate({
+				id: 'sub-1',
+				user_id: 'user-1',
+				current_period_end: new Date('2024-01-01T00:00:00Z'),
+				billing_payment_method_id: 'pm-1',
+			}),
+		);
+		repository.addCandidate(
+			createCandidate({
+				id: 'sub-2',
+				user_id: 'user-2',
+				current_period_end: new Date('2024-01-02T00:00:00Z'),
+				billing_payment_method_id: 'pm-2',
+			}),
+		);
+
+		const summary = await service.runBillingCycle({ now: new Date('2024-02-01T00:00:00Z') });
+
+		expect(summary).to.deep.equal({ processed: 3, charged: 3, skipped: 0, failed: 0 });
+		const chargedUserIds = yookassa.calls.map(params => params.metadata.user_id);
+		expect(chargedUserIds).to.deep.equal(['user-1', 'user-2', 'user-3']);
 	});
 
 	it('stops processing when application shutdown interrupts a billing run', async () => {
-		const persistence = new InMemoryBillingPersistence({ retryWindowDays: baseConfig.retryWindowDays });
+		const repository = new InMemorySubscriptionRepository();
 		const yookassa = new DelayedYookassaClient(25, {
 			nextPayment: createPaymentResponse({ id: 'payment-delayed' }),
 		});
 
-		const service = new SubscriptionBillingService(persistence, yookassa, baseConfig);
+		const service = new SubscriptionBillingService(repository, yookassa, baseConfig);
 
 		for (let i = 0; i < 3; i += 1) {
-			persistence.addCandidate(
+			repository.addCandidate(
 				createCandidate({
 					id: `sub-${i}`,
 					user_id: `user-${i}`,
@@ -137,14 +215,15 @@ describe('SubscriptionBillingService', () => {
 			);
 		}
 
-		const runPromise = service.runBillingCycle(new Date());
+		const controller = new AbortController();
+		const runPromise = service.runBillingCycle({ now: new Date(), signal: controller.signal });
 		await wait(5);
-		service.onApplicationShutdown();
+		controller.abort();
 
 		const summary = await runPromise;
 
 		expect(summary).to.deep.equal({ processed: 1, charged: 1, skipped: 0, failed: 0 });
-		expect(persistence.recordedEvents.filter(event => event.type === BillingEventType.ATTEMPT_PREPARED)).to.have.length(
+		expect(repository.recordedEvents.filter(event => event.type === BillingEventType.ATTEMPT_PREPARED)).to.have.length(
 			1,
 		);
 	});
@@ -158,7 +237,7 @@ class FakeYookassaClient implements YookassaClientPort {
 		this.nextPayment = params?.nextPayment ?? createPaymentResponse();
 	}
 
-	chargeSavedPaymentMethod(): Promise<YookassaPaymentResponse> {
+	chargeSavedPaymentMethod(_params?: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse> {
 		this.chargeCalls += 1;
 		return Promise.resolve(this.nextPayment);
 	}
@@ -176,9 +255,30 @@ class DelayedYookassaClient extends FakeYookassaClient {
 		this.delayMs = delayMs;
 	}
 
-	async chargeSavedPaymentMethod(): Promise<YookassaPaymentResponse> {
+	async chargeSavedPaymentMethod(params?: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse> {
 		await wait(this.delayMs);
-		return super.chargeSavedPaymentMethod();
+		return super.chargeSavedPaymentMethod(params);
+	}
+}
+
+class HookedYookassaClient extends FakeYookassaClient {
+	private readonly onCharge?: (params: ChargeSavedPaymentParams) => void | Promise<void>;
+	public readonly calls: ChargeSavedPaymentParams[] = [];
+
+	constructor(params?: {
+		nextPayment?: YookassaPaymentResponse;
+		onCharge?: (params: ChargeSavedPaymentParams) => void | Promise<void>;
+	}) {
+		super(params);
+		this.onCharge = params?.onCharge;
+	}
+
+	async chargeSavedPaymentMethod(params: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse> {
+		this.calls.push(params);
+		if (this.onCharge) {
+			await this.onCharge(params);
+		}
+		return super.chargeSavedPaymentMethod(params);
 	}
 }
 

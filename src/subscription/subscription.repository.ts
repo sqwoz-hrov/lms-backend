@@ -2,11 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Kysely, Transaction, sql } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { UserAggregation } from '../user/user.entity';
+import type { BillableSubscriptionCursor, SubscriptionRepositoryPort } from './ports/subscription-repository.port';
 import {
 	NewPaymentEvent,
 	NewPaymentMethod,
 	NewSubscription,
-	PaymentEvent,
 	PaymentEventTable,
 	PaymentMethod,
 	Subscription,
@@ -29,6 +29,7 @@ type FindBillableSubscriptionsParams = {
 	runDate: Date;
 	retryWindowDays: number;
 	limit: number;
+	cursor?: BillableSubscriptionCursor;
 	trx?: SubscriptionTransaction;
 };
 
@@ -37,7 +38,7 @@ export type BillableSubscriptionRow = Subscription & {
 };
 
 @Injectable()
-export class SubscriptionRepository {
+export class SubscriptionRepository implements SubscriptionRepositoryPort<SubscriptionTransaction> {
 	private readonly db: Kysely<SubscriptionDatabase>;
 
 	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
@@ -121,7 +122,7 @@ export class SubscriptionRepository {
 		const retryAfter = new Date(params.runDate.getTime() - params.retryWindowDays * MS_IN_DAY);
 		const billingThreshold = getStartOfDayUtc(params.runDate);
 
-		return await executor
+		let query = executor
 			.selectFrom('subscription')
 			.innerJoin('payment_method', 'payment_method.user_id', 'subscription.user_id')
 			.selectAll('subscription')
@@ -133,15 +134,26 @@ export class SubscriptionRepository {
 			)
 			.where(
 				sql<boolean>`(subscription.last_billing_attempt IS NULL OR subscription.last_billing_attempt <= ${retryAfter})`,
-			)
+			);
+
+		if (params.cursor) {
+			const cursorDate = params.cursor.currentPeriodEnd ?? new Date(0);
+			query = query.where(
+				sql<boolean>`(COALESCE(subscription.current_period_end, to_timestamp(0)), subscription.id) > (${cursorDate}, ${params.cursor.id})`,
+			);
+		}
+
+		query = query
 			.orderBy('subscription.current_period_end', 'asc')
-			.limit(params.limit)
-			.execute();
+			.orderBy('subscription.id', 'asc')
+			.limit(params.limit);
+
+		return await query.execute();
 	}
 
-	async insertPaymentEvent(data: NewPaymentEvent, trx?: SubscriptionTransaction): Promise<PaymentEvent> {
+	async insertPaymentEvent(data: NewPaymentEvent, trx?: SubscriptionTransaction): Promise<void> {
 		const executor = this.getExecutor(trx);
-		return await executor.insertInto('payment_event').values(data).returningAll().executeTakeFirstOrThrow();
+		await executor.insertInto('payment_event').values(data).returningAll().executeTakeFirstOrThrow();
 	}
 
 	async upsertPaymentMethod(

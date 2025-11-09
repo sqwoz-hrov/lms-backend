@@ -1,13 +1,14 @@
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnApplicationShutdown, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { subscriptionBillingConfig } from '../../config/subscription-billing.config';
 import { SubscriptionBillingService } from './subscription-billing.service';
 
 @Injectable()
-export class SubscriptionBillingScheduler implements OnModuleInit, OnModuleDestroy {
+export class SubscriptionBillingScheduler implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown {
 	private readonly logger = new Logger(SubscriptionBillingScheduler.name);
 	private timer: NodeJS.Timeout | null = null;
 	private running = false;
+	private activeRunController?: AbortController;
 
 	constructor(
 		private readonly billingService: SubscriptionBillingService,
@@ -28,6 +29,13 @@ export class SubscriptionBillingScheduler implements OnModuleInit, OnModuleDestr
 			clearTimeout(this.timer);
 			this.timer = null;
 		}
+
+		this.abortActiveRun('module destroy');
+	}
+
+	onApplicationShutdown(signal?: string): void {
+		const suffix = signal ? ` (${signal})` : '';
+		this.abortActiveRun(`application shutdown${suffix}`);
 	}
 
 	private scheduleNext(reference = new Date()): void {
@@ -51,19 +59,21 @@ export class SubscriptionBillingScheduler implements OnModuleInit, OnModuleDestr
 			}
 
 			this.running = true;
+			const controller = new AbortController();
+			this.setActiveRunController(controller);
 
 			try {
-				await this.billingService.runBillingCycle();
+				await this.billingService.runBillingCycle({ signal: controller.signal });
 			} catch (error) {
 				const err = error instanceof Error ? error : new Error('Unknown scheduler error');
 				this.logger.error(`Subscription billing run failed: ${err.message}`, err.stack);
 			} finally {
+				this.clearActiveRunController(controller);
 				this.running = false;
 				this.scheduleNext();
 			}
 		}, delay);
 
-		this.timer.unref?.();
 		this.logger.debug(`Next subscription billing run scheduled at ${nextRun.toISOString()}`);
 	}
 
@@ -78,5 +88,27 @@ export class SubscriptionBillingScheduler implements OnModuleInit, OnModuleDestr
 		}
 
 		return target;
+	}
+
+	private setActiveRunController(controller: AbortController): void {
+		if (this.activeRunController && !this.activeRunController.signal.aborted) {
+			this.logger.warn('Aborting previous subscription billing run before starting a new one');
+			this.activeRunController.abort();
+		}
+
+		this.activeRunController = controller;
+	}
+
+	private clearActiveRunController(controller: AbortController): void {
+		if (this.activeRunController === controller) {
+			this.activeRunController = undefined;
+		}
+	}
+
+	private abortActiveRun(context: string): void {
+		if (this.activeRunController && !this.activeRunController.signal.aborted) {
+			this.logger.warn(`Aborting subscription billing run due to ${context}`);
+			this.activeRunController.abort();
+		}
 	}
 }
