@@ -45,6 +45,41 @@ describe('SubscriptionBillingService', () => {
 		expect(persistence.fetchCalls).to.equal(0);
 	});
 
+	it('skips billing when persistence cannot load the subscription', async () => {
+		const persistence = new InMemoryBillingPersistence({ retryWindowDays: baseConfig.retryWindowDays });
+		const service = new SubscriptionBillingService(persistence, new FakeYookassaClient(), baseConfig);
+
+		const candidate = createCandidate({ user_id: 'user-missing' });
+		persistence.addCandidate(candidate);
+
+		// Simulate a stale queue entry whose subscription was removed upstream.
+		const internals = persistence as unknown as { subscriptions: Map<string, unknown> };
+		internals.subscriptions.delete(candidate.user_id);
+
+		const summary = await service.runBillingCycle(new Date());
+
+		expect(summary).to.deep.equal({ processed: 1, charged: 0, skipped: 1, failed: 0 });
+		expect(persistence.recordedEvents).to.have.length(0);
+	});
+
+	it('skips billing when subscription is not due yet', async () => {
+		const persistence = new InMemoryBillingPersistence({ retryWindowDays: baseConfig.retryWindowDays });
+		const service = new SubscriptionBillingService(persistence, new FakeYookassaClient(), baseConfig);
+
+		const runDate = new Date('2024-05-10T06:00:00Z');
+		const candidate = createCandidate({
+			user_id: 'user-not-due',
+			current_period_end: new Date('2024-05-15T00:00:00Z'),
+		});
+
+		persistence.addCandidate(candidate);
+
+		const summary = await service.runBillingCycle(runDate);
+
+		expect(summary).to.deep.equal({ processed: 1, charged: 0, skipped: 1, failed: 0 });
+		expect(persistence.recordedEvents).to.have.length(0);
+	});
+
 	it('charges due subscriptions and records success', async () => {
 		const persistence = new InMemoryBillingPersistence({ retryWindowDays: baseConfig.retryWindowDays });
 		const yookassa = new FakeYookassaClient({
