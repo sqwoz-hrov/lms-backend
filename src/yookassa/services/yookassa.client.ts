@@ -5,13 +5,16 @@ import { yookassaConfig } from '../../config/yookassa.config';
 import {
 	ChargeSavedPaymentParams,
 	CreatePaymentFormParams,
+	GetPaymentMethodParams,
 	YOOKASSA_CURRENCY_RUB,
+	YookassaClientPaymentMethodPort,
 	YookassaClientPort,
 	YookassaPaymentResponse,
 } from './yookassa-client.interface';
+import { YookassaPaymentMethod } from '../../subscription/types/yookassa-webhook';
 
 @Injectable()
-export class YookassaClient implements YookassaClientPort {
+export class YookassaClient implements YookassaClientPort, YookassaClientPaymentMethodPort {
 	private readonly logger = new Logger(YookassaClient.name);
 	private readonly baseUrl: string;
 	private readonly basicAuthToken: string | null;
@@ -110,5 +113,9 @@ export class YookassaClient implements YookassaClientPort {
 			body,
 			idempotenceKey: params.idempotenceKey,
 		});
+	}
+
+	async getPaymentMethod(params: GetPaymentMethodParams): Promise<YookassaPaymentMethod> {
+		return await this.req<YookassaPaymentMethod>('GET', `payment_methods/${params.paymentMethodId}`);
 	}
 }
