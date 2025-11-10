@@ -5,10 +5,8 @@ import {
 	CreatePaymentFormParams,
 	YOOKASSA_CURRENCY_RUB,
 	YookassaClientPort,
-	YookassaListWebhooksResponse,
 	YookassaPaymentResponse,
 	YookassaWebhook,
-	YookassaWebhookEvent,
 } from './yookassa-client.interface';
 
 @Injectable()
@@ -20,21 +18,6 @@ export class FakeYookassaClient implements YookassaClientPort {
 			throw new Error('Payment amount must be a positive number');
 		}
 		return { value: valueRubles.toFixed(2), currency: YOOKASSA_CURRENCY_RUB };
-	}
-
-	listWebhooks(): Promise<YookassaListWebhooksResponse> {
-		return Promise.resolve({ items: Array.from(this.webhooks.values()) });
-	}
-
-	createWebhook(event: YookassaWebhookEvent, url: string): Promise<YookassaWebhook> {
-		const webhook = { id: randomUUID(), event, url };
-		this.webhooks.set(webhook.id, webhook);
-		return Promise.resolve(webhook);
-	}
-
-	deleteWebhook(id: string): Promise<void> {
-		this.webhooks.delete(id);
-		return Promise.resolve();
 	}
 
 	createPaymentForm(params: CreatePaymentFormParams): Promise<YookassaPaymentResponse> {

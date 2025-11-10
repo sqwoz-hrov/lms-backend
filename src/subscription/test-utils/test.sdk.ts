@@ -24,4 +24,12 @@ export class SubscriptionTestSdk implements ValidateSDK<SubscriptionTestSdk> {
 			userMeta,
 		});
 	}
+
+	async deletePaymentMethod({ userMeta }: { userMeta: UserMeta }) {
+		return this.testClient.request<Record<string, never>>({
+			path: '/subscriptions/payment-method',
+			method: 'DELETE',
+			userMeta,
+		});
+	}
 }

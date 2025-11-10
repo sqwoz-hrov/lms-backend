@@ -1,8 +1,7 @@
 import { SubscriptionTier, User } from '../../user/user.entity';
+import { MS_IN_DAY } from '../constants';
 import { SubscriptionDraft, SubscriptionState } from '../subscription.entity';
 import { PaymentWebhookEvent } from '../types/yookassa-webhook';
-
-const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
 export type SubscriptionActionType = 'create' | 'delete' | 'update_billing_data' | 'upgrade' | 'downgrade' | 'prolong';
 
@@ -17,13 +16,6 @@ export type SubscriptionAction =
 interface SubscriptionManagerOptions {
 	defaultBillingPeriodDays?: number;
 	defaultGracePeriodSize?: number;
-}
-
-interface BillingCronParams {
-	user: Pick<User, 'id'>;
-	subscription: SubscriptionState;
-	outcome: 'success' | 'failure';
-	now?: Date;
 }
 
 interface PaymentEventParams {
@@ -132,42 +124,6 @@ export class SubscriptionManager {
 			existing.is_gifted && existing.subscription_tier_id === params.targetTier.id ? 'prolong' : 'upgrade';
 
 		return { action: { do: doAction, subscription: updated } };
-	}
-
-	handleBillingCron(params: BillingCronParams): { action: SubscriptionAction } {
-		const now = params.now ?? new Date();
-		const subscription = params.subscription;
-
-		if (params.outcome === 'success') {
-			const base = this.maxDate(subscription.current_period_end, now);
-			const periodDays = this.normalizePeriodDays(subscription.billing_period_days || this.defaultBillingPeriodDays);
-			const nextEnd = this.addDays(base, periodDays);
-
-			const updated: SubscriptionState = {
-				...subscription,
-				current_period_end: nextEnd,
-				last_billing_attempt: now,
-			};
-
-			return { action: { do: 'prolong', subscription: updated } };
-		}
-
-		const withinGrace = this.isWithinGracePeriod(subscription, now);
-
-		if (withinGrace) {
-			const updated: SubscriptionState = {
-				...subscription,
-				last_billing_attempt: now,
-			};
-
-			return {
-				action: { do: 'update_billing_data', subscription: updated },
-			};
-		}
-
-		const downgraded = this.downgradeToFreeTier(subscription, now);
-
-		return { action: { do: 'downgrade', subscription: downgraded } };
 	}
 
 	handlePaymentEvent(params: PaymentEventParams): { action: SubscriptionAction } {

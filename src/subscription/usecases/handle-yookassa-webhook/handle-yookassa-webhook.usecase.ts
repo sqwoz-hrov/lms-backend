@@ -4,7 +4,12 @@ import { Switch } from '../../../common/utils/safe-guard';
 import { SubscriptionManagerFactory } from '../../domain/subscription-manager.factory';
 import { SubscriptionActionExecutor } from '../../services/subscription-action.executor';
 import { SubscriptionRepository } from '../../subscription.repository';
-import { EventMetadata, SUPPORTED_EVENTS, WebhookEvent, YookassaWebhookPayload } from '../../types/yookassa-webhook';
+import {
+	EventMetadata,
+	PaymentWebhookEvent,
+	SUPPORTED_EVENTS,
+	YookassaWebhookPayload,
+} from '../../types/yookassa-webhook';
 
 @Injectable()
 export class HandleYookassaWebhookUsecase implements UsecaseInterface {
@@ -75,15 +80,14 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 					return;
 				}
 
-				if (event.type === 'payment_method.active') {
+				if (event.paymentMethod) {
 					await this.subscriptionRepository.upsertPaymentMethod(
 						{
-							userId: subscription.user_id,
-							paymentMethodId: event.paymentMethodId,
+							user_id: subscription.user_id,
+							payment_method_id: event.paymentMethod.id,
 						},
 						trx,
 					);
-					return;
 				}
 
 				const { action } = manager.handlePaymentEvent({ user, subscription, event });
@@ -108,27 +112,22 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 		});
 	}
 
-	private buildEvent(payload: YookassaWebhookPayload): WebhookEvent {
+	private buildEvent(payload: YookassaWebhookPayload): PaymentWebhookEvent {
 		const base = payload.object;
 		switch (payload.event) {
-			case 'payment_method.active': {
-				const occurredAt = this.parseDate(base.created_at);
-				const paymentMethodId = base.id;
-				return { type: 'payment_method.active', paymentMethodId, occurredAt };
-			}
 			case 'payment.succeeded': {
 				const occurredAt = this.parseDate(base.created_at);
 
 				if (!this.metadataIsValid(base.metadata)) throw new InternalServerErrorException('metadata is not valid');
 
-				return { type: 'payment.succeeded', meta: base.metadata, occurredAt };
+				return { type: 'payment.succeeded', meta: base.metadata, paymentMethod: base.payment_method, occurredAt };
 			}
 			case 'payment.canceled': {
 				const occurredAt = this.parseDate(base.created_at);
 
 				if (!this.metadataIsValid(base.metadata)) throw new InternalServerErrorException('metadata is not valid');
 
-				return { type: 'payment.canceled', meta: base.metadata, occurredAt };
+				return { type: 'payment.canceled', meta: base.metadata, paymentMethod: base.payment_method, occurredAt };
 			}
 			default:
 				return Switch.safeGuard(payload, 'Build event failed');

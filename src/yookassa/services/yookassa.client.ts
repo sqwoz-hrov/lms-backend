@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { yookassaConfig } from '../../config/yookassa.config';
@@ -7,14 +7,11 @@ import {
 	CreatePaymentFormParams,
 	YOOKASSA_CURRENCY_RUB,
 	YookassaClientPort,
-	YookassaListWebhooksResponse,
 	YookassaPaymentResponse,
-	YookassaWebhook,
-	YookassaWebhookEvent,
 } from './yookassa-client.interface';
 
 @Injectable()
-export class YookassaClient implements YookassaClientPort, OnModuleInit {
+export class YookassaClient implements YookassaClientPort {
 	private readonly logger = new Logger(YookassaClient.name);
 	private readonly baseUrl: string;
 	private readonly basicAuthToken: string | null;
@@ -24,31 +21,6 @@ export class YookassaClient implements YookassaClientPort, OnModuleInit {
 		this.baseUrl = this.config.apiUrl.replace(/\/+$/, '');
 		this.oauthToken = this.config.oauthToken ?? null;
 		this.basicAuthToken = `${Buffer.from(`${this.config.shopId}:${this.config.secretKey}`).toString('base64')}`;
-	}
-
-	async onModuleInit(): Promise<void> {
-		if (!this.oauthToken) {
-			this.logger.warn('oauthToken is not configured — skipping API webhook setup.');
-			return;
-		}
-
-		const webhookUrl = this.config.webhookUrl;
-
-		try {
-			const desired: YookassaWebhookEvent[] = ['payment.succeeded', 'payment.canceled', 'payment_method.active'];
-			const existing = await this.listWebhooks();
-			for (const event of desired) {
-				const already = existing.items?.some(w => w.event === event && w.url === webhookUrl);
-				if (!already) {
-					await this.createWebhook(event, webhookUrl);
-					this.logger.log(`webhook created for ${event} → ${webhookUrl}`);
-				} else {
-					this.logger.log(`webhook already present for ${event} → ${webhookUrl}`);
-				}
-			}
-		} catch (err) {
-			this.logger.error(`ensuring webhooks failed: ${(err as Error).message}`);
-		}
 	}
 
 	private ensureReturnUrl(provided?: string): string {
@@ -66,7 +38,7 @@ export class YookassaClient implements YookassaClientPort, OnModuleInit {
 
 	private getAuthorizationToken(authorizationType: 'Basic' | 'Bearer') {
 		if (authorizationType === 'Bearer') return `Bearer ${this.oauthToken}`;
-		return `Basic ${this.basicAuthToken}`;
+		return;
 	}
 
 	private async req<T>(
@@ -75,12 +47,11 @@ export class YookassaClient implements YookassaClientPort, OnModuleInit {
 		opts: {
 			body?: unknown;
 			idempotenceKey?: string;
-			authorizationType?: 'Basic' | 'Bearer';
 		} = {},
 	): Promise<T> {
-		const { body, idempotenceKey, authorizationType = 'Basic' } = opts;
+		const { body, idempotenceKey } = opts;
 		const url = new URL(path, `${this.baseUrl}/`).toString();
-		const headers: Record<string, string> = { Authorization: this.getAuthorizationToken(authorizationType) };
+		const headers: Record<string, string> = { Authorization: `Basic ${this.basicAuthToken}` };
 		if (body !== undefined) headers['Content-Type'] = 'application/json';
 		if (verb === 'POST' || verb === 'PUT' || verb === 'PATCH')
 			headers['Idempotence-Key'] = idempotenceKey ?? randomUUID();
@@ -107,21 +78,6 @@ export class YookassaClient implements YookassaClientPort, OnModuleInit {
 		}
 
 		return parsed as T;
-	}
-
-	async listWebhooks(): Promise<YookassaListWebhooksResponse> {
-		return await this.req<YookassaListWebhooksResponse>('GET', 'webhooks', { authorizationType: 'Bearer' });
-	}
-
-	async createWebhook(event: YookassaWebhookEvent, url: string) {
-		return await this.req<YookassaWebhook>('POST', 'webhooks', {
-			authorizationType: 'Bearer',
-			body: { event, url },
-		});
-	}
-
-	async deleteWebhook(id: string): Promise<void> {
-		await this.req<void>('DELETE', `webhooks/${encodeURIComponent(id)}`, { authorizationType: 'Bearer' });
 	}
 
 	async createPaymentForm(params: CreatePaymentFormParams): Promise<YookassaPaymentResponse> {

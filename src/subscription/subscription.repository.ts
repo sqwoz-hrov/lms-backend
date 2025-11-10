@@ -1,17 +1,20 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Kysely, Transaction, sql } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
+import { UserAggregation } from '../user/user.entity';
+import type { BillableSubscriptionCursor, SubscriptionRepositoryPort } from './ports/subscription-repository.port';
 import {
 	NewPaymentEvent,
+	NewPaymentMethod,
 	NewSubscription,
-	PaymentEvent,
 	PaymentEventTable,
 	PaymentMethod,
 	Subscription,
 	SubscriptionAggregation,
 	SubscriptionUpdate,
 } from './subscription.entity';
-import { UserAggregation } from '../user/user.entity';
+import { getStartOfDayUtc } from './utils/get-start-of-day-utc';
+import { MS_IN_DAY } from './constants';
 
 export type SubscriptionDatabase = SubscriptionAggregation &
 	UserAggregation & {
@@ -22,8 +25,20 @@ export type SubscriptionTransaction = Transaction<SubscriptionDatabase>;
 
 type SubscriptionQueryExecutor = Kysely<SubscriptionDatabase> | SubscriptionTransaction;
 
+type FindBillableSubscriptionsParams = {
+	runDate: Date;
+	retryWindowDays: number;
+	limit: number;
+	cursor?: BillableSubscriptionCursor;
+	trx?: SubscriptionTransaction;
+};
+
+export type BillableSubscriptionRow = Subscription & {
+	billing_payment_method_id: PaymentMethod['payment_method_id'];
+};
+
 @Injectable()
-export class SubscriptionRepository {
+export class SubscriptionRepository implements SubscriptionRepositoryPort<SubscriptionTransaction> {
 	private readonly db: Kysely<SubscriptionDatabase>;
 
 	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
@@ -50,7 +65,11 @@ export class SubscriptionRepository {
 			.executeTakeFirstOrThrow();
 	}
 
-	async update(id: string, data: SubscriptionUpdate, trx?: SubscriptionTransaction): Promise<Subscription | undefined> {
+	async update(
+		id: Subscription['id'],
+		data: SubscriptionUpdate,
+		trx?: SubscriptionTransaction,
+	): Promise<Subscription | undefined> {
 		const executor = this.getExecutor(trx);
 		const result = await executor
 			.updateTable('subscription')
@@ -65,17 +84,20 @@ export class SubscriptionRepository {
 		return result ?? undefined;
 	}
 
-	async deleteById(id: string, trx?: SubscriptionTransaction): Promise<void> {
+	async deleteById(id: Subscription['id'], trx?: SubscriptionTransaction): Promise<void> {
 		const executor = this.getExecutor(trx);
 		await executor.deleteFrom('subscription').where('id', '=', id).execute();
 	}
 
-	async findById(id: string, trx?: SubscriptionTransaction): Promise<Subscription | undefined> {
+	async findById(id: Subscription['id'], trx?: SubscriptionTransaction): Promise<Subscription | undefined> {
 		const executor = this.getExecutor(trx);
 		return await executor.selectFrom('subscription').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
-	async findByUserId(userId: string, trx?: SubscriptionTransaction): Promise<Subscription | undefined> {
+	async findByUserId(
+		userId: Subscription['user_id'],
+		trx?: SubscriptionTransaction,
+	): Promise<Subscription | undefined> {
 		const executor = this.getExecutor(trx);
 		return await executor
 			.selectFrom('subscription')
@@ -85,35 +107,70 @@ export class SubscriptionRepository {
 			.executeTakeFirst();
 	}
 
-	async lockByUserId(user_id: string, trx: SubscriptionTransaction): Promise<Subscription | undefined> {
+	async lockByUserId(userId: Subscription['user_id'], trx: SubscriptionTransaction): Promise<Subscription | undefined> {
 		return await trx
 			.selectFrom('subscription')
 			.selectAll()
-			.where('user_id', '=', user_id)
+			.where('user_id', '=', userId)
 			.forUpdate()
 			.limit(1)
 			.executeTakeFirst();
 	}
 
-	async insertPaymentEvent(data: NewPaymentEvent, trx?: SubscriptionTransaction): Promise<PaymentEvent> {
+	async findBillableSubscriptions(params: FindBillableSubscriptionsParams): Promise<BillableSubscriptionRow[]> {
+		const executor = this.getExecutor(params.trx);
+		const retryAfter = new Date(params.runDate.getTime() - params.retryWindowDays * MS_IN_DAY);
+		const billingThreshold = getStartOfDayUtc(params.runDate);
+
+		let query = executor
+			.selectFrom('subscription')
+			.innerJoin('payment_method', 'payment_method.user_id', 'subscription.user_id')
+			.selectAll('subscription')
+			.select(eb => [eb.ref('payment_method.payment_method_id').as('billing_payment_method_id')])
+			.where('subscription.is_gifted', '=', false)
+			.where('subscription.billing_period_days', '>', 0)
+			.where(
+				sql<boolean>`(subscription.current_period_end IS NULL OR subscription.current_period_end < ${billingThreshold})`,
+			)
+			.where(
+				sql<boolean>`(subscription.last_billing_attempt IS NULL OR subscription.last_billing_attempt <= ${retryAfter})`,
+			);
+
+		if (params.cursor) {
+			const cursorDate = params.cursor.currentPeriodEnd ?? new Date(0);
+			query = query.where(
+				sql<boolean>`(COALESCE(subscription.current_period_end, to_timestamp(0)), subscription.id) > (${cursorDate}, ${params.cursor.id})`,
+			);
+		}
+
+		query = query
+			.orderBy('subscription.current_period_end', 'asc')
+			.orderBy('subscription.id', 'asc')
+			.limit(params.limit);
+
+		return await query.execute();
+	}
+
+	async insertPaymentEvent(data: NewPaymentEvent, trx?: SubscriptionTransaction): Promise<void> {
 		const executor = this.getExecutor(trx);
-		return await executor.insertInto('payment_event').values(data).returningAll().executeTakeFirstOrThrow();
+		await executor.insertInto('payment_event').values(data).returningAll().executeTakeFirstOrThrow();
 	}
 
 	async upsertPaymentMethod(
-		params: { userId: string; paymentMethodId: string },
+		data: Pick<NewPaymentMethod, 'user_id' | 'payment_method_id'>,
 		trx?: SubscriptionTransaction,
 	): Promise<PaymentMethod> {
 		const executor = this.getExecutor(trx);
+
 		return await executor
 			.insertInto('payment_method')
 			.values({
-				user_id: params.userId,
-				payment_method_id: params.paymentMethodId,
+				user_id: data.user_id,
+				payment_method_id: data.payment_method_id,
 			})
 			.onConflict(oc =>
 				oc.column('user_id').doUpdateSet({
-					payment_method_id: params.paymentMethodId,
+					payment_method_id: data.payment_method_id,
 					updated_at: sql`now()`,
 				}),
 			)
@@ -121,7 +178,10 @@ export class SubscriptionRepository {
 			.executeTakeFirstOrThrow();
 	}
 
-	async findPaymentMethodByUserId(userId: string, trx?: SubscriptionTransaction): Promise<PaymentMethod | undefined> {
+	async findPaymentMethodByUserId(
+		userId: PaymentMethod['user_id'],
+		trx?: SubscriptionTransaction,
+	): Promise<PaymentMethod | undefined> {
 		const executor = this.getExecutor(trx);
 		return await executor
 			.selectFrom('payment_method')
@@ -129,5 +189,10 @@ export class SubscriptionRepository {
 			.where('user_id', '=', userId)
 			.limit(1)
 			.executeTakeFirst();
+	}
+
+	async deletePaymentMethodByUserId(userId: PaymentMethod['user_id'], trx?: SubscriptionTransaction): Promise<void> {
+		const executor = this.getExecutor(trx);
+		await executor.deleteFrom('payment_method').where('user_id', '=', userId).execute();
 	}
 }
