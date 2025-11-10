@@ -13,12 +13,20 @@ import { DeletePaymentMethodUsecase } from './usecases/delete-payment-method/del
 import { YookassaModule } from '../yookassa/yookassa.module';
 import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.module';
 import { SUBSCRIPTION_REPOSITORY_PORT } from './constants';
+import { DowngradeSubscriptionController } from './usecases/downgrade-subscription/downgrade-subscription.controller';
+import { DowngradeSubscriptionUsecase } from './usecases/downgrade-subscription/downgrade-subscription.usecase';
 
 @Module({
 	imports: [YookassaModule, SubscriptionTierModule],
-	controllers: [GiftSubscriptionController, HandleYookassaWebhookController, DeletePaymentMethodController],
+	controllers: [
+		GiftSubscriptionController,
+		DowngradeSubscriptionController,
+		HandleYookassaWebhookController,
+		DeletePaymentMethodController,
+	],
 	providers: [
 		GiftSubscriptionUsecase,
+		DowngradeSubscriptionUsecase,
 		HandleYookassaWebhookUsecase,
 		DeletePaymentMethodUsecase,
 		SubscriptionRepository,

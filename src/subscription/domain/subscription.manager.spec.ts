@@ -190,6 +190,73 @@ describe('SubscriptionManager', () => {
 		});
 	});
 
+	describe('handleDowngrade', () => {
+		it('downgrades subscription to a cheaper billable tier while keeping billing schedule', () => {
+			const manager = createManager();
+			const currentPeriodEnd = addDays(BASE_DATE, 15);
+			const lastAttempt = addDays(BASE_DATE, -2);
+			const subscription = buildSubscriptionState({
+				subscription_tier_id: premiumTier.id,
+				price_on_purchase_rubles: 4000,
+				current_period_end: currentPeriodEnd,
+				last_billing_attempt: lastAttempt,
+				billing_period_days: 45,
+				is_gifted: false,
+			});
+
+			const { action } = manager.handleDowngrade({
+				subscription,
+				targetTier: paidTier,
+			});
+
+			expect(action.do).to.equal('downgrade');
+			expect(action.subscription.subscription_tier_id).to.equal(paidTier.id);
+			expect(action.subscription.price_on_purchase_rubles).to.equal(paidTier.price_rubles);
+			expect(action.subscription.billing_period_days).to.equal(subscription.billing_period_days);
+			expect(action.subscription.current_period_end?.getTime()).to.equal(currentPeriodEnd.getTime());
+			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(lastAttempt.getTime());
+			expect(action.subscription.is_gifted).to.equal(false);
+		});
+
+		it('resets billing data when downgrading to a non-billable tier', () => {
+			const manager = createManager();
+			const subscription = buildSubscriptionState({
+				subscription_tier_id: paidTier.id,
+				current_period_end: addDays(BASE_DATE, 5),
+				last_billing_attempt: addDays(BASE_DATE, -1),
+				grace_period_size: 4,
+			});
+
+			const { action } = manager.handleDowngrade({
+				subscription,
+				targetTier: freeTier,
+			});
+
+			expect(action.do).to.equal('downgrade');
+			expect(action.subscription.subscription_tier_id).to.equal(freeTier.id);
+			expect(action.subscription.price_on_purchase_rubles).to.equal(0);
+			expect(action.subscription.billing_period_days).to.equal(0);
+			expect(action.subscription.current_period_end).to.equal(null);
+			expect(action.subscription.last_billing_attempt).to.equal(null);
+			expect(action.subscription.grace_period_size).to.equal(0);
+			expect(action.subscription.is_gifted).to.equal(true);
+		});
+
+		it('throws when trying to downgrade to a higher power tier', () => {
+			const manager = createManager();
+			const subscription = buildSubscriptionState({
+				subscription_tier_id: paidTier.id,
+			});
+
+			expect(() =>
+				manager.handleDowngrade({
+					subscription,
+					targetTier: premiumTier,
+				}),
+			).to.throw(`Cannot downgrade subscription tier from "${paidTier.tier}" to "${premiumTier.tier}"`);
+		});
+	});
+
 	describe('handlePaymentEvent', () => {
 		it('prolongs subscription on payment success and keeps payment schedule', () => {
 			const manager = createManager();
