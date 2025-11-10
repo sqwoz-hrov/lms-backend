@@ -28,6 +28,8 @@ import { FinishRegistrationUsecase } from './usecases/finish-registration/finish
 import { SendOtpController } from './usecases/send-otp/send-otp.controller';
 import { SendOtpUsecase } from './usecases/send-otp/send-otp.usecase';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { UpdateUserSettingsController } from './usecases/update-settings/update-settings.controller';
+import { UpdateUserSettingsUsecase } from './usecases/update-settings/update-settings.usecase';
 
 @Global()
 @Module({
@@ -44,6 +46,7 @@ import { SubscriptionModule } from '../subscription/subscription.module';
 		AdminSignupController,
 		SignupController,
 		SendOtpController,
+		UpdateUserSettingsController,
 	],
 	providers: [
 		OTPRedisStorage,
@@ -62,6 +65,7 @@ import { SubscriptionModule } from '../subscription/subscription.module';
 		AdminSignupUsecase,
 		SignupUsecase,
 		SendOtpUsecase,
+		UpdateUserSettingsUsecase,
 		UserRepository,
 	],
 	exports: [UserSignupAdapter, UserRepository],

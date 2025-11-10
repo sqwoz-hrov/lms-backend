@@ -1,8 +1,15 @@
 import { Kysely } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { Subscription } from '../subscription/subscription.entity';
-import { NewUser, SubscriptionTier, User, UserAggregation, UserWithNullableSubscriptionTier } from './user.entity';
-import { Inject } from '@nestjs/common';
+import {
+	NewUser,
+	SubscriptionTier,
+	User,
+	UserAggregation,
+	UserSettings,
+	UserWithNullableSubscriptionTier,
+} from './user.entity';
+import { Inject, NotFoundException } from '@nestjs/common';
 
 type PrefixedValues<T, Prefix extends string> = {
 	[K in keyof T as `${Prefix}${K & string}`]: T[K];
@@ -115,6 +122,21 @@ export class UserRepository {
 
 	public async update(user: User): Promise<void> {
 		await this.connection.updateTable('user').set(user).where('id', '=', user.id).execute();
+	}
+
+	public async updateSettings(userId: string, settings: UserSettings): Promise<UserSettings> {
+		const result = await this.connection
+			.updateTable('user')
+			.set({ settings })
+			.where('id', '=', userId)
+			.returning('settings')
+			.executeTakeFirst();
+
+		if (!result) {
+			throw new NotFoundException('User not found');
+		}
+
+		return result.settings;
 	}
 
 	public async save(user: Omit<NewUser, 'telegram_id' | 'id'>): Promise<User | undefined> {

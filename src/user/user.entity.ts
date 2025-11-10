@@ -3,6 +3,13 @@ import { Subscription, SubscriptionTable } from '../subscription/subscription.en
 
 export type UserRole = 'admin' | 'user' | 'subscriber';
 
+export const COLOR_THEMES = ['dark', 'light'] as const;
+export type ColorTheme = (typeof COLOR_THEMES)[number];
+
+export interface UserSettings {
+	theme: ColorTheme;
+}
+
 export interface SubscriptionTierTable {
 	id: Generated<string>;
 	tier: string;
@@ -24,6 +31,7 @@ export interface UserTable {
 	telegram_username: string;
 	finished_registration: ColumnType<boolean, boolean | undefined>;
 	is_archived: ColumnType<boolean, boolean | undefined>;
+	settings: ColumnType<UserSettings, UserSettings | undefined, UserSettings | undefined>;
 }
 
 export type User = Selectable<UserTable>;

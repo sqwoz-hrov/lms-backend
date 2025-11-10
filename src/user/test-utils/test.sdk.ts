@@ -7,6 +7,7 @@ import { LogoutDto } from '../dto/refresh-tokens.dto';
 import { CreateUserDto, UserResponseDto } from '../dto/user.dto';
 import { PublicSignupDto } from '../dto/user.dto';
 import { SendOtpDto, SendOtpResponseDto } from '../dto/send-otp.dto';
+import { UpdateUserSettingsDto, UserSettingsDto } from '../dto/user-settings.dto';
 
 export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -104,6 +105,15 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 			path: '/users/get-me',
 			method: 'GET',
 			userMeta,
+		});
+	}
+
+	public async updateSettings({ params, userMeta }: { params: UpdateUserSettingsDto; userMeta: UserMeta }) {
+		return this.testClient.request<UserSettingsDto>({
+			path: '/users/settings',
+			method: 'PATCH',
+			userMeta,
+			body: params,
 		});
 	}
 }
