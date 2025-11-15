@@ -14,6 +14,7 @@ import {
 	otpConfig,
 	redisConfig,
 	s3Config,
+	tensordockConfig,
 	yookassaConfig,
 	subscriptionConfig,
 	subscriptionBillingConfig,
@@ -23,6 +24,7 @@ import { HrConnectionModule } from '../../src/hr-connection/hr-connection.module
 import { ImageModule } from '../../src/image/image.module';
 import { InfraModule } from '../../src/infra/infra.module';
 import { InterviewModule } from '../../src/interview/interview.module';
+import { InterviewTranscriptionModule } from '../../src/interview-transcription/interview-transcription.module';
 import { JournalRecordModule } from '../../src/journal-record/journal-record.module';
 import { MarkdownContentModule } from '../../src/markdown-content/markdown-content.module';
 import { MaterialModule } from '../../src/material/material.module';
@@ -55,7 +57,7 @@ export const mochaHooks = {
 		const hasNoSilentFlag = process.argv.includes(NO_SILENT_FLAG) || process.env.npm_config_no_silent === 'true';
 		const shouldUseSilentLogger = !hasNoSilentFlag;
 
-		const testModule = await Test.createTestingModule({
+		const testingModuleBuilder = Test.createTestingModule({
 			imports: [
 				ConfigModule.forRoot({
 					load: [
@@ -67,6 +69,7 @@ export const mochaHooks = {
 						otpConfig,
 						redisConfig,
 						s3Config,
+						tensordockConfig,
 						yookassaConfig,
 						subscriptionConfig,
 						subscriptionBillingConfig,
@@ -91,8 +94,11 @@ export const mochaHooks = {
 				PostModule,
 				UserModule,
 				VideoModule,
+				InterviewTranscriptionModule.forRoot({ useFakeVmOrchestrator: true }),
 			],
-		}).compile();
+		});
+
+		const testModule = await testingModuleBuilder.compile();
 
 		const app = testModule.createNestApplication();
 		if (shouldUseSilentLogger) {

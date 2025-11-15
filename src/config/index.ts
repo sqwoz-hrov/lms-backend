@@ -6,6 +6,7 @@ export { otpBotConfig } from './otp-bot.config';
 export { otpConfig } from './otp.config';
 export { redisConfig } from './redis.config';
 export { s3Config } from './s3.config';
+export { tensordockConfig } from './tensordock.config';
 export { yookassaConfig } from './yookassa.config';
 export { subscriptionConfig } from './subscription.config';
 export { subscriptionBillingConfig } from './subscription-billing.config';
