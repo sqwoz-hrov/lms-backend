@@ -147,6 +147,9 @@ describe('[E2E] Start interview transcription usecase', () => {
 		const stored = await transcriptionsRepo.findById(res.body.id);
 		expect(stored?.status).to.equal('processing');
 
+		const [job] = await queue.getJobs(['waiting']);
+		expect(job?.data).to.include({ storageKey: video.storage_key, videoId: video.id });
+
 		const vmStatus = await vmAdapter.getVmStatus();
 		expect(vmStatus.powerState).to.equal('running');
 	});

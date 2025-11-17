@@ -1,4 +1,8 @@
-type AbstractSDKMethod = (args: { params: any; userMeta: UserMeta }) => Promise<{ status: number; body: any }>;
+type AbstractSDKMethod = (args: {
+	params: any;
+	userMeta: UserMeta;
+	headers?: Record<string, string | number>;
+}) => Promise<{ status: number; body: any }>;
 
 export type UserMetaWithoutAuth = {
 	isAuth: false;

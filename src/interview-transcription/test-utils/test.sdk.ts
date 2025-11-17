@@ -16,12 +16,21 @@ export class InterviewTranscriptionsTestSdk implements ValidateSDK<InterviewTran
 		});
 	}
 
-	async sendFinishWebhook({ params, userMeta }: { params: InterviewTranscriptionWebhookDto; userMeta: UserMeta }) {
+	async sendFinishWebhook({
+		params,
+		userMeta,
+		headers,
+	}: {
+		params: InterviewTranscriptionWebhookDto;
+		userMeta: UserMeta;
+		headers?: Record<string, string>;
+	}) {
 		return await this.httpClient.request<InterviewTranscriptionResponseDto>({
 			path: '/webhooks/interview-transcriptions/finish',
 			method: 'POST',
 			body: params,
 			userMeta,
+			headers,
 		});
 	}
 }

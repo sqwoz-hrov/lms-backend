@@ -9,6 +9,7 @@ import {
 	appConfig,
 	dbConfig,
 	imageStorageConfig,
+	interviewTranscriptionConfig,
 	jwtConfig,
 	otpBotConfig,
 	otpConfig,
@@ -38,6 +39,7 @@ import { PaymentModule } from '../../src/payment/payment.module';
 import { YookassaModule } from '../../src/yookassa/yookassa.module';
 import { PostModule } from '../../src/post/post.module';
 import { setupValidation } from '../../src/validation';
+import { setupRawBodyParsing } from '../../src/raw-body';
 import { startAllContainers } from './test.start-all-containers';
 import { SilentLogger } from '../test.silent-logger';
 
@@ -64,6 +66,7 @@ export const mochaHooks = {
 						appConfig,
 						dbConfig,
 						imageStorageConfig,
+						interviewTranscriptionConfig,
 						jwtConfig,
 						otpBotConfig,
 						otpConfig,
@@ -100,10 +103,11 @@ export const mochaHooks = {
 
 		const testModule = await testingModuleBuilder.compile();
 
-		const app = testModule.createNestApplication();
+		const app = testModule.createNestApplication({ bodyParser: false });
 		if (shouldUseSilentLogger) {
 			app.useLogger(new SilentLogger());
 		}
+		setupRawBodyParsing(app);
 		app.use(cookieParser());
 		setupValidation(app);
 
