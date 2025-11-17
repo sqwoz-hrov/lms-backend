@@ -52,10 +52,7 @@ const createRedisProvider = (useRedisTLS: boolean) => ({
 	inject: [redisConfig.KEY],
 });
 
-const buildRedisOptions = (
-	config: ConfigType<typeof redisConfig>,
-	useRedisTLS: boolean,
-): RedisOptions => {
+const buildRedisOptions = (config: ConfigType<typeof redisConfig>, useRedisTLS: boolean): RedisOptions => {
 	const redisOptions: RedisOptions = {
 		port: config.redisPort,
 		host: config.redisHost,

@@ -29,6 +29,10 @@ services:
         target: ${VIDEO_UPLOAD_TMP_DIR}
         bind:
           create_host_path: true
+      - type: volume
+        source: redis-tls-certs
+        target: /certs
+        read_only: true
 
   lms-redis:
     image: redis:8
@@ -47,7 +51,7 @@ services:
         --appendonly yes
         --requirepass $REDIS_PASSWORD
     volumes:
-      - ./certs:/certs:ro
+      - redis-tls-certs:/certs:ro
       - redis-data:/data
     networks:
       - lms-network
@@ -66,3 +70,4 @@ networks:
 
 volumes:
   redis-data:
+  redis-tls-certs:

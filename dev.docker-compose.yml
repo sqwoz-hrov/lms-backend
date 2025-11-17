@@ -28,7 +28,7 @@ services:
         --dir /data
         --appendonly yes
     volumes:
-      - ./certs:/certs:ro
+      - redis-tls-certs:/certs:ro
       - redis-data:/data
     ports:
       - "6379:6379"
@@ -37,6 +37,8 @@ services:
 
 volumes:
   postgres_data:
+  redis-data:
+  redis-tls-certs:
 
 networks:
   lms-network:
