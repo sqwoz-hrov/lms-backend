@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { ConnectionOptions } from 'node:tls';
-import { DynamicModule, Global, Module } from '@nestjs/common';
+import { DynamicModule, Global, Logger, Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Redis, RedisOptions } from 'ioredis';
 import { redisConfig } from '../config/redis.config';
@@ -27,6 +26,7 @@ export class InfraModule {
 			module: InfraModule,
 			global: true,
 			providers: [
+				Logger,
 				{
 					provide: DIALECT_FACTORY_KEY,
 					useFactory: () => {
@@ -45,14 +45,18 @@ export class InfraModule {
 
 const createRedisProvider = (useRedisTLS: boolean) => ({
 	provide: REDIS_CONNECTION_KEY,
-	useFactory: (config: ConfigType<typeof redisConfig>) => {
-		const redisOptions = buildRedisOptions(config, useRedisTLS);
+	useFactory: (config: ConfigType<typeof redisConfig>, logger: Logger) => {
+		const redisOptions = buildRedisOptions(config, useRedisTLS, logger);
 		return new Redis(redisOptions);
 	},
-	inject: [redisConfig.KEY],
+	inject: [redisConfig.KEY, Logger],
 });
 
-const buildRedisOptions = (config: ConfigType<typeof redisConfig>, useRedisTLS: boolean): RedisOptions => {
+const buildRedisOptions = (
+	config: ConfigType<typeof redisConfig>,
+	useRedisTLS: boolean,
+	logger: Logger,
+): RedisOptions => {
 	const redisOptions: RedisOptions = {
 		port: config.redisPort,
 		host: config.redisHost,
@@ -62,16 +66,17 @@ const buildRedisOptions = (config: ConfigType<typeof redisConfig>, useRedisTLS: 
 	};
 
 	if (useRedisTLS) {
-		redisOptions.tls = buildRedisTlsOptions(config);
+		logger.log('Redis TLS is enabled, loading certificates');
+		redisOptions.tls = buildRedisTlsOptions(config, logger);
 	}
 
 	return redisOptions;
 };
 
-const buildRedisTlsOptions = (config: ConfigType<typeof redisConfig>): ConnectionOptions => {
-	const ca = readCertificate(config.redisTlsCa, 'REDIS_TLS_CA');
-	const cert = readCertificate(config.redisTlsCert, 'REDIS_TLS_CERT');
-	const key = readCertificate(config.redisTlsKey, 'REDIS_TLS_KEY');
+const buildRedisTlsOptions = (config: ConfigType<typeof redisConfig>, logger: Logger): ConnectionOptions => {
+	const ca = readCertificate(config.redisTlsCa, 'REDIS_TLS_CA', logger);
+	const cert = readCertificate(config.redisTlsCert, 'REDIS_TLS_CERT', logger);
+	const key = readCertificate(config.redisTlsKey, 'REDIS_TLS_KEY', logger);
 
 	return {
 		ca,
@@ -81,30 +86,21 @@ const buildRedisTlsOptions = (config: ConfigType<typeof redisConfig>): Connectio
 	};
 };
 
-const readCertificate = (location: string, label: string): Buffer => {
+const readCertificate = (location: string, label: string, logger: Logger): Buffer => {
 	const trimmedLocation = location.trim();
 
 	if (!trimmedLocation) {
 		throw new Error(`${label} is required when Redis TLS is enabled`);
 	}
 
-	const normalizedLocation = expandHomePath(trimmedLocation);
-
-	const candidates = [normalizedLocation, resolve(normalizedLocation)];
+	const candidates = [trimmedLocation, resolve(trimmedLocation)];
 
 	for (const candidate of candidates) {
 		if (existsSync(candidate)) {
+			logger.log(`${label} loaded from file path: ${candidate}`);
 			return readFileSync(candidate);
 		}
 	}
 
-	return Buffer.from(trimmedLocation.replace(/\\n/g, '\n'));
-};
-
-const expandHomePath = (targetPath: string): string => {
-	if (!targetPath.startsWith('~')) {
-		return targetPath;
-	}
-
-	return resolve(homedir(), targetPath.slice(1));
+	throw new Error(`${label} must point to an existing file, received: ${location}`);
 };
