@@ -80,7 +80,7 @@ export const mochaHooks = {
 				FeedbackModule,
 				HrConnectionModule,
 				ImageModule.forRoot({ useRealStorageAdapters: false }),
-				InfraModule,
+				InfraModule.forRoot({ useRedisTLS: false }),
 				InterviewModule,
 				JournalRecordModule,
 				MarkdownContentModule,

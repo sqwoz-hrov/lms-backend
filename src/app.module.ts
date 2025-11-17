@@ -57,7 +57,7 @@ import { InterviewTranscriptionModule } from './interview-transcription/intervie
 		FeedbackModule,
 		HrConnectionModule,
 		ImageModule.forRoot({ useRealStorageAdapters: true }),
-		InfraModule,
+		InfraModule.forRoot({ useRedisTLS: true }),
 		InterviewModule,
 		InterviewTranscriptionModule.forRoot({ useFakeVmOrchestrator: false }),
 		JournalRecordModule,
