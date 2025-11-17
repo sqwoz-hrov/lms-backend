@@ -182,3 +182,11 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 data/*
+
+# TLS certificates (kept outside of git)
+redis-tls-certs/
+certs/
+*.crt
+*.csr
+*.key
+*.ext
