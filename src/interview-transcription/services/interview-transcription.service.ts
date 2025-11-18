@@ -39,11 +39,13 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 	) {}
 
 	async onModuleInit(): Promise<void> {
+		this.logger.log('InterviewTranscriptionService module init started');
 		// BullMQ starts connecting immediately (lazyConnect does not help), so we are initializing the queue in OnModuleInit to avoid ugly logs in e2e tests
 		this.queue = new Queue<InterviewTranscriptionJobPayload, void, typeof JOB_NAME>(QUEUE_NAME, {
 			connection: this.redisClient,
 			skipWaitingForReady: true,
 		});
+		this.logger.log(`Queue ${QUEUE_NAME} initialized`);
 		try {
 			await this.enqueuePendingTranscriptions();
 		} catch (error) {
@@ -55,7 +57,9 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 	}
 
 	async onModuleDestroy(): Promise<void> {
+		this.logger.log('InterviewTranscriptionService module destroy started');
 		await this.queue.close();
+		this.logger.log(`Queue ${QUEUE_NAME} closed`);
 	}
 
 	async enqueuePendingTranscriptions(): Promise<void> {
@@ -77,6 +81,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 	}
 
 	async enqueueTranscription(interviewTranscriptionId: string): Promise<InterviewTranscription> {
+		this.logger.debug(`Attempting to enqueue transcription ${interviewTranscriptionId}`);
 		const transcription = await this.transcriptionRepository.findById(interviewTranscriptionId);
 		if (!transcription) {
 			throw new NotFoundException('Запись транскрибации интервью не найдена');
@@ -101,15 +106,19 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 			{ storageKey: video.storage_key, videoId: video.id, interviewTranscriptionId },
 			{ removeOnComplete: true, removeOnFail: false },
 		);
+		this.logger.log(`Transcription ${interviewTranscriptionId} queued for processing`);
 
 		const updated = await this.transcriptionRepository.markProcessing(interviewTranscriptionId);
 		if (!updated) {
 			this.logger.warn(`Failed to mark transcription ${interviewTranscriptionId} as processing`);
+		} else {
+			this.logger.debug(`Transcription ${interviewTranscriptionId} marked as processing`);
 		}
 		return updated ?? transcription;
 	}
 
 	async handleTranscriptionFinished(): Promise<void> {
+		this.logger.debug('handleTranscriptionFinished invoked');
 		const processingCount = await this.transcriptionRepository.countByStatus('processing');
 		if (processingCount > 0) {
 			this.logger.debug(`Still ${processingCount} transcription(s) processing, keeping VM running`);
@@ -128,6 +137,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 	}
 
 	private async ensureVmRunning(): Promise<void> {
+		this.logger.debug('Ensuring VM is running for interview transcription');
 		try {
 			const status = await this.vmAdapter.getVmStatus();
 			if (status?.powerState === 'running') {
