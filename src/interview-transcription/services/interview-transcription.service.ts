@@ -18,6 +18,7 @@ import { REDIS_CONNECTION_KEY } from '../../infra/redis.const';
 type InterviewTranscriptionJobPayload = {
 	storageKey: string;
 	videoId: string;
+	interviewTranscriptionId: string;
 };
 
 const QUEUE_NAME = 'interview-transcription';
@@ -97,7 +98,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 		await this.ensureVmRunning();
 		await this.queue.add(
 			JOB_NAME,
-			{ storageKey: video.storage_key, videoId: video.id },
+			{ storageKey: video.storage_key, videoId: video.id, interviewTranscriptionId },
 			{ removeOnComplete: true, removeOnFail: false },
 		);
 
