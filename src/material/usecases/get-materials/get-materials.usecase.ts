@@ -24,7 +24,7 @@ export class GetMaterialsUsecase implements UsecaseInterface {
 
 		if (user.role === 'user') {
 			filters.student_user_id = user.id;
-			delete filters.is_archived;
+			filters.is_archived = false;
 		}
 
 		const isSubscriber = user.role === 'subscriber';
@@ -32,7 +32,7 @@ export class GetMaterialsUsecase implements UsecaseInterface {
 
 		if (isSubscriber) {
 			subscriptionTierId = user.subscription?.subscription_tier_id ?? undefined;
-			delete filters.is_archived;
+			filters.is_archived = false;
 			delete filters.student_user_id;
 
 			if (!subscriptionTierId) {
