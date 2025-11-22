@@ -6,6 +6,7 @@ import {
 	SubscriptionTier,
 	User,
 	UserAggregation,
+	UserRole,
 	UserSettings,
 	UserWithNullableSubscriptionTier,
 } from './user.entity';
@@ -19,6 +20,10 @@ type UserJoinRow = User &
 	PrefixedValues<Subscription, 'subscription__'> &
 	PrefixedValues<SubscriptionTier, 'subscription_tier__'>;
 
+type FindUsersFilters = {
+	roles?: UserRole[];
+};
+
 export class UserRepository {
 	private readonly connection: Kysely<UserAggregation>;
 
@@ -26,8 +31,8 @@ export class UserRepository {
 		this.connection = dbProvider.getDatabase<UserAggregation>();
 	}
 
-	public async findAll(): Promise<UserWithNullableSubscriptionTier[]> {
-		const rows = await this.connection
+	public async findAll(filters: FindUsersFilters = {}): Promise<UserWithNullableSubscriptionTier[]> {
+		let query = this.connection
 			.selectFrom('user')
 			.leftJoin('subscription', 'subscription.user_id', 'user.id')
 			.leftJoin('subscription_tier', 'subscription_tier.id', 'subscription.subscription_tier_id')
@@ -49,8 +54,13 @@ export class UserRepository {
 				'subscription_tier.power as subscription_tier__power',
 				'subscription_tier.permissions as subscription_tier__permissions',
 				'subscription_tier.price_rubles as subscription_tier__price_rubles',
-			])
-			.execute();
+			]);
+
+		if (filters.roles?.length) {
+			query = query.where('user.role', 'in', filters.roles);
+		}
+
+		const rows = await query.execute();
 
 		//@ts-ignore
 		return rows.map(row => this.mapRow(row));

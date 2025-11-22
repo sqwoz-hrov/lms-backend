@@ -3,12 +3,19 @@ import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserRepository } from '../../user.repository';
 import { toUserResponseDto, UserResponseDto } from '../../dto/user.dto';
 import { UserWithSubscriptionTier } from '../../user.entity';
+import { GetUsersDto } from '../../dto/get-users.dto';
 
 @Injectable()
 export class GetUsersUsecase implements UsecaseInterface {
 	constructor(private readonly userRepository: UserRepository) {}
 
-	async execute({ requester }: { requester: UserWithSubscriptionTier }): Promise<UserResponseDto[]> {
+	async execute({
+		requester,
+		filters,
+	}: {
+		requester: UserWithSubscriptionTier;
+		filters?: GetUsersDto;
+	}): Promise<UserResponseDto[]> {
 		if (requester.role === 'subscriber') {
 			const user = await this.userRepository.findByIdWithSubscriptionTier(requester.id);
 			if (!user) {
@@ -17,7 +24,10 @@ export class GetUsersUsecase implements UsecaseInterface {
 			return [toUserResponseDto(user)];
 		}
 
-		const users = await this.userRepository.findAll();
+		const rolesFilter = requester.role === 'admin' ? filters?.roles : undefined;
+		const users = await this.userRepository.findAll({
+			roles: rolesFilter,
+		});
 
 		if (requester.role === 'admin') {
 			return users.map(toUserResponseDto);
