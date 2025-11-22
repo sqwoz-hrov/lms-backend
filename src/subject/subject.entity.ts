@@ -22,3 +22,7 @@ export interface SubjectAggregation {
 	subject: SubjectTable;
 	subject_tier: SubjectTierTable;
 }
+
+export type SubjectWithSubscriptionTiers = Subject & {
+	subscription_tier_ids?: string[];
+};

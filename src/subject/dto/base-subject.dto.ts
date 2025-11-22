@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class BaseSubjectDto {
 	@ApiProperty()
@@ -18,4 +18,9 @@ export class BaseSubjectDto {
 	color_code: string;
 }
 
-export class SubjectResponseDto extends BaseSubjectDto {}
+export class SubjectResponseDto extends BaseSubjectDto {
+	@ApiProperty({ required: false, type: [String] })
+	@IsString({ each: true })
+	@IsOptional()
+	subscription_tier_ids?: string[];
+}
