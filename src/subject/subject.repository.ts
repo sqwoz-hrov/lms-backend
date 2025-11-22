@@ -39,7 +39,9 @@ export class SubjectRepository {
 		return await this.connection.selectFrom('subject').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
-	async find(filter: (Partial<Subject> & { subscription_tier_id?: string }) = {}): Promise<SubjectWithSubscriptionTiers[]> {
+	async find(
+		filter: Partial<Subject> & { subscription_tier_id?: string } = {},
+	): Promise<SubjectWithSubscriptionTiers[]> {
 		const { subscription_tier_id, ...subjectFilters } = filter;
 
 		let query = this.connection

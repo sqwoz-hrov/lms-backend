@@ -162,11 +162,11 @@ describe('[E2E] Get users usecase', () => {
 		if (res.status !== 200) throw new Error();
 		expect(res.body).to.be.an('array').with.lengthOf(3);
 		expect(res.body.map(returnedUser => returnedUser.id)).to.have.members([admin.id, anotherAdmin.id, subscriber.id]);
-		expect(res.body.every(returnedUser => returnedUser.role === 'admin' || returnedUser.role === 'subscriber')).to.equal(
-			true,
-		);
-		expect(res.body.find(returnedUser => returnedUser.id === user.id)).to.be.undefined;
-		expect(res.body.find(returnedUser => returnedUser.id === anotherUser.id)).to.be.undefined;
+		expect(
+			res.body.every(returnedUser => returnedUser.role === 'admin' || returnedUser.role === 'subscriber'),
+		).to.equal(true);
+		expect(res.body.find(returnedUser => returnedUser.id === user.id)).to.be.an('undefined');
+		expect(res.body.find(returnedUser => returnedUser.id === anotherUser.id)).to.be.an('undefined');
 	});
 
 	it('User sees self and admins only', async () => {

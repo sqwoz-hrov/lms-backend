@@ -10,7 +10,7 @@ export class GetUsersDto {
 		if (value === undefined || value === null) {
 			return undefined;
 		}
-		return Array.isArray(value) ? value : [value];
+		return Array.isArray(value) ? value.map(v => String(v)) : [String(value)];
 	})
 	@IsOptional()
 	@IsArray()
