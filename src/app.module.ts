@@ -4,11 +4,13 @@ import {
 	appConfig,
 	dbConfig,
 	imageStorageConfig,
+	interviewTranscriptionConfig,
 	jwtConfig,
 	otpBotConfig,
 	otpConfig,
 	redisConfig,
 	s3Config,
+	tensordockConfig,
 	yookassaConfig,
 	subscriptionConfig,
 	subscriptionBillingConfig,
@@ -32,6 +34,7 @@ import { SubscriptionTierModule } from './subscription-tier/subscription-tier.mo
 import { YookassaModule } from './yookassa/yookassa.module';
 import { PaymentModule } from './payment/payment.module';
 import { PostModule } from './post/post.module';
+import { InterviewTranscriptionModule } from './interview-transcription/interview-transcription.module';
 
 @Module({
 	imports: [
@@ -40,11 +43,13 @@ import { PostModule } from './post/post.module';
 				appConfig,
 				dbConfig,
 				imageStorageConfig,
+				interviewTranscriptionConfig,
 				jwtConfig,
 				otpBotConfig,
 				otpConfig,
 				redisConfig,
 				s3Config,
+				tensordockConfig,
 				yookassaConfig,
 				subscriptionConfig,
 				subscriptionBillingConfig,
@@ -54,8 +59,9 @@ import { PostModule } from './post/post.module';
 		FeedbackModule,
 		HrConnectionModule,
 		ImageModule.forRoot({ useRealStorageAdapters: true }),
-		InfraModule,
+		InfraModule.forRoot({ useRedisTLS: true }),
 		InterviewModule,
+		InterviewTranscriptionModule.forRoot({ useFakeVmOrchestrator: false }),
 		JournalRecordModule,
 		MarkdownContentModule,
 		MaterialModule,

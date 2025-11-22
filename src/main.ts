@@ -4,9 +4,11 @@ import { createSwagger } from './swagger';
 import { setupCors } from './cors';
 import { setupValidation } from './validation';
 import * as cookieParser from 'cookie-parser';
+import { setupRawBodyParsing } from './raw-body';
 
 async function bootstrap() {
-	const app = await NestFactory.create(AppModule);
+	const app = await NestFactory.create(AppModule, { bodyParser: false });
+	setupRawBodyParsing(app);
 	createSwagger(app);
 	setupCors(app);
 	setupValidation(app);

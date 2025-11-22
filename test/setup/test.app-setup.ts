@@ -9,11 +9,13 @@ import {
 	appConfig,
 	dbConfig,
 	imageStorageConfig,
+	interviewTranscriptionConfig,
 	jwtConfig,
 	otpBotConfig,
 	otpConfig,
 	redisConfig,
 	s3Config,
+	tensordockConfig,
 	yookassaConfig,
 	subscriptionConfig,
 	subscriptionBillingConfig,
@@ -23,6 +25,7 @@ import { HrConnectionModule } from '../../src/hr-connection/hr-connection.module
 import { ImageModule } from '../../src/image/image.module';
 import { InfraModule } from '../../src/infra/infra.module';
 import { InterviewModule } from '../../src/interview/interview.module';
+import { InterviewTranscriptionModule } from '../../src/interview-transcription/interview-transcription.module';
 import { JournalRecordModule } from '../../src/journal-record/journal-record.module';
 import { MarkdownContentModule } from '../../src/markdown-content/markdown-content.module';
 import { MaterialModule } from '../../src/material/material.module';
@@ -36,6 +39,7 @@ import { PaymentModule } from '../../src/payment/payment.module';
 import { YookassaModule } from '../../src/yookassa/yookassa.module';
 import { PostModule } from '../../src/post/post.module';
 import { setupValidation } from '../../src/validation';
+import { setupRawBodyParsing } from '../../src/raw-body';
 import { startAllContainers } from './test.start-all-containers';
 import { SilentLogger } from '../test.silent-logger';
 
@@ -55,18 +59,20 @@ export const mochaHooks = {
 		const hasNoSilentFlag = process.argv.includes(NO_SILENT_FLAG) || process.env.npm_config_no_silent === 'true';
 		const shouldUseSilentLogger = !hasNoSilentFlag;
 
-		const testModule = await Test.createTestingModule({
+		const testingModuleBuilder = Test.createTestingModule({
 			imports: [
 				ConfigModule.forRoot({
 					load: [
 						appConfig,
 						dbConfig,
 						imageStorageConfig,
+						interviewTranscriptionConfig,
 						jwtConfig,
 						otpBotConfig,
 						otpConfig,
 						redisConfig,
 						s3Config,
+						tensordockConfig,
 						yookassaConfig,
 						subscriptionConfig,
 						subscriptionBillingConfig,
@@ -77,7 +83,7 @@ export const mochaHooks = {
 				FeedbackModule,
 				HrConnectionModule,
 				ImageModule.forRoot({ useRealStorageAdapters: false }),
-				InfraModule,
+				InfraModule.forRoot({ useRedisTLS: false }),
 				InterviewModule,
 				JournalRecordModule,
 				MarkdownContentModule,
@@ -91,13 +97,17 @@ export const mochaHooks = {
 				PostModule,
 				UserModule,
 				VideoModule,
+				InterviewTranscriptionModule.forRoot({ useFakeVmOrchestrator: true }),
 			],
-		}).compile();
+		});
 
-		const app = testModule.createNestApplication();
+		const testModule = await testingModuleBuilder.compile();
+
+		const app = testModule.createNestApplication({ bodyParser: false });
 		if (shouldUseSilentLogger) {
 			app.useLogger(new SilentLogger());
 		}
+		setupRawBodyParsing(app);
 		app.use(cookieParser());
 		setupValidation(app);
 

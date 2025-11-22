@@ -14,11 +14,11 @@ export interface UploadChunkParams extends UploadVideoParams {
 	end: number;
 }
 
-export interface UploadChunkHeaders {
+export type UploadChunkHeaders = Record<string, string | number> & {
 	'content-range': string;
 	'upload-session-id'?: string;
 	'upload-chunk-size'?: string;
-}
+};
 
 export interface UploadOptions<T = UploadVideoParams> {
 	params: T;

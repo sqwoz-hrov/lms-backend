@@ -29,12 +29,32 @@ services:
         target: ${VIDEO_UPLOAD_TMP_DIR}
         bind:
           create_host_path: true
+      - type: bind
+        source: ./redis-tls-certs
+        target: /certs
+        read_only: true
 
   lms-redis:
     image: redis:8
     container_name: lms-redis
     restart: always
-    command: ["redis-server", "--requirepass", "$REDIS_PASSWORD"]
+    command: >
+      redis-server
+        --port 0
+        --tls-port 6379
+        --tls-cert-file /certs/redis.crt
+        --tls-key-file  /certs/redis.key
+        --tls-ca-cert-file /certs/ca.crt
+        --tls-auth-clients yes
+        --tls-protocols "TLSv1.2 TLSv1.3"
+        --dir /data
+        --appendonly yes
+        --requirepass $REDIS_PASSWORD
+    volumes:
+      - ./redis-tls-certs:/certs:ro
+      - redis-data:/data
+    ports:
+      - "6379:6379"
     networks:
       - lms-network
 
@@ -49,3 +69,6 @@ networks:
 
   lms-network:
     driver: bridge
+
+volumes:
+  redis-data:

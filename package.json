@@ -33,6 +33,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.1.0",
     "better-sqlite3": "^11.9.1",
+    "bullmq": "^5.63.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "cookie-parser": "^1.4.7",
