@@ -8,7 +8,7 @@ import { GetVideoUsecase } from './get-video.usecase';
 
 @ApiTags('Videos')
 @Controller('videos')
-@Roles('admin', 'user')
+@Roles('admin', 'user', 'subscriber')
 export class GetVideoController {
 	constructor(private readonly getVideoUsecase: GetVideoUsecase) {}
 
