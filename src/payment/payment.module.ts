@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { CreatePaymentFormController } from './usecases/create-payment-form/create-payment-form.controller';
-import { CreatePaymentFormUsecase } from './usecases/create-payment-form/create-payment-form.usecase';
+import { ChargeSubscriptionController } from './usecases/charge-subscription/charge-subscription.controller';
+import { ChargeSubscriptionUsecase } from './usecases/charge-subscription/charge-subscription.usecase';
 import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.module';
 import { AddPaymentMethodController } from './usecases/add-payment-method/add-payment-method.controller';
 import { AddPaymentMethodUsecase } from './usecases/add-payment-method/add-payment-method.usecase';
@@ -13,13 +13,13 @@ import { SubscriptionModule } from '../subscription/subscription.module';
 @Module({
 	imports: [SubscriptionTierModule, SubscriptionModule],
 	controllers: [
-		CreatePaymentFormController,
+		ChargeSubscriptionController,
 		AddPaymentMethodController,
 		DeletePaymentMethodController,
 		GetActivePaymentMethodController,
 	],
 	providers: [
-		CreatePaymentFormUsecase,
+		ChargeSubscriptionUsecase,
 		AddPaymentMethodUsecase,
 		DeletePaymentMethodUsecase,
 		GetActivePaymentMethodUsecase,
