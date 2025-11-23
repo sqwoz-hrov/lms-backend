@@ -66,6 +66,7 @@ export class PaymentWebhookHandler {
 				{
 					user_id: subscription.user_id,
 					payment_method_id: event.paymentMethod.id,
+					status: 'active',
 				},
 				trx,
 			);

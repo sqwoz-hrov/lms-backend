@@ -25,10 +25,13 @@ export interface SubscriptionAggregation {
 	payment_method: PaymentMethodTable;
 }
 
+export type PaymentMethodStatus = 'pending' | 'active';
+
 export interface PaymentMethodTable {
 	id: Generated<string>;
 	user_id: string;
 	payment_method_id: string;
+	status: ColumnType<PaymentMethodStatus, PaymentMethodStatus | undefined, PaymentMethodStatus | undefined>;
 	created_at: Generated<Date>;
 	updated_at: ColumnType<Date, Date | string | undefined, Date | string | undefined>;
 }

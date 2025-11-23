@@ -74,6 +74,29 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.userId).to.equal(subscriber.id);
 	});
 
+	it('returns 404 when payment method is pending activation', async () => {
+		const subscriber = await createTestSubscriber(usersRepo);
+		await subscriptionRepo.upsertPaymentMethod({
+			userId: subscriber.id,
+			paymentMethodId: 'pm-pending-1',
+			status: 'pending',
+		});
+
+		const response = await subscriptionSdk.getActivePaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.NOT_FOUND);
+		if (response.status !== HttpStatus.NOT_FOUND) {
+			throw new Error();
+		}
+		expect(response.body.description).to.equal('Payment method not found');
+	});
+
 	it('returns 404 when payment method missing', async () => {
 		const subscriber = await createTestSubscriber(usersRepo);
 

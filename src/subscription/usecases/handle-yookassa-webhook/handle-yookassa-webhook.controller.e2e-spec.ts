@@ -338,6 +338,12 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			},
 		});
 
+		await subscriptionRepo.upsertPaymentMethod({
+			userId: user.id,
+			paymentMethodId: 'pm-from-active-webhook',
+			status: 'pending',
+		});
+
 		const payload: YookassaPaymentMethodActiveWebhook = {
 			event: 'payment_method.active',
 			object: {
@@ -346,9 +352,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				status: 'active',
 				saved: true,
 				card: { last4: '5555' },
-				metadata: {
-					user_id: user.id,
-				},
 			},
 		};
 
@@ -356,6 +359,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const storedPaymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
 		expect(storedPaymentMethod?.payment_method_id).to.equal('pm-from-active-webhook');
+		expect(storedPaymentMethod?.status).to.equal('active');
 
 		const storedEvent = await expectStoredEvent(payload);
 		expect(storedEvent.user_id).to.equal(user.id);

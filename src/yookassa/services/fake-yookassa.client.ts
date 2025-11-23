@@ -81,7 +81,6 @@ export class FakeYookassaClient implements YookassaClientPort, YookassaClientPay
 				type: 'redirect',
 				confirmation_url: params.returnUrl ?? `https://fake-payments.local/payment-method/${methodId}`,
 			},
-			metadata: params.metadata,
 		};
 
 		this.lastCreatedPaymentMethod = { params, response };
@@ -99,6 +98,10 @@ export class FakeYookassaClient implements YookassaClientPort, YookassaClientPay
 
 	getLastCreatedPaymentMethodParams(): CreatePaymentMethodParams | undefined {
 		return this.lastCreatedPaymentMethod?.params;
+	}
+
+	getLastCreatedPaymentMethodResponse(): CreatePaymentMethodResponse | undefined {
+		return this.lastCreatedPaymentMethod?.response;
 	}
 
 	clearLastCreatedPaymentMethod(): void {

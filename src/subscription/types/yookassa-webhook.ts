@@ -61,13 +61,6 @@ const paymentMethodSchema = z
 	})
 	.passthrough();
 
-const paymentMethodWithMetadataSchema = paymentMethodSchema
-	.extend({
-		status: z.string().optional(),
-		metadata: paymentMethodMetadataSchema.optional(),
-	})
-	.passthrough();
-
 const paymentBaseSchema = z
 	.object({
 		id: z.string(),
@@ -108,9 +101,9 @@ const paymentCanceledObjectSchema = paymentBaseSchema
 	})
 	.passthrough();
 
-const paymentMethodActiveObjectSchema = paymentMethodWithMetadataSchema
+const paymentMethodActiveObjectSchema = paymentMethodSchema
 	.extend({
-		status: z.literal('active'),
+		status: z.string(),
 	})
 	.passthrough();
 
@@ -144,7 +137,6 @@ export const yookassaWebhookSchema = z.discriminatedUnion('event', [
 export type PaymentMethodMetadata = z.infer<typeof paymentMethodMetadataSchema>;
 export type EventMetadata = z.infer<typeof eventMetadataSchema>;
 export type YookassaPaymentMethod = z.infer<typeof paymentMethodSchema>;
-export type YookassaPaymentMethodWithMetadata = z.infer<typeof paymentMethodWithMetadataSchema>;
 export type YookassaPaymentSucceededWebhook = z.infer<typeof yookassaPaymentSucceededWebhookSchema>;
 export type YookassaPaymentCanceledWebhook = z.infer<typeof yookassaPaymentCanceledWebhookSchema>;
 export type YookassaPaymentMethodActiveWebhook = z.infer<typeof yookassaPaymentMethodActiveWebhookSchema>;

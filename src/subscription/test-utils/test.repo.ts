@@ -50,16 +50,23 @@ export class SubscriptionTestRepository {
 		return await query.execute();
 	}
 
-	async upsertPaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<void> {
+	async upsertPaymentMethod(params: {
+		userId: string;
+		paymentMethodId: string;
+		status?: PaymentMethod['status'];
+	}): Promise<void> {
+		const status = params.status ?? 'active';
 		await this.connection
 			.insertInto('payment_method')
 			.values({
 				user_id: params.userId,
 				payment_method_id: params.paymentMethodId,
+				status,
 			})
 			.onConflict(oc =>
 				oc.column('user_id').doUpdateSet({
 					payment_method_id: params.paymentMethodId,
+					status,
 				}),
 			)
 			.execute();

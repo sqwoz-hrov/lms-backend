@@ -1,6 +1,5 @@
 import {
 	EventMetadata,
-	PaymentMethodMetadata,
 	YookassaPaymentMethod,
 	YookassaPaymentMethodType,
 } from '../../subscription/types/yookassa-webhook';
@@ -60,7 +59,6 @@ export interface GetPaymentMethodParams {
 export interface CreatePaymentMethodParams {
 	type: YookassaPaymentMethodType;
 	returnUrl?: string;
-	metadata: PaymentMethodMetadata;
 	idempotenceKey?: string;
 }
 
@@ -75,7 +73,6 @@ export interface CreatePaymentMethodResponse {
 	status: string;
 	saved: boolean;
 	confirmation?: YookassaPaymentMethodConfirmation;
-	metadata?: PaymentMethodMetadata;
 }
 
 export interface YookassaClientPaymentMethodPort {

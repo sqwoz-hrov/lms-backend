@@ -10,34 +10,27 @@ export class PaymentMethodWebhookHandler {
 	constructor(private readonly subscriptionRepository: SubscriptionRepository) {}
 
 	async handle({ payload, trx, context }: WebhookRouteParams<YookassaPaymentMethodActiveWebhook>): Promise<void> {
-		const metadata = payload.object.metadata;
+		const paymentMethod = await this.subscriptionRepository.findPaymentMethodByPaymentMethodId(payload.object.id, trx);
 
-		if (!metadata) {
-			this.logger.error(`Webhook ${payload.event} missing user metadata, skipping`);
-			throw new Error('Invalid metadata');
+		if (!paymentMethod) {
+			this.logger.warn(`Payment method ${payload.object.id} not found for webhook ${payload.event}`);
+			throw new Error('Payment method not found');
 		}
 
-		context.userId = metadata.user_id;
+		context.userId = paymentMethod.user_id;
 		context.subscriptionId = null;
 
-		const user = await trx
-			.selectFrom('user')
-			.selectAll()
-			.where('id', '=', metadata.user_id)
-			.limit(1)
-			.executeTakeFirst();
-
-		if (!user) {
-			this.logger.warn(`User ${metadata.user_id} not found for webhook ${payload.event}`);
-			throw new Error('User not found');
+		if (payload.object.status !== 'active') {
+			this.logger.warn(
+				`Received payment_method.active webhook with non-active status "${payload.object.status}" for method ${payload.object.id}`,
+			);
+			return;
 		}
 
-		await this.subscriptionRepository.upsertPaymentMethod(
-			{
-				user_id: metadata.user_id,
-				payment_method_id: payload.object.id,
-			},
-			trx,
-		);
+		if (paymentMethod.status === 'active') {
+			return;
+		}
+
+		await this.subscriptionRepository.updatePaymentMethodStatus(payload.object.id, 'active', trx);
 	}
 }

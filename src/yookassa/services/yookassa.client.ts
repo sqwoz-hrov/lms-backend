@@ -160,7 +160,6 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 				type: 'redirect',
 				return_url: this.ensureReturnUrl(params.returnUrl),
 			},
-			metadata: params.metadata,
 		};
 
 		return await this.req<CreatePaymentMethodResponse>('POST', 'payment_methods', {

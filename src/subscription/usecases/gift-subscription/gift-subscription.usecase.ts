@@ -68,7 +68,9 @@ export class GiftSubscriptionUsecase implements UsecaseInterface {
 				return null;
 			}
 
-			const paymentMethod = await this.subscriptionRepository.findPaymentMethodByUserId(lockedUser.id, trx);
+			const paymentMethod = await this.subscriptionRepository.findPaymentMethodByUserId(lockedUser.id, trx, {
+				status: 'active',
+			});
 
 			return SubscriptionResponseDto.fromEntity(persisted, {
 				paymentMethodId: paymentMethod?.payment_method_id ?? null,

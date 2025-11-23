@@ -9,6 +9,7 @@ import {
 	NewSubscription,
 	PaymentEventTable,
 	PaymentMethod,
+	PaymentMethodStatus,
 	Subscription,
 	SubscriptionAggregation,
 	SubscriptionUpdate,
@@ -127,6 +128,7 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 			.innerJoin('payment_method', 'payment_method.user_id', 'subscription.user_id')
 			.selectAll('subscription')
 			.select(eb => [eb.ref('payment_method.payment_method_id').as('billing_payment_method_id')])
+			.where('payment_method.status', '=', 'active')
 			.where('subscription.is_gifted', '=', false)
 			.where('subscription.billing_period_days', '>', 0)
 			.where(
@@ -157,20 +159,23 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 	}
 
 	async upsertPaymentMethod(
-		data: Pick<NewPaymentMethod, 'user_id' | 'payment_method_id'>,
+		data: Pick<NewPaymentMethod, 'user_id' | 'payment_method_id' | 'status'>,
 		trx?: SubscriptionTransaction,
 	): Promise<PaymentMethod> {
 		const executor = this.getExecutor(trx);
+		const status: PaymentMethodStatus = data.status ?? 'pending';
 
 		return await executor
 			.insertInto('payment_method')
 			.values({
 				user_id: data.user_id,
 				payment_method_id: data.payment_method_id,
+				status,
 			})
 			.onConflict(oc =>
 				oc.column('user_id').doUpdateSet({
 					payment_method_id: data.payment_method_id,
+					status,
 					updated_at: sql`now()`,
 				}),
 			)
@@ -178,17 +183,49 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 			.executeTakeFirstOrThrow();
 	}
 
-	async findPaymentMethodByUserId(
-		userId: PaymentMethod['user_id'],
+	async findPaymentMethodByPaymentMethodId(
+		paymentMethodId: PaymentMethod['payment_method_id'],
 		trx?: SubscriptionTransaction,
 	): Promise<PaymentMethod | undefined> {
 		const executor = this.getExecutor(trx);
 		return await executor
 			.selectFrom('payment_method')
 			.selectAll()
-			.where('user_id', '=', userId)
+			.where('payment_method_id', '=', paymentMethodId)
 			.limit(1)
 			.executeTakeFirst();
+	}
+
+	async updatePaymentMethodStatus(
+		paymentMethodId: PaymentMethod['payment_method_id'],
+		status: PaymentMethodStatus,
+		trx?: SubscriptionTransaction,
+	): Promise<PaymentMethod | undefined> {
+		const executor = this.getExecutor(trx);
+		return await executor
+			.updateTable('payment_method')
+			.set({
+				status,
+				updated_at: sql`now()`,
+			})
+			.where('payment_method_id', '=', paymentMethodId)
+			.returningAll()
+			.executeTakeFirst();
+	}
+
+	async findPaymentMethodByUserId(
+		userId: PaymentMethod['user_id'],
+		trx?: SubscriptionTransaction,
+		options?: { status?: PaymentMethodStatus },
+	): Promise<PaymentMethod | undefined> {
+		const executor = this.getExecutor(trx);
+		let query = executor.selectFrom('payment_method').selectAll().where('user_id', '=', userId).limit(1);
+
+		if (options?.status) {
+			query = query.where('status', '=', options.status);
+		}
+
+		return await query.executeTakeFirst();
 	}
 
 	async deletePaymentMethodByUserId(userId: PaymentMethod['user_id'], trx?: SubscriptionTransaction): Promise<void> {

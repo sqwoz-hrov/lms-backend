@@ -39,7 +39,9 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 			);
 		}
 
-		const paymentMethod = await this.subscriptionRepository.findPaymentMethodByUserId(user.id);
+		const paymentMethod = await this.subscriptionRepository.findPaymentMethodByUserId(user.id, undefined, {
+			status: 'active',
+		});
 
 		if (!paymentMethod) {
 			throw new NotFoundException('Payment method not found');
