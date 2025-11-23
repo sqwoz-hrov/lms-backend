@@ -28,6 +28,23 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 		this.basicAuthToken = `${Buffer.from(`${this.config.shopId}:${this.config.secretKey}`).toString('base64')}`;
 	}
 
+	private sanitizeHeaders(headers: Record<string, string>) {
+		const sanitized = { ...headers };
+		if (sanitized.Authorization) {
+			const [scheme] = sanitized.Authorization.split(' ');
+			sanitized.Authorization = scheme ? `${scheme} [REDACTED]` : '[REDACTED]';
+		}
+		return sanitized;
+	}
+
+	private stringifyForLog(payload: unknown): string {
+		try {
+			return JSON.stringify(payload);
+		} catch {
+			return '"[unserializable payload]"';
+		}
+	}
+
 	private ensureReturnUrl(provided?: string): string {
 		const resolved = provided ?? this.config.defaultReturnUrl;
 		if (!resolved) throw new Error('Return URL is required to create a payment form');
@@ -61,6 +78,16 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 		if (verb === 'POST' || verb === 'PUT' || verb === 'PATCH')
 			headers['Idempotence-Key'] = idempotenceKey ?? randomUUID();
 
+		const sanitizedHeaders = this.sanitizeHeaders(headers);
+		this.logger.debug(
+			`YooKassa request ${this.stringifyForLog({
+				method: verb,
+				url,
+				headers: sanitizedHeaders,
+				body,
+			})}`,
+		);
+
 		const res = await fetch(url, {
 			method: verb,
 			headers,
@@ -81,6 +108,15 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 			this.logger.error(`YooKassa ${verb} ${path} failed (${res.status}): ${txt}`);
 			throw new Error('YooKassa request failed');
 		}
+
+		this.logger.debug(
+			`YooKassa response ${this.stringifyForLog({
+				method: verb,
+				url,
+				status: res.status,
+				body: parsed,
+			})}`,
+		);
 
 		return parsed as T;
 	}
