@@ -1,5 +1,6 @@
 import {
 	EventMetadata,
+	PaymentMethodMetadata,
 	YookassaPaymentMethod,
 	YookassaPaymentMethodType,
 } from '../../subscription/types/yookassa-webhook';
@@ -55,10 +56,6 @@ export interface ChargeSavedPaymentParams {
 export interface GetPaymentMethodParams {
 	paymentMethodId: string;
 }
-
-export type PaymentMethodMetadata = {
-	user_id: string;
-};
 
 export interface CreatePaymentMethodParams {
 	type: YookassaPaymentMethodType;

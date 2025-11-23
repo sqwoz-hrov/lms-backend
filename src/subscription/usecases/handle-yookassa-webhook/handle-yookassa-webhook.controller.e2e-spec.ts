@@ -12,6 +12,7 @@ import { SubscriptionTestRepository } from '../../test-utils/test.repo';
 import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
 import {
 	YookassaPaymentCanceledWebhook,
+	YookassaPaymentMethodActiveWebhook,
 	YookassaPaymentSucceededWebhook,
 	YookassaWebhookPayload,
 } from '../../types/yookassa-webhook';
@@ -322,6 +323,43 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		}
 
 		expect(storedPaymentMethod.payment_method_id).to.equal('pm-999');
+	});
+
+	it('stores payment method when payment_method.active webhook is received', async () => {
+		const { user } = await givenSubscription({
+			tierOverrides: { tier: 'premium' },
+			subscriptionOverrides: {
+				price_on_purchase_rubles: 2500,
+				is_gifted: false,
+				grace_period_size: 3,
+				billing_period_days: 30,
+				current_period_end: new Date('2025-02-01T00:00:00.000Z'),
+				last_billing_attempt: new Date('2025-01-01T00:00:00.000Z'),
+			},
+		});
+
+		const payload: YookassaPaymentMethodActiveWebhook = {
+			event: 'payment_method.active',
+			object: {
+				id: 'pm-from-active-webhook',
+				type: 'bank_card',
+				status: 'active',
+				saved: true,
+				card: { last4: '5555' },
+				metadata: {
+					user_id: user.id,
+				},
+			},
+		};
+
+		await sendWebhook(payload);
+
+		const storedPaymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
+		expect(storedPaymentMethod?.payment_method_id).to.equal('pm-from-active-webhook');
+
+		const storedEvent = await expectStoredEvent(payload);
+		expect(storedEvent.user_id).to.equal(user.id);
+		expect(storedEvent.subscription_id).to.equal(null);
 	});
 
 	it('updates stored payment method when webhook contains a different one', async () => {

@@ -1,11 +1,6 @@
-export type EventMetadata = {
-	user_id: string;
-	subscription_tier_id: string;
-};
+import { z } from 'zod';
 
-export const SUPPORTED_EVENTS = new Set(['payment.succeeded', 'payment.canceled', 'payment_method.active']);
-
-type YookassaCurrency = 'RUB';
+export const SUPPORTED_EVENTS = new Set(['payment.succeeded', 'payment.canceled', 'payment_method.active'] as const);
 
 export const PAYMENT_METHOD_TYPES = [
 	'bank_card',
@@ -23,70 +18,137 @@ export const PAYMENT_METHOD_TYPES = [
 
 export type YookassaPaymentMethodType = (typeof PAYMENT_METHOD_TYPES)[number];
 
-interface YookassaAmount {
-	value: string;
-	currency: YookassaCurrency;
-}
+const yookassaCurrencySchema = z.literal('RUB');
 
-interface YookassaCardInfo {
-	first6?: string;
-	last4?: string;
-	expiry_month?: string;
-	expiry_year?: string;
-	card_type?: string;
-	issuer_country?: string;
-	issuer_name?: string;
-}
+const amountSchema = z
+	.object({
+		value: z.string(),
+		currency: yookassaCurrencySchema,
+	})
+	.passthrough();
 
-export interface YookassaPaymentMethod {
-	type: YookassaPaymentMethodType;
-	id: string;
-	saved: boolean;
-	title?: string;
-	card?: YookassaCardInfo;
-}
+const cardInfoSchema = z
+	.object({
+		first6: z.string().optional(),
+		last4: z.string().optional(),
+		expiry_month: z.string().optional(),
+		expiry_year: z.string().optional(),
+		card_type: z.string().optional(),
+		issuer_country: z.string().optional(),
+		issuer_name: z.string().optional(),
+	})
+	.passthrough();
 
-export interface YookassaPaymentSucceededWebhook {
-	event: 'payment.succeeded';
-	object: {
-		id: string;
-		status: 'succeeded';
-		paid: true;
-		amount: YookassaAmount;
-		income_amount?: YookassaAmount;
-		description?: string;
-		metadata?: Record<string, unknown>;
-		created_at: string;
-		captured_at?: string;
-		payment_method?: YookassaPaymentMethod;
-		refundable?: boolean;
-		test?: boolean;
-		receipt_registration?: 'pending' | 'succeeded' | 'canceled';
-	};
-}
+export const paymentMethodMetadataSchema = z
+	.object({
+		user_id: z.string(),
+	})
+	.passthrough();
 
-export interface YookassaPaymentCanceledWebhook {
-	event: 'payment.canceled';
-	object: {
-		id: string;
-		status: 'canceled';
-		paid: false | true;
-		amount: YookassaAmount;
-		description?: string;
-		metadata?: Record<string, unknown>;
-		created_at: string;
-		canceled_at: string;
-		cancellation_details?: {
-			party?: string;
-			reason?: string;
-		};
-		payment_method?: YookassaPaymentMethod;
-		refundable?: boolean;
-		test?: boolean;
-	};
-}
+export const eventMetadataSchema = paymentMethodMetadataSchema
+	.extend({
+		subscription_tier_id: z.string(),
+	})
+	.passthrough();
 
-export type YookassaWebhookPayload = YookassaPaymentSucceededWebhook | YookassaPaymentCanceledWebhook;
+const paymentMethodSchema = z
+	.object({
+		type: z.enum(PAYMENT_METHOD_TYPES),
+		id: z.string(),
+		saved: z.boolean(),
+		title: z.string().optional(),
+		card: cardInfoSchema.optional(),
+	})
+	.passthrough();
+
+const paymentMethodWithMetadataSchema = paymentMethodSchema
+	.extend({
+		status: z.string().optional(),
+		metadata: paymentMethodMetadataSchema.optional(),
+	})
+	.passthrough();
+
+const paymentBaseSchema = z
+	.object({
+		id: z.string(),
+		status: z.string(),
+		paid: z.boolean(),
+		amount: amountSchema,
+		description: z.string().optional(),
+		metadata: eventMetadataSchema.optional(),
+		created_at: z.string(),
+		payment_method: paymentMethodSchema.optional(),
+		refundable: z.boolean().optional(),
+		test: z.boolean().optional(),
+	})
+	.passthrough();
+
+const paymentSucceededObjectSchema = paymentBaseSchema
+	.extend({
+		status: z.literal('succeeded'),
+		paid: z.literal(true),
+		income_amount: amountSchema.optional(),
+		captured_at: z.string().optional(),
+		receipt_registration: z.enum(['pending', 'succeeded', 'canceled']).optional(),
+	})
+	.passthrough();
+
+const paymentCanceledObjectSchema = paymentBaseSchema
+	.extend({
+		status: z.literal('canceled'),
+		paid: z.boolean(),
+		canceled_at: z.string(),
+		cancellation_details: z
+			.object({
+				party: z.string().optional(),
+				reason: z.string().optional(),
+			})
+			.passthrough()
+			.optional(),
+	})
+	.passthrough();
+
+const paymentMethodActiveObjectSchema = paymentMethodWithMetadataSchema
+	.extend({
+		status: z.literal('active'),
+	})
+	.passthrough();
+
+export const yookassaPaymentSucceededWebhookSchema = z
+	.object({
+		event: z.literal('payment.succeeded'),
+		object: paymentSucceededObjectSchema,
+	})
+	.passthrough();
+
+export const yookassaPaymentCanceledWebhookSchema = z
+	.object({
+		event: z.literal('payment.canceled'),
+		object: paymentCanceledObjectSchema,
+	})
+	.passthrough();
+
+export const yookassaPaymentMethodActiveWebhookSchema = z
+	.object({
+		event: z.literal('payment_method.active'),
+		object: paymentMethodActiveObjectSchema,
+	})
+	.passthrough();
+
+export const yookassaWebhookSchema = z.discriminatedUnion('event', [
+	yookassaPaymentSucceededWebhookSchema,
+	yookassaPaymentCanceledWebhookSchema,
+	yookassaPaymentMethodActiveWebhookSchema,
+]);
+
+export type PaymentMethodMetadata = z.infer<typeof paymentMethodMetadataSchema>;
+export type EventMetadata = z.infer<typeof eventMetadataSchema>;
+export type YookassaPaymentMethod = z.infer<typeof paymentMethodSchema>;
+export type YookassaPaymentMethodWithMetadata = z.infer<typeof paymentMethodWithMetadataSchema>;
+export type YookassaPaymentSucceededWebhook = z.infer<typeof yookassaPaymentSucceededWebhookSchema>;
+export type YookassaPaymentCanceledWebhook = z.infer<typeof yookassaPaymentCanceledWebhookSchema>;
+export type YookassaPaymentMethodActiveWebhook = z.infer<typeof yookassaPaymentMethodActiveWebhookSchema>;
+export type YookassaWebhookPayload = z.infer<typeof yookassaWebhookSchema>;
 
 export type PaymentWebhookEvent =
 	| {
