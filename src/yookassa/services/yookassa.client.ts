@@ -5,6 +5,8 @@ import { yookassaConfig } from '../../config/yookassa.config';
 import {
 	ChargeSavedPaymentParams,
 	CreatePaymentFormParams,
+	CreatePaymentMethodParams,
+	CreatePaymentMethodResponse,
 	GetPaymentMethodParams,
 	YOOKASSA_CURRENCY_RUB,
 	YookassaClientPaymentMethodPort,
@@ -110,6 +112,22 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 			metadata: params.metadata,
 		};
 		return await this.req<YookassaPaymentResponse>('POST', 'payments', {
+			body,
+			idempotenceKey: params.idempotenceKey,
+		});
+	}
+
+	async createPaymentMethod(params: CreatePaymentMethodParams): Promise<CreatePaymentMethodResponse> {
+		const body = {
+			type: params.type,
+			confirmation: {
+				type: 'redirect',
+				return_url: this.ensureReturnUrl(params.returnUrl),
+			},
+			metadata: params.metadata,
+		};
+
+		return await this.req<CreatePaymentMethodResponse>('POST', 'payment_methods', {
 			body,
 			idempotenceKey: params.idempotenceKey,
 		});
