@@ -8,10 +8,6 @@ import { SubscriptionBillingService } from './services/subscription-billing.serv
 import { SubscriptionBillingScheduler } from './services/subscription-billing.scheduler';
 import { HandleYookassaWebhookController } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.controller';
 import { HandleYookassaWebhookUsecase } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.usecase';
-import { DeletePaymentMethodController } from './usecases/delete-payment-method/delete-payment-method.controller';
-import { DeletePaymentMethodUsecase } from './usecases/delete-payment-method/delete-payment-method.usecase';
-import { GetActivePaymentMethodController } from './usecases/get-active-payment-method/get-active-payment-method.controller';
-import { GetActivePaymentMethodUsecase } from './usecases/get-active-payment-method/get-active-payment-method.usecase';
 import { YookassaModule } from '../yookassa/yookassa.module';
 import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.module';
 import { SUBSCRIPTION_REPOSITORY_PORT } from './constants';
@@ -20,19 +16,11 @@ import { DowngradeSubscriptionUsecase } from './usecases/downgrade-subscription/
 
 @Module({
 	imports: [YookassaModule, SubscriptionTierModule],
-	controllers: [
-		GiftSubscriptionController,
-		DowngradeSubscriptionController,
-		HandleYookassaWebhookController,
-		DeletePaymentMethodController,
-		GetActivePaymentMethodController,
-	],
+	controllers: [GiftSubscriptionController, DowngradeSubscriptionController, HandleYookassaWebhookController],
 	providers: [
 		GiftSubscriptionUsecase,
 		DowngradeSubscriptionUsecase,
 		HandleYookassaWebhookUsecase,
-		DeletePaymentMethodUsecase,
-		GetActivePaymentMethodUsecase,
 		SubscriptionRepository,
 		{
 			provide: SUBSCRIPTION_REPOSITORY_PORT,

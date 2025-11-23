@@ -6,8 +6,8 @@ import { Route } from '../../../common/nest/decorators/route.decorator';
 import { PaymentMethodResponseDto } from '../../dto/payment-method-response.dto';
 import { GetActivePaymentMethodUsecase } from './get-active-payment-method.usecase';
 
-@ApiTags('Subscriptions')
-@Controller('subscriptions')
+@ApiTags('Payments')
+@Controller('payments')
 export class GetActivePaymentMethodController {
 	constructor(private readonly getActivePaymentMethodUsecase: GetActivePaymentMethodUsecase) {}
 

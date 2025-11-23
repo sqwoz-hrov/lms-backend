@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PaymentMethod } from '../subscription.entity';
-import { PAYMENT_METHOD_TYPES, YookassaPaymentMethod, YookassaPaymentMethodType } from '../types/yookassa-webhook';
+import { PaymentMethod } from '../../subscription/subscription.entity';
+import {
+	PAYMENT_METHOD_TYPES,
+	YookassaPaymentMethod,
+	YookassaPaymentMethodType,
+} from '../../subscription/types/yookassa-webhook';
 
 export class PaymentMethodResponseDto {
 	@ApiProperty()

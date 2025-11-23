@@ -5,8 +5,8 @@ import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { DeletePaymentMethodUsecase } from './delete-payment-method.usecase';
 
-@ApiTags('Subscriptions')
-@Controller('subscriptions')
+@ApiTags('Payments')
+@Controller('payments')
 export class DeletePaymentMethodController {
 	constructor(private readonly deletePaymentMethodUsecase: DeletePaymentMethodUsecase) {}
 
