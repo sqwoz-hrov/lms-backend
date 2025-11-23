@@ -1,7 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Kysely } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
-import { NewSubscriptionTier, SubscriptionTier, SubscriptionTierTable } from '../user/user.entity';
+import {
+	NewSubscriptionTier,
+	SubscriptionTier,
+	SubscriptionTierTable,
+	SubscriptionTierUpdate,
+} from '../user/user.entity';
 
 type SubscriptionTierDb = {
 	subscription_tier: SubscriptionTierTable;
@@ -25,6 +30,15 @@ export class SubscriptionTierRepository {
 
 	async create(data: NewSubscriptionTier): Promise<SubscriptionTier> {
 		return await this.db.insertInto('subscription_tier').values(data).returningAll().executeTakeFirstOrThrow();
+	}
+
+	async update(id: string, updates: SubscriptionTierUpdate): Promise<SubscriptionTier> {
+		return await this.db
+			.updateTable('subscription_tier')
+			.set(updates)
+			.where('id', '=', id)
+			.returningAll()
+			.executeTakeFirstOrThrow();
 	}
 
 	async delete(id: string): Promise<SubscriptionTier> {

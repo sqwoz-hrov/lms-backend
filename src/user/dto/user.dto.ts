@@ -16,7 +16,7 @@ import { UserRole, UserWithNullableSubscriptionTier } from '../user.entity';
 import { SubscriptionTierDto } from './subsription-tier.dto';
 import { string } from 'zod';
 
-const UserRoles: UserRole[] = ['admin', 'user', 'subscriber'];
+export const UserRoles: UserRole[] = ['admin', 'user', 'subscriber'];
 
 export class BaseUserDto {
 	@ApiProperty({ description: 'Unique user identifier' })

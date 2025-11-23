@@ -12,7 +12,6 @@ export class GetTasksUsecase implements UsecaseInterface {
 	async execute({ user, params }: { user: User; params: GetTasksDto }): Promise<TaskResponseDto[]> {
 		if (user.role === 'user') {
 			params.student_user_id = user.id;
-			delete params.mentor_user_id;
 		}
 
 		return await this.taskRepository.find(params);

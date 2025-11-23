@@ -8,6 +8,7 @@ import { CreateUserDto, UserResponseDto } from '../dto/user.dto';
 import { PublicSignupDto } from '../dto/user.dto';
 import { SendOtpDto, SendOtpResponseDto } from '../dto/send-otp.dto';
 import { UpdateUserSettingsDto, UserSettingsDto } from '../dto/user-settings.dto';
+import { UserRole } from '../user.entity';
 
 export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -92,9 +93,17 @@ export class UsersTestSdk implements ValidateSDK<UsersTestSdk> {
 		});
 	}
 
-	public async getUsers({ userMeta }: { userMeta: UserMeta }) {
+	public async getUsers({ userMeta, params }: { userMeta: UserMeta; params?: { roles?: UserRole[] } }) {
+		const searchParams = new URLSearchParams();
+		if (params?.roles?.length) {
+			for (const role of params.roles) {
+				searchParams.append('roles', role);
+			}
+		}
+		const queryString = searchParams.toString();
+
 		return this.testClient.request<UserResponseDto[]>({
-			path: '/users',
+			path: `/users${queryString ? `?${queryString}` : ''}`,
 			method: 'GET',
 			userMeta,
 		});

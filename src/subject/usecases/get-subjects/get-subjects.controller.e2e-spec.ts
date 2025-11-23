@@ -15,7 +15,6 @@ import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { UserWithNullableSubscriptionTier } from '../../../user/user.entity';
-import { BaseSubjectDto } from '../../dto/base-subject.dto';
 import { Subject } from '../../subject.entity';
 import { SubjectsTestRepository } from '../../test-utils/test.repo';
 import { SubjectsTestSdk } from '../../test-utils/test.sdk';
@@ -91,7 +90,7 @@ describe('[E2E] Get subjects usecase', () => {
 		if (res.status != 200) throw new Error();
 		expect(res.body.length).to.equal(2);
 
-		const names = res.body.map((s: BaseSubjectDto) => s.name);
+		const names = res.body.map(s => s.name);
 		expect(names).to.include(subject1.name);
 		expect(names).to.include(subject2.name);
 	});
@@ -183,12 +182,17 @@ describe('[E2E] Get subjects usecase', () => {
 
 			expect(res.status).to.equal(HttpStatus.OK);
 			if (res.status != 200) throw new Error();
-			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			const subjectIds = res.body.map(s => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
 			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
 			expect(subjectIds).to.not.include(assignedSubject.id);
 			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
+
+			const accessibleSubjectResponse = res.body.find(s => s.id === accessibleSubject.id);
+			expect(accessibleSubjectResponse?.subscription_tier_ids).to.deep.equal([
+				subscriber.subscription.subscription_tier_id,
+			]);
 		});
 
 		it('Subscriber cannot reveal restricted subjects using id filter', async () => {
@@ -203,7 +207,7 @@ describe('[E2E] Get subjects usecase', () => {
 
 			expect(res.status).to.equal(HttpStatus.OK);
 			if (res.status != 200) throw new Error();
-			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			const subjectIds = res.body.map(s => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
 			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
@@ -223,7 +227,7 @@ describe('[E2E] Get subjects usecase', () => {
 
 			expect(res.status).to.equal(HttpStatus.OK);
 			if (res.status != 200) throw new Error();
-			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			const subjectIds = res.body.map(s => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
 			expect(subjectIds).to.not.include(subjectForAnotherTier.id);
@@ -243,7 +247,7 @@ describe('[E2E] Get subjects usecase', () => {
 
 			expect(res.status).to.equal(HttpStatus.OK);
 			if (res.status != 200) throw new Error();
-			const subjectIds = res.body.map((s: BaseSubjectDto) => s.id);
+			const subjectIds = res.body.map(s => s.id);
 			expect(subjectIds).to.have.length(1);
 			expect(subjectIds).to.include(accessibleSubject.id);
 			expect(subjectIds).to.not.include(subjectForAnotherTier.id);

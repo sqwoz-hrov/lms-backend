@@ -107,6 +107,8 @@ describe('[E2E] Get materials usecase', () => {
 		let admin2: User;
 		let user1: User;
 		let user2: User;
+		let user1PrimaryMaterial: Material;
+		let archivedGeneralMaterial: Material;
 
 		beforeEach(async () => {
 			admin1 = await createTestAdmin(userUtilRepository);
@@ -114,10 +116,10 @@ describe('[E2E] Get materials usecase', () => {
 			user1 = await createTestUser(userUtilRepository);
 			user2 = await createTestUser(userUtilRepository);
 
-			await createMaterial({ student_user_id: user1.id });
+			user1PrimaryMaterial = await createMaterial({ student_user_id: user1.id });
 			await createMaterial({ student_user_id: user1.id });
 			await createMaterial({ student_user_id: user2.id });
-			await createMaterial({ is_archived: true });
+			archivedGeneralMaterial = await createMaterial({ is_archived: true });
 			await createMaterial({ is_archived: false });
 		});
 
@@ -129,10 +131,24 @@ describe('[E2E] Get materials usecase', () => {
 
 			expect(res.status).to.equal(HttpStatus.OK);
 			if (res.status != 200) throw new Error();
-			expect(res.body).to.be.an('array').with.length(3);
+			expect(res.body).to.be.an('array').with.length(4);
 			for (const m of res.body) {
 				expect([null, user1.id]).to.include(m.student_user_id);
 			}
+			expect(res.body.map(m => m.id)).to.include(archivedGeneralMaterial.id);
+		});
+
+		it('Admin can filter by subject_id', async () => {
+			const res = await materialTestSdk.getMaterials({
+				params: { subject_id: user1PrimaryMaterial.subject_id },
+				userMeta: { userId: admin1.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
+			expect(res.body).to.be.an('array').with.length(1);
+			expect(res.body[0].subject_id).to.equal(user1PrimaryMaterial.subject_id);
+			expect(res.body[0].id).to.equal(user1PrimaryMaterial.id);
 		});
 
 		it('Admin can filter by is_archived', async () => {
@@ -147,7 +163,7 @@ describe('[E2E] Get materials usecase', () => {
 			expect(res.body[0].is_archived).to.equal(true);
 		});
 
-		it('Admin without filters gets all unarchived materials', async () => {
+		it('is_archived filter is optional when not provided', async () => {
 			const res = await materialTestSdk.getMaterials({
 				params: {},
 				userMeta: { userId: admin2.id, isAuth: true, isWrongAccessJwt: false },
@@ -155,7 +171,38 @@ describe('[E2E] Get materials usecase', () => {
 
 			expect(res.status).to.equal(HttpStatus.OK);
 			if (res.status != 200) throw new Error();
-			expect(res.body).to.be.an('array').with.length(4);
+			expect(res.body).to.be.an('array').with.length(5);
+			const archivedStatuses = res.body.map(material => material.is_archived);
+			expect(archivedStatuses).to.include(true);
+			expect(archivedStatuses).to.include(false);
+		});
+
+		it('subject_id filter is optional when not provided', async () => {
+			const res = await materialTestSdk.getMaterials({
+				params: {},
+				userMeta: { userId: admin1.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
+			const subjectIds = new Set(res.body.map(material => material.subject_id));
+			expect(subjectIds.has(user1PrimaryMaterial.subject_id)).to.equal(true);
+			expect(subjectIds.has(archivedGeneralMaterial.subject_id)).to.equal(true);
+			expect(subjectIds.size).to.be.greaterThan(1);
+		});
+
+		it('student_user_id filter is optional when not provided', async () => {
+			const res = await materialTestSdk.getMaterials({
+				params: {},
+				userMeta: { userId: admin1.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status != 200) throw new Error();
+			const studentIds = res.body.map(material => material.student_user_id);
+			expect(studentIds).to.include(user1.id);
+			expect(studentIds).to.include(user2.id);
+			expect(studentIds).to.include(null);
 		});
 
 		it('User only sees their own materials, ignoring student_user_id filters', async () => {

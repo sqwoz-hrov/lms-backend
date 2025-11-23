@@ -66,7 +66,7 @@ export class MaterialRepository {
 			q = q.where(eb => eb.or([eb('student_user_id', '=', studentId), eb('student_user_id', 'is', null)]));
 		}
 
-		if (filter.subscription_tier_id) {
+		if (filter.subscription_tier_id !== undefined) {
 			const tierId = filter.subscription_tier_id;
 			q = q.where(eb =>
 				eb.exists(
@@ -79,8 +79,9 @@ export class MaterialRepository {
 			);
 		}
 
-		const isArchived = filter.is_archived ?? false;
-		q = q.where('is_archived', '=', isArchived);
+		if (filter.is_archived !== undefined) {
+			q = q.where('is_archived', '=', filter.is_archived);
+		}
 
 		const rows = (await q.execute()) as MaterialJoinRow[];
 

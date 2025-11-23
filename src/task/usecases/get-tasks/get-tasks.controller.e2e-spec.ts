@@ -211,23 +211,28 @@ describe('[E2E] Get tasks usecase', () => {
 			expect(res.body[0].student_user_id).to.equal(admin2.id);
 		});
 
-		it('Regular user cannot override filters: always sees only own tasks (mentor filter dropped)', async () => {
-			// Create two tasks for user1 but with different mentors
+		it('Regular user can use mentor filter, but only sees tasks assigned to him', async () => {
+			// Create tasks for user1 under multiple mentors
+			await createTask({ mentor_user_id: admin1.id, student_user_id: user1.id });
 			await createTask({ mentor_user_id: admin1.id, student_user_id: user1.id });
 			await createTask({ mentor_user_id: admin2.id, student_user_id: user1.id });
+			// Create tasks for user2 under multiple mentors
+			await createTask({ mentor_user_id: admin1.id, student_user_id: user2.id });
+			await createTask({ mentor_user_id: admin2.id, student_user_id: user2.id });
 
-			// User1 tries to filter by someone else’s student_user_id and by mentor_user_id
+			// User1 tries to filter by someone else’s student_user_id and uses mentor filter
 			const res = await taskTestSdk.getTasks({
-				params: { student_user_id: user2.id, mentor_user_id: admin3.id },
+				params: { student_user_id: user2.id, mentor_user_id: admin1.id },
 				userMeta: { userId: user1.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			expect(res.status).to.equal(HttpStatus.OK);
 			if (res.status != 200) throw new Error();
-			// Should ignore both query params and return both of user1’s tasks
+			// Should honor mentor filter while forcing student_user_id to user1 (user2 also has admin1 mentor)
 			expect(res.body).to.be.an('array').with.length(3);
 			for (const t of res.body) {
 				expect(t.student_user_id).to.equal(user1.id);
+				expect(t.mentor_user_id).to.equal(admin1.id);
 			}
 		});
 	});
