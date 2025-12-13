@@ -13,7 +13,7 @@ import {
 import { Inject, NotFoundException } from '@nestjs/common';
 
 type PrefixedValues<T, Prefix extends string> = {
-	[K in keyof T as `${Prefix}${K & string}`]: T[K];
+	[K in keyof T as `${Prefix}${K & string}`]: T[K] | null;
 };
 
 type UserJoinRow = User &
@@ -62,7 +62,6 @@ export class UserRepository {
 
 		const rows = await query.execute();
 
-		//@ts-ignore
 		return rows.map(row => this.mapRow(row));
 	}
 
@@ -104,7 +103,6 @@ export class UserRepository {
 			return undefined;
 		}
 
-		//@ts-ignore
 		return this.mapRow(row);
 	}
 
@@ -182,28 +180,38 @@ export class UserRepository {
 			...user
 		} = row;
 
-		const subscription: Subscription | null =
-			subscription__id !== null && subscription__user_id !== null
-				? {
-						id: subscription__id,
-						user_id: subscription__user_id,
-						subscription_tier_id: subscription__subscription_tier_id,
-						price_on_purchase_rubles: subscription__price_on_purchase_rubles,
-						is_gifted: subscription__is_gifted,
-						grace_period_size: subscription__grace_period_size,
-						billing_period_days: subscription__billing_period_days,
-						current_period_end: subscription__current_period_end,
-						last_billing_attempt: subscription__last_billing_attempt ?? null,
-						created_at: subscription__created_at,
-						updated_at: subscription__updated_at,
-					}
-				: null;
+		let subscription: Subscription | null = null;
+		if (
+			subscription__id !== null &&
+			subscription__user_id !== null &&
+			subscription__subscription_tier_id !== null &&
+			subscription__price_on_purchase_rubles !== null &&
+			subscription__is_gifted !== null &&
+			subscription__grace_period_size !== null &&
+			subscription__billing_period_days !== null &&
+			subscription__created_at !== null &&
+			subscription__updated_at !== null
+		) {
+			subscription = {
+				id: subscription__id,
+				user_id: subscription__user_id,
+				subscription_tier_id: subscription__subscription_tier_id,
+				price_on_purchase_rubles: subscription__price_on_purchase_rubles,
+				is_gifted: subscription__is_gifted,
+				grace_period_size: subscription__grace_period_size,
+				billing_period_days: subscription__billing_period_days,
+				current_period_end: subscription__current_period_end,
+				last_billing_attempt: subscription__last_billing_attempt ?? null,
+				created_at: subscription__created_at,
+				updated_at: subscription__updated_at,
+			};
+		}
 
 		const subscriptionTier: SubscriptionTier | null =
 			subscription_tier__id !== null &&
 			subscription_tier__tier !== null &&
 			subscription_tier__power !== null &&
-			subscription_tier__price_rubles
+			subscription_tier__price_rubles !== null
 				? {
 						id: subscription_tier__id,
 						tier: subscription_tier__tier,
