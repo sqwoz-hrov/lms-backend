@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
-import { SubscriptionRepository } from '../../subscription.repository';
+import { SubscriptionRepository } from '../../../subscription/subscription.repository';
 
 @Injectable()
 export class DeletePaymentMethodUsecase implements UsecaseInterface {

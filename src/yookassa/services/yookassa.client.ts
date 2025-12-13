@@ -5,6 +5,8 @@ import { yookassaConfig } from '../../config/yookassa.config';
 import {
 	ChargeSavedPaymentParams,
 	CreatePaymentFormParams,
+	CreatePaymentMethodParams,
+	CreatePaymentMethodResponse,
 	GetPaymentMethodParams,
 	YOOKASSA_CURRENCY_RUB,
 	YookassaClientPaymentMethodPort,
@@ -24,6 +26,23 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 		this.baseUrl = this.config.apiUrl.replace(/\/+$/, '');
 		this.oauthToken = this.config.oauthToken ?? null;
 		this.basicAuthToken = `${Buffer.from(`${this.config.shopId}:${this.config.secretKey}`).toString('base64')}`;
+	}
+
+	private sanitizeHeaders(headers: Record<string, string>) {
+		const sanitized = { ...headers };
+		if (sanitized.Authorization) {
+			const [scheme] = sanitized.Authorization.split(' ');
+			sanitized.Authorization = scheme ? `${scheme} [REDACTED]` : '[REDACTED]';
+		}
+		return sanitized;
+	}
+
+	private stringifyForLog(payload: unknown): string {
+		try {
+			return JSON.stringify(payload);
+		} catch {
+			return '"[unserializable payload]"';
+		}
 	}
 
 	private ensureReturnUrl(provided?: string): string {
@@ -59,6 +78,16 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 		if (verb === 'POST' || verb === 'PUT' || verb === 'PATCH')
 			headers['Idempotence-Key'] = idempotenceKey ?? randomUUID();
 
+		const sanitizedHeaders = this.sanitizeHeaders(headers);
+		this.logger.debug(
+			`YooKassa request ${this.stringifyForLog({
+				method: verb,
+				url,
+				headers: sanitizedHeaders,
+				body,
+			})}`,
+		);
+
 		const res = await fetch(url, {
 			method: verb,
 			headers,
@@ -79,6 +108,15 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 			this.logger.error(`YooKassa ${verb} ${path} failed (${res.status}): ${txt}`);
 			throw new Error('YooKassa request failed');
 		}
+
+		this.logger.debug(
+			`YooKassa response ${this.stringifyForLog({
+				method: verb,
+				url,
+				status: res.status,
+				body: parsed,
+			})}`,
+		);
 
 		return parsed as T;
 	}
@@ -110,6 +148,21 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 			metadata: params.metadata,
 		};
 		return await this.req<YookassaPaymentResponse>('POST', 'payments', {
+			body,
+			idempotenceKey: params.idempotenceKey,
+		});
+	}
+
+	async createPaymentMethod(params: CreatePaymentMethodParams): Promise<CreatePaymentMethodResponse> {
+		const body = {
+			type: params.type,
+			confirmation: {
+				type: 'redirect',
+				return_url: this.ensureReturnUrl(params.returnUrl),
+			},
+		};
+
+		return await this.req<CreatePaymentMethodResponse>('POST', 'payment_methods', {
 			body,
 			idempotenceKey: params.idempotenceKey,
 		});

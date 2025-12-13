@@ -1,7 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
-import { SubscriptionRepository } from '../../subscription.repository';
+import { SubscriptionRepository } from '../../../subscription/subscription.repository';
 import { PaymentMethodResponseDto } from '../../dto/payment-method-response.dto';
 import { YookassaClientPaymentMethodPort } from '../../../yookassa/services/yookassa-client.interface';
 import { YOOKASSA_CLIENT } from '../../../yookassa/constants';
@@ -15,7 +15,9 @@ export class GetActivePaymentMethodUsecase implements UsecaseInterface {
 	) {}
 
 	async execute({ user }: { user: UserWithSubscriptionTier }): Promise<PaymentMethodResponseDto> {
-		const paymentMethod = await this.subscriptionRepository.findPaymentMethodByUserId(user.id);
+		const paymentMethod = await this.subscriptionRepository.findPaymentMethodByUserId(user.id, undefined, {
+			status: 'active',
+		});
 
 		if (!paymentMethod) {
 			throw new NotFoundException('Payment method not found');

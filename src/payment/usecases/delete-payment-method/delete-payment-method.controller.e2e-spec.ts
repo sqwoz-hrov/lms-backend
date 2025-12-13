@@ -6,8 +6,8 @@ import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { SubscriptionTestRepository } from '../../test-utils/test.repo';
-import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
+import { SubscriptionTestRepository } from '../../../subscription/test-utils/test.repo';
+import { SubscriptionTestSdk } from '../../../subscription/test-utils/test.sdk';
 import { createTestSubscriber, createTestUser } from '../../../../test/fixtures/user.fixture';
 
 describe('[E2E] Delete payment method usecase', () => {
@@ -41,7 +41,7 @@ describe('[E2E] Delete payment method usecase', () => {
 
 	it('deletes existing payment method for subscriber', async () => {
 		const subscriber = await createTestSubscriber(usersRepo);
-		await subscriptionRepo.upsertPaymentMethod({
+		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-delete-1',
 		});

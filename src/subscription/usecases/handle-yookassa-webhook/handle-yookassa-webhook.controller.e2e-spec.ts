@@ -12,6 +12,7 @@ import { SubscriptionTestRepository } from '../../test-utils/test.repo';
 import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
 import {
 	YookassaPaymentCanceledWebhook,
+	YookassaPaymentMethodActiveWebhook,
 	YookassaPaymentSucceededWebhook,
 	YookassaWebhookPayload,
 } from '../../types/yookassa-webhook';
@@ -83,7 +84,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		};
 		const subscription = await subscriptionRepo.insert(subscriptionToInsert);
 		if (paymentMethodId) {
-			await subscriptionRepo.upsertPaymentMethod({
+			await subscriptionRepo.addActivePaymentMethod({
 				userId: user.id,
 				paymentMethodId,
 			});
@@ -272,8 +273,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await expectStoredEvent(payload, { subscriptionId: subscription.id });
 	});
 
-	it('stores payment method if present in webhook', async () => {
-		const { user, subscription } = await givenSubscription({
+	it('stores payment method when payment_method.active webhook is received', async () => {
+		const { user } = await givenSubscription({
 			tierOverrides: { tier: 'premium' },
 			subscriptionOverrides: {
 				price_on_purchase_rubles: 2500,
@@ -285,90 +286,41 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			},
 		});
 
-		const before = await subscriptionRepo.findPaymentMethod(user.id);
-		expect(before).to.be.a('undefined');
+		await subscriptionRepo.addActivePaymentMethod({
+			userId: user.id,
+			paymentMethodId: 'pm-old-active',
+		});
 
-		const occurredAt = new Date('2025-01-15T10:00:00.000Z');
-		const payload: YookassaPaymentSucceededWebhook = {
-			event: 'payment.succeeded',
+		await subscriptionRepo.addPendingPaymentMethod({
+			userId: user.id,
+			paymentMethodId: 'pm-from-active-webhook',
+		});
+
+		const payload: YookassaPaymentMethodActiveWebhook = {
+			event: 'payment_method.active',
 			object: {
-				id: 'payment-store-method-001',
-				status: 'succeeded',
-				paid: true,
-				amount: {
-					value: '2500.00',
-					currency: 'RUB',
-				},
-				metadata: {
-					user_id: user.id,
-					subscription_tier_id: subscription.subscription_tier_id,
-				},
-				created_at: occurredAt.toISOString(),
-				payment_method: {
-					id: 'pm-999',
-					type: 'bank_card',
-					saved: true,
-					card: { last4: '9999' },
-				},
+				id: 'pm-from-active-webhook',
+				type: 'bank_card',
+				status: 'active',
+				saved: true,
+				card: { last4: '5555' },
 			},
 		};
 
 		await sendWebhook(payload);
 
 		const storedPaymentMethod = await subscriptionRepo.findPaymentMethod(user.id);
-		expect(storedPaymentMethod).to.not.be.a('undefined');
-		if (!storedPaymentMethod) {
-			throw new Error('Payment method not persisted');
-		}
+		expect(storedPaymentMethod?.payment_method_id).to.equal('pm-from-active-webhook');
+		expect(storedPaymentMethod?.status).to.equal('active');
 
-		expect(storedPaymentMethod.payment_method_id).to.equal('pm-999');
-	});
+		const paymentMethods = await subscriptionRepo.findPaymentMethods(user.id);
+		expect(paymentMethods).to.have.length(1);
+		expect(paymentMethods[0].payment_method_id).to.equal('pm-from-active-webhook');
+		expect(paymentMethods[0].status).to.equal('active');
 
-	it('updates stored payment method when webhook contains a different one', async () => {
-		const { user, subscription } = await givenSubscription({
-			tierOverrides: { tier: 'premium' },
-			subscriptionOverrides: {
-				price_on_purchase_rubles: 2500,
-				is_gifted: false,
-				grace_period_size: 3,
-				billing_period_days: 30,
-				current_period_end: new Date('2025-02-01T00:00:00.000Z'),
-				last_billing_attempt: new Date('2025-01-01T00:00:00.000Z'),
-			},
-			paymentMethodId: 'pm-111',
-		});
-
-		await expectPaymentMethodId(user.id, 'pm-111');
-
-		const occurredAt = new Date('2025-01-20T10:00:00.000Z');
-		const payload: YookassaPaymentSucceededWebhook = {
-			event: 'payment.succeeded',
-			object: {
-				id: 'payment-update-method-001',
-				status: 'succeeded',
-				paid: true,
-				amount: {
-					value: '2500.00',
-					currency: 'RUB',
-				},
-				metadata: {
-					user_id: user.id,
-					subscription_tier_id: subscription.subscription_tier_id,
-				},
-				created_at: occurredAt.toISOString(),
-				payment_method: {
-					id: 'pm-222',
-					type: 'bank_card',
-					saved: true,
-					card: { last4: '2222' },
-				},
-			},
-		};
-
-		await sendWebhook(payload);
-
-		await expectPaymentMethodId(user.id, 'pm-222');
-		await expectStoredEvent(payload, { subscriptionId: subscription.id });
+		const storedEvent = await expectStoredEvent(payload);
+		expect(storedEvent.user_id).to.equal(user.id);
+		expect(storedEvent.subscription_id).to.equal(null);
 	});
 
 	it('stores payment success event and switches subscription to cheaper tier from metadata', async () => {

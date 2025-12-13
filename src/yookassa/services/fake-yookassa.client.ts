@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 import {
 	ChargeSavedPaymentParams,
 	CreatePaymentFormParams,
+	CreatePaymentMethodParams,
+	CreatePaymentMethodResponse,
 	GetPaymentMethodParams,
 	YOOKASSA_CURRENCY_RUB,
 	YookassaClientPaymentMethodPort,
@@ -16,6 +18,9 @@ import { YookassaPaymentMethod } from '../../subscription/types/yookassa-webhook
 export class FakeYookassaClient implements YookassaClientPort, YookassaClientPaymentMethodPort {
 	private readonly webhooks = new Map<string, YookassaWebhook>();
 	private readonly paymentMethods = new Map<string, YookassaPaymentMethod>();
+	private lastCreatedPaymentMethod:
+		| { params: CreatePaymentMethodParams; response: CreatePaymentMethodResponse }
+		| undefined;
 
 	private serializeAmount(valueRubles: number): YookassaPaymentResponse['amount'] {
 		if (!Number.isFinite(valueRubles) || valueRubles <= 0) {
@@ -65,11 +70,41 @@ export class FakeYookassaClient implements YookassaClientPort, YookassaClientPay
 		return Promise.resolve(method);
 	}
 
+	createPaymentMethod(params: CreatePaymentMethodParams): Promise<CreatePaymentMethodResponse> {
+		const methodId = `fake-payment-method-${randomUUID()}`;
+		const response: CreatePaymentMethodResponse = {
+			id: methodId,
+			type: params.type,
+			status: 'pending',
+			saved: false,
+			confirmation: {
+				type: 'redirect',
+				confirmation_url: params.returnUrl ?? `https://fake-payments.local/payment-method/${methodId}`,
+			},
+		};
+
+		this.lastCreatedPaymentMethod = { params, response };
+
+		return Promise.resolve(response);
+	}
+
 	registerPaymentMethod(method: YookassaPaymentMethod): void {
 		this.paymentMethods.set(method.id, method);
 	}
 
 	clearRegisteredPaymentMethods(): void {
 		this.paymentMethods.clear();
+	}
+
+	getLastCreatedPaymentMethodParams(): CreatePaymentMethodParams | undefined {
+		return this.lastCreatedPaymentMethod?.params;
+	}
+
+	getLastCreatedPaymentMethodResponse(): CreatePaymentMethodResponse | undefined {
+		return this.lastCreatedPaymentMethod?.response;
+	}
+
+	clearLastCreatedPaymentMethod(): void {
+		this.lastCreatedPaymentMethod = undefined;
 	}
 }

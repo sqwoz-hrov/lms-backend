@@ -12,6 +12,6 @@ export class HandleYookassaWebhookController {
 	@Post()
 	@HttpCode(HttpStatus.OK)
 	async handle(@Body() payload: unknown): Promise<void> {
-		await this.usecase.execute(payload as any);
+		await this.usecase.execute(payload);
 	}
 }

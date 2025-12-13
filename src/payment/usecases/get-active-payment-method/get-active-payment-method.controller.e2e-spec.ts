@@ -6,8 +6,8 @@ import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { SubscriptionTestRepository } from '../../test-utils/test.repo';
-import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
+import { SubscriptionTestRepository } from '../../../subscription/test-utils/test.repo';
+import { SubscriptionTestSdk } from '../../../subscription/test-utils/test.sdk';
 import { createTestSubscriber, createTestUser } from '../../../../test/fixtures/user.fixture';
 import { YOOKASSA_CLIENT } from '../../../yookassa/constants';
 import { FakeYookassaClient } from '../../../yookassa/services/fake-yookassa.client';
@@ -46,7 +46,7 @@ describe('[E2E] Get active payment method usecase', () => {
 
 	it('returns stored payment method for subscriber', async () => {
 		const subscriber = await createTestSubscriber(usersRepo);
-		await subscriptionRepo.upsertPaymentMethod({
+		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-get-1',
 		});
@@ -72,6 +72,28 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.type).to.equal('bank_card');
 		expect(response.body.last4).to.equal('1234');
 		expect(response.body.userId).to.equal(subscriber.id);
+	});
+
+	it('returns 404 when payment method is pending activation', async () => {
+		const subscriber = await createTestSubscriber(usersRepo);
+		await subscriptionRepo.addPendingPaymentMethod({
+			userId: subscriber.id,
+			paymentMethodId: 'pm-pending-1',
+		});
+
+		const response = await subscriptionSdk.getActivePaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.NOT_FOUND);
+		if (response.status !== HttpStatus.NOT_FOUND) {
+			throw new Error();
+		}
+		expect(response.body.description).to.equal('Payment method not found');
 	});
 
 	it('returns 404 when payment method missing', async () => {
