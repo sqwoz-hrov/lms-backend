@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { User } from '../../../user/user.entity';
+import { UserRepository } from '../../../user/user.repository';
 import { GetVideoByIdResponseDto } from '../../dto/base-video.dto';
 import { VideoRepository } from '../../video.repoistory';
 import { S3VideoStorageAdapter } from '../../adapters/s3-video-storage.adapter';
@@ -10,6 +11,7 @@ export class GetVideoUsecase implements UsecaseInterface {
 	constructor(
 		private readonly videoRepository: VideoRepository,
 		private readonly s3VideoStorageAdapter: S3VideoStorageAdapter,
+		private readonly userRepository: UserRepository,
 	) {}
 
 	async execute({ video_id, user }: { video_id: string; user: User }): Promise<GetVideoByIdResponseDto | undefined> {
@@ -20,7 +22,11 @@ export class GetVideoUsecase implements UsecaseInterface {
 		}
 
 		if (user.role !== 'admin' && video.user_id !== user.id) {
-			throw new ForbiddenException("You don't have rights to access this video");
+			const videoOwner = await this.userRepository.findById(video.user_id);
+
+			if (videoOwner!.role !== 'admin') {
+				throw new ForbiddenException("You don't have rights to access this video");
+			}
 		}
 
 		if (video.phase != 'completed' || video.storage_key == null) {

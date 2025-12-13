@@ -165,6 +165,57 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 		const executor = this.getExecutor(trx);
 		const status: PaymentMethodStatus = data.status ?? 'pending';
 
+		const existingByPaymentMethodId = await executor
+			.selectFrom('payment_method')
+			.selectAll()
+			.where('payment_method_id', '=', data.payment_method_id)
+			.limit(1)
+			.executeTakeFirst();
+
+		if (existingByPaymentMethodId) {
+			if (existingByPaymentMethodId.status === status) {
+				return existingByPaymentMethodId;
+			}
+
+			return await executor
+				.updateTable('payment_method')
+				.set({
+					status,
+					updated_at: sql`now()`,
+				})
+				.where('id', '=', existingByPaymentMethodId.id)
+				.returningAll()
+				.executeTakeFirstOrThrow();
+		}
+
+		if (status === 'pending') {
+			const existingPending = await executor
+				.selectFrom('payment_method')
+				.select(['id'])
+				.where('user_id', '=', data.user_id)
+				.where('status', '=', 'pending')
+				.limit(1)
+				.executeTakeFirst();
+
+			if (existingPending) {
+				return await executor
+					.updateTable('payment_method')
+					.set({
+						payment_method_id: data.payment_method_id,
+						updated_at: sql`now()`,
+					})
+					.where('id', '=', existingPending.id)
+					.returningAll()
+					.executeTakeFirstOrThrow();
+			}
+		} else if (status === 'active') {
+			await executor
+				.deleteFrom('payment_method')
+				.where('user_id', '=', data.user_id)
+				.where('status', '=', 'active')
+				.execute();
+		}
+
 		return await executor
 			.insertInto('payment_method')
 			.values({
@@ -172,13 +223,6 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 				payment_method_id: data.payment_method_id,
 				status,
 			})
-			.onConflict(oc =>
-				oc.column('user_id').doUpdateSet({
-					payment_method_id: data.payment_method_id,
-					status,
-					updated_at: sql`now()`,
-				}),
-			)
 			.returningAll()
 			.executeTakeFirstOrThrow();
 	}
@@ -223,9 +267,30 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 
 		if (options?.status) {
 			query = query.where('status', '=', options.status);
+		} else {
+			query = query.orderBy(sql`CASE WHEN status = 'active' THEN 0 ELSE 1 END`).orderBy('created_at', 'desc');
 		}
 
 		return await query.executeTakeFirst();
+	}
+
+	async deletePaymentMethodsExcept(
+		userId: PaymentMethod['user_id'],
+		paymentMethodId: PaymentMethod['payment_method_id'],
+		trx?: SubscriptionTransaction,
+		options?: { status?: PaymentMethodStatus },
+	): Promise<void> {
+		const executor = this.getExecutor(trx);
+		let query = executor
+			.deleteFrom('payment_method')
+			.where('user_id', '=', userId)
+			.where('payment_method_id', '!=', paymentMethodId);
+
+		if (options?.status) {
+			query = query.where('status', '=', options.status);
+		}
+
+		await query.execute();
 	}
 
 	async deletePaymentMethodByUserId(userId: PaymentMethod['user_id'], trx?: SubscriptionTransaction): Promise<void> {

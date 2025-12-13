@@ -77,6 +77,88 @@ describe('[E2E] Add payment method usecase', () => {
 		expect(storedPaymentMethod.status).to.equal('pending');
 	});
 
+	it('keeps existing active payment method when adding one (to avoid losing active one if something goes wrong)', async () => {
+		const subscriber = await createTestSubscriber(usersRepo);
+		const existingActivePaymentMethodId = 'existing-active-method';
+
+		await subscriptionRepo.addActivePaymentMethod({
+			userId: subscriber.id,
+			paymentMethodId: existingActivePaymentMethodId,
+		});
+
+		const response = await paymentSdk.addPaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.CREATED);
+		if (response.status !== HttpStatus.CREATED) throw new Error();
+
+		const createPaymentMethodResponse = fakeYookassaClient.getLastCreatedPaymentMethodResponse();
+		expect(createPaymentMethodResponse).to.not.be.a('undefined');
+		if (!createPaymentMethodResponse) {
+			throw new Error();
+		}
+
+		const storedPaymentMethods = await subscriptionRepo.findPaymentMethods(subscriber.id);
+		expect(storedPaymentMethods).to.have.length(2);
+
+		const activeMethod = storedPaymentMethods.find(method => method.status === 'active');
+		const pendingMethod = storedPaymentMethods.find(method => method.status === 'pending');
+
+		expect(activeMethod?.payment_method_id).to.equal(existingActivePaymentMethodId);
+		expect(pendingMethod?.payment_method_id).to.equal(createPaymentMethodResponse.id);
+	});
+
+	it('does not keep multiple pending payment methods when adding twice', async () => {
+		const subscriber = await createTestSubscriber(usersRepo);
+
+		const firstResponse = await paymentSdk.addPaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(firstResponse.status).to.equal(HttpStatus.CREATED);
+		if (firstResponse.status !== HttpStatus.CREATED) throw new Error();
+
+		const firstCreatePaymentMethodResponse = fakeYookassaClient.getLastCreatedPaymentMethodResponse();
+		expect(firstCreatePaymentMethodResponse).to.not.be.a('undefined');
+		if (!firstCreatePaymentMethodResponse) {
+			throw new Error();
+		}
+
+		const secondResponse = await paymentSdk.addPaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(secondResponse.status).to.equal(HttpStatus.CREATED);
+		if (secondResponse.status !== HttpStatus.CREATED) throw new Error();
+
+		const secondCreatePaymentMethodResponse = fakeYookassaClient.getLastCreatedPaymentMethodResponse();
+		expect(secondCreatePaymentMethodResponse).to.not.be.a('undefined');
+		if (!secondCreatePaymentMethodResponse) {
+			throw new Error();
+		}
+
+		const storedPaymentMethods = await subscriptionRepo.findPaymentMethods(subscriber.id);
+		const pendingMethods = storedPaymentMethods.filter(method => method.status === 'pending');
+
+		expect(pendingMethods).to.have.length(1);
+		const [pendingMethod] = pendingMethods;
+		expect(pendingMethod?.payment_method_id).to.equal(secondCreatePaymentMethodResponse.id);
+		expect(pendingMethod?.payment_method_id).to.not.equal(firstCreatePaymentMethodResponse.id);
+	});
+
 	it('denies access to non-subscriber roles', async () => {
 		const regularUser = await createTestUser(usersRepo);
 

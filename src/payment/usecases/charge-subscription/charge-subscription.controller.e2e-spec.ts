@@ -139,7 +139,7 @@ describe('[E2E] Charge subscription usecase', () => {
 			price_rubles: 0,
 		});
 
-		await subscriptionRepo.upsertPaymentMethod({
+		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-free-tier',
 		});
@@ -169,7 +169,7 @@ describe('[E2E] Charge subscription usecase', () => {
 			power: subscriber.subscription_tier.power - 1,
 		});
 
-		await subscriptionRepo.upsertPaymentMethod({
+		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-cheapest-tier',
 		});
@@ -192,14 +192,42 @@ describe('[E2E] Charge subscription usecase', () => {
 		);
 	});
 
-	it('Subscriber is charged with saved payment method', async () => {
+	it('Returns 400 when trying to charge for a subscription tier that is already purchased', async () => {
+		const activeTier = await createTestSubscriptionTier(usersRepo, {
+			tier: 'already-purchased-tier',
+			price_rubles: 1990,
+		});
+		const subscriber = await createTestSubscriber(usersRepo, { subscription_tier_id: activeTier.id });
+
+		await subscriptionRepo.addActivePaymentMethod({
+			userId: subscriber.id,
+			paymentMethodId: 'pm-same-tier',
+		});
+
+		const res = await paymentSdk.chargeSubscription({
+			params: {
+				subscription_tier_id: subscriber.subscription_tier.id,
+			},
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		if (res.status !== HttpStatus.BAD_REQUEST) throw new Error();
+		expect(res.body.description).to.equal('Subscription tier already purchased');
+	});
+
+	it('Subscriber is charged with saved payment method for new subscription', async () => {
 		const subscriber = await createTestSubscriber(usersRepo);
 		const targetTier = await createTestSubscriptionTier(usersRepo, {
 			tier: 'premium',
 			price_rubles: 2590,
 		});
 
-		await subscriptionRepo.upsertPaymentMethod({
+		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-charge-1',
 		});

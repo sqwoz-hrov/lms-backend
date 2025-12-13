@@ -33,6 +33,10 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 		}
 
 		const currentTier = user.subscription_tier;
+		if (targetTier.id === currentTier.id) {
+			throw new BadRequestException('Subscription tier already purchased');
+		}
+
 		if (targetTier.power < currentTier.power) {
 			throw new BadRequestException(
 				`Cannot downgrade subscription tier from "${currentTier.tier}" to "${targetTier.tier}"`,

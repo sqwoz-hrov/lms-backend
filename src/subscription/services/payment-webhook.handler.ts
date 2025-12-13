@@ -61,17 +61,6 @@ export class PaymentWebhookHandler {
 			return;
 		}
 
-		if (event.paymentMethod) {
-			await this.subscriptionRepository.upsertPaymentMethod(
-				{
-					user_id: subscription.user_id,
-					payment_method_id: event.paymentMethod.id,
-					status: 'active',
-				},
-				trx,
-			);
-		}
-
 		const { action } = manager.handlePaymentEvent({ user, subscription, event });
 
 		await this.subscriptionActionExecutor.execute({

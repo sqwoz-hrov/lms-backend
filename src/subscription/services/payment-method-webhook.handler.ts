@@ -32,5 +32,8 @@ export class PaymentMethodWebhookHandler {
 		}
 
 		await this.subscriptionRepository.updatePaymentMethodStatus(payload.object.id, 'active', trx);
+		await this.subscriptionRepository.deletePaymentMethodsExcept(paymentMethod.user_id, payload.object.id, trx, {
+			status: 'active',
+		});
 	}
 }

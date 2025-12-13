@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { DatabaseProvider } from '../../infra/db/db.provider';
 import {
 	NewSubscription,
@@ -50,26 +50,32 @@ export class SubscriptionTestRepository {
 		return await query.execute();
 	}
 
-	async upsertPaymentMethod(params: {
+	async addPaymentMethod(params: {
 		userId: string;
 		paymentMethodId: string;
 		status?: PaymentMethod['status'];
 	}): Promise<void> {
-		const status = params.status ?? 'active';
+		await this.connection
+			.deleteFrom('payment_method')
+			.where('payment_method_id', '=', params.paymentMethodId)
+			.execute();
+
 		await this.connection
 			.insertInto('payment_method')
 			.values({
 				user_id: params.userId,
 				payment_method_id: params.paymentMethodId,
-				status,
+				status: params.status ?? 'active',
 			})
-			.onConflict(oc =>
-				oc.column('user_id').doUpdateSet({
-					payment_method_id: params.paymentMethodId,
-					status,
-				}),
-			)
 			.execute();
+	}
+
+	async addActivePaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<void> {
+		await this.addPaymentMethod({ ...params, status: 'active' });
+	}
+
+	async addPendingPaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<void> {
+		await this.addPaymentMethod({ ...params, status: 'pending' });
 	}
 
 	async findPaymentMethod(userId: string): Promise<PaymentMethod | undefined> {
@@ -77,7 +83,18 @@ export class SubscriptionTestRepository {
 			.selectFrom('payment_method')
 			.selectAll()
 			.where('user_id', '=', userId)
+			.orderBy(sql`CASE WHEN status = 'active' THEN 0 ELSE 1 END`, 'asc')
+			.orderBy('created_at', 'desc')
 			.limit(1)
 			.executeTakeFirst();
+	}
+
+	async findPaymentMethods(userId: string): Promise<PaymentMethod[]> {
+		return await this.connection
+			.selectFrom('payment_method')
+			.selectAll()
+			.where('user_id', '=', userId)
+			.orderBy('created_at', 'asc')
+			.execute();
 	}
 }

@@ -41,7 +41,7 @@ describe('[E2E] Delete payment method usecase', () => {
 
 	it('deletes existing payment method for subscriber', async () => {
 		const subscriber = await createTestSubscriber(usersRepo);
-		await subscriptionRepo.upsertPaymentMethod({
+		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-delete-1',
 		});

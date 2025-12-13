@@ -28,6 +28,7 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 					error instanceof Error ? error.stack : undefined,
 				);
 			} finally {
+				// TODO: Insert within external trx (defined at line 16)
 				await this.subscriptionRepository.insertPaymentEvent({
 					user_id: context.userId,
 					subscription_id: context.subscriptionId,

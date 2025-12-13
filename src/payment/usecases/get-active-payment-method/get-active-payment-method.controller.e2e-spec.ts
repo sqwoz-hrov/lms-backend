@@ -46,7 +46,7 @@ describe('[E2E] Get active payment method usecase', () => {
 
 	it('returns stored payment method for subscriber', async () => {
 		const subscriber = await createTestSubscriber(usersRepo);
-		await subscriptionRepo.upsertPaymentMethod({
+		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-get-1',
 		});
@@ -76,10 +76,9 @@ describe('[E2E] Get active payment method usecase', () => {
 
 	it('returns 404 when payment method is pending activation', async () => {
 		const subscriber = await createTestSubscriber(usersRepo);
-		await subscriptionRepo.upsertPaymentMethod({
+		await subscriptionRepo.addPendingPaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-pending-1',
-			status: 'pending',
 		});
 
 		const response = await subscriptionSdk.getActivePaymentMethod({
