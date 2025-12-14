@@ -1,12 +1,11 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'crypto';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { SubscriptionTierRepository } from '../../../subscription-tier/subscription-tier.repository';
+import { SubscriptionRepository } from '../../../subscription/subscription.repository';
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { YOOKASSA_CLIENT } from '../../../yookassa/constants';
 import { YookassaClientPort } from '../../../yookassa/services/yookassa-client.interface';
 import { ChargeSubscriptionResponseDto } from '../../dto/charge-subscription.dto';
-import { SubscriptionRepository } from '../../../subscription/subscription.repository';
 
 @Injectable()
 export class ChargeSubscriptionUsecase implements UsecaseInterface {
@@ -59,7 +58,6 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 				subscription_tier_id: targetTier.id,
 				user_id: user.id,
 			},
-			idempotenceKey: `charge-subscription-${user.id}-${randomUUID()}`,
 		});
 
 		return ChargeSubscriptionResponseDto.fromYookassa(payment);

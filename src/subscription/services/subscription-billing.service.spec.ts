@@ -241,10 +241,6 @@ class FakeYookassaClient implements YookassaClientPort {
 		this.chargeCalls += 1;
 		return Promise.resolve(this.nextPayment);
 	}
-
-	createPaymentForm(): Promise<YookassaPaymentResponse> {
-		throw new Error('Not implemented in FakeYookassaClient');
-	}
 }
 
 class DelayedYookassaClient extends FakeYookassaClient {

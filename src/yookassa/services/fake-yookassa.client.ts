@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
 	ChargeSavedPaymentParams,
-	CreatePaymentFormParams,
 	CreatePaymentMethodParams,
 	CreatePaymentMethodResponse,
 	GetPaymentMethodParams,
@@ -29,25 +28,9 @@ export class FakeYookassaClient implements YookassaClientPort, YookassaClientPay
 		return { value: valueRubles.toFixed(2), currency: YOOKASSA_CURRENCY_RUB };
 	}
 
-	createPaymentForm(params: CreatePaymentFormParams): Promise<YookassaPaymentResponse> {
-		const paymentId = `fake-payment-${randomUUID()}`;
-		return Promise.resolve({
-			id: paymentId,
-			status: 'pending',
-			paid: false,
-			amount: this.serializeAmount(params.amountRubles),
-			confirmation: {
-				type: 'redirect',
-				confirmation_url: params.returnUrl ?? `https://fake-payments.local/${paymentId}`,
-			},
-			metadata: params.metadata,
-			payment_method: undefined,
-			created_at: new Date().toISOString(),
-		});
-	}
-
 	chargeSavedPaymentMethod(params: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse> {
 		const paymentId = `fake-payment-${randomUUID()}`;
+		const confirmationUrl = `https://fake-payments.local/payments/${paymentId}`;
 		return Promise.resolve({
 			id: paymentId,
 			status: 'pending',
@@ -59,7 +42,7 @@ export class FakeYookassaClient implements YookassaClientPort, YookassaClientPay
 				id: params.paymentMethodId,
 				saved: true,
 			},
-			confirmation: { confirmation_url: '', type: '' },
+			confirmation: { confirmation_url: confirmationUrl, type: 'redirect' },
 			created_at: new Date().toISOString(),
 		});
 	}

@@ -4,7 +4,6 @@ import { randomUUID } from 'crypto';
 import { yookassaConfig } from '../../config/yookassa.config';
 import {
 	ChargeSavedPaymentParams,
-	CreatePaymentFormParams,
 	CreatePaymentMethodParams,
 	CreatePaymentMethodResponse,
 	GetPaymentMethodParams,
@@ -56,11 +55,6 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 			throw new Error('Payment amount must be a positive number');
 		}
 		return { value: valueRubles.toFixed(2), currency: YOOKASSA_CURRENCY_RUB };
-	}
-
-	private getAuthorizationToken(authorizationType: 'Basic' | 'Bearer') {
-		if (authorizationType === 'Bearer') return `Bearer ${this.oauthToken}`;
-		return;
 	}
 
 	private async req<T>(
@@ -119,24 +113,6 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 		);
 
 		return parsed as T;
-	}
-
-	async createPaymentForm(params: CreatePaymentFormParams): Promise<YookassaPaymentResponse> {
-		const body = {
-			amount: this.serializeAmount(params.amountRubles),
-			capture: true,
-			description: params.description,
-			confirmation: {
-				type: 'redirect',
-				return_url: this.ensureReturnUrl(params.returnUrl),
-			},
-			save_payment_method: params.savePaymentMethod ?? true,
-			metadata: params.metadata,
-		};
-		return await this.req<YookassaPaymentResponse>('POST', 'payments', {
-			body,
-			idempotenceKey: params.idempotenceKey,
-		});
 	}
 
 	async chargeSavedPaymentMethod(params: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse> {
