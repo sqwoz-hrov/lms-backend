@@ -27,10 +27,18 @@ export class ChargeSubscriptionResponseDto {
 	@ApiProperty({ description: 'Дата создания платежа' })
 	createdAt: string;
 
+	@ApiProperty({ description: 'Ссылка подтверждения оплаты, когда YooKassa требует дополнительное действие' })
+	confirmationUrl: string;
+
 	static fromYookassa(payment: YookassaPaymentResponse): ChargeSubscriptionResponseDto {
 		const amount = Number.parseFloat(payment.amount.value);
 		if (!Number.isFinite(amount) || amount <= 0) {
 			throw new Error('Invalid payment amount received from YooKassa');
+		}
+
+		const confirmationUrl = payment.confirmation?.confirmation_url;
+		if (!confirmationUrl) {
+			throw new Error('Missing confirmation URL in YooKassa response');
 		}
 
 		return {
@@ -39,6 +47,7 @@ export class ChargeSubscriptionResponseDto {
 			paid: payment.paid,
 			amountRubles: amount,
 			createdAt: payment.created_at,
+			confirmationUrl,
 		};
 	}
 }

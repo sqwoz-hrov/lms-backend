@@ -11,9 +11,9 @@ import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
+import { SubscriptionTestRepository } from '../../../subscription/test-utils/test.repo';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { PaymentTestSdk } from '../../test-utils/test.sdk';
-import { SubscriptionTestRepository } from '../../../subscription/test-utils/test.repo';
 
 describe('[E2E] Charge subscription usecase', () => {
 	let app: INestApplication;
@@ -249,5 +249,6 @@ describe('[E2E] Charge subscription usecase', () => {
 		expect(res.body.amountRubles).to.equal(targetTier.price_rubles);
 		expect(res.body.paid).to.equal(true);
 		expect(res.body.status).to.be.a('string');
+		expect(res.body.confirmationUrl).to.be.a('string');
 	});
 });

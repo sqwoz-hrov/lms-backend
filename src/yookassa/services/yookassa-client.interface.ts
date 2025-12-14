@@ -35,15 +35,6 @@ export interface YookassaPaymentResponse {
 	created_at: string;
 }
 
-export interface CreatePaymentFormParams {
-	amountRubles: number;
-	description: string;
-	returnUrl?: string;
-	savePaymentMethod?: boolean;
-	metadata: EventMetadata;
-	idempotenceKey?: string;
-}
-
 export interface ChargeSavedPaymentParams {
 	amountRubles: number;
 	description: string;
@@ -81,6 +72,5 @@ export interface YookassaClientPaymentMethodPort {
 }
 
 export interface YookassaClientPort {
-	createPaymentForm(params: CreatePaymentFormParams): Promise<YookassaPaymentResponse>;
 	chargeSavedPaymentMethod(params: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse>;
 }
