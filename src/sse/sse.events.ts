@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const interviewTranscriptionChunkEventSchema = z.object({
+	type: z.literal('interview-transcription-chunk'),
 	interviewTranscriptionId: z.string(),
 	videoId: z.string(),
 	chunkIndex: z.number(),
@@ -10,7 +11,7 @@ const interviewTranscriptionChunkEventSchema = z.object({
 	speakerLabel: z.string().optional(),
 });
 
-export type InterviewTranscriptionChunkEvent = z.infer<typeof interviewTranscriptionChunkEventSchema>;
+export type InterviewTranscriptionChunkSSE = z.infer<typeof interviewTranscriptionChunkEventSchema>;
 
 const sseEventSchemas = {
 	'interview-transcription-chunk': interviewTranscriptionChunkEventSchema,
