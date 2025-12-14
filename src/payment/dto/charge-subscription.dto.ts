@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsUUID } from 'class-validator';
 import { YookassaPaymentResponse } from '../../yookassa/services/yookassa-client.interface';
 
@@ -27,8 +27,11 @@ export class ChargeSubscriptionResponseDto {
 	@ApiProperty({ description: 'Дата создания платежа' })
 	createdAt: string;
 
-	@ApiProperty({ description: 'Ссылка подтверждения оплаты, когда YooKassa требует дополнительное действие' })
-	confirmationUrl: string;
+	@ApiPropertyOptional({
+		description: 'Ссылка подтверждения оплаты, когда YooKassa требует дополнительное действие',
+		nullable: true,
+	})
+	confirmationUrl?: string;
 
 	static fromYookassa(payment: YookassaPaymentResponse): ChargeSubscriptionResponseDto {
 		const amount = Number.parseFloat(payment.amount.value);
@@ -37,17 +40,18 @@ export class ChargeSubscriptionResponseDto {
 		}
 
 		const confirmationUrl = payment.confirmation?.confirmation_url;
-		if (!confirmationUrl) {
-			throw new Error('Missing confirmation URL in YooKassa response');
-		}
-
-		return {
+		const response: ChargeSubscriptionResponseDto = {
 			paymentId: payment.id,
 			status: payment.status,
 			paid: payment.paid,
 			amountRubles: amount,
 			createdAt: payment.created_at,
-			confirmationUrl,
 		};
+
+		if (confirmationUrl !== undefined) {
+			response.confirmationUrl = confirmationUrl;
+		}
+
+		return response;
 	}
 }

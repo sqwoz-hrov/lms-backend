@@ -249,6 +249,8 @@ describe('[E2E] Charge subscription usecase', () => {
 		expect(res.body.amountRubles).to.equal(targetTier.price_rubles);
 		expect(res.body.paid).to.equal(true);
 		expect(res.body.status).to.be.a('string');
-		expect(res.body.confirmationUrl).to.be.a('string');
+		if (res.body.confirmationUrl !== undefined) {
+			expect(res.body.confirmationUrl).to.be.a('string');
+		}
 	});
 });
