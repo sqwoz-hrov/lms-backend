@@ -41,6 +41,11 @@ export class LockedPostPreviewDto {
 }
 
 export class PostResponseDto extends BasePostDto {
+	@ApiPropertyOptional({ type: [String] })
+	@IsString({ each: true })
+	@IsOptional()
+	subscription_tier_ids?: string[];
+
 	@ApiPropertyOptional({ type: () => LockedPostPreviewDto })
 	@ValidateNested()
 	@Type(() => LockedPostPreviewDto)

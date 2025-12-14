@@ -24,6 +24,8 @@ export class ListPostsUsecase implements UsecaseInterface {
 			subscriptionTierId: user.role === 'subscriber' ? undefined : requestedSubscriptionTierId,
 		});
 
+		const postTierMap = await this.postRepository.findTierIdsForPosts(posts.map(post => post.id));
+
 		const isSubscriber = user.role === 'subscriber';
 
 		if (!isSubscriber) {
@@ -31,25 +33,27 @@ export class ListPostsUsecase implements UsecaseInterface {
 				...post,
 				video_id: post.video_id ?? undefined,
 				locked_preview: undefined,
+				subscription_tier_ids: postTierMap[post.id] ?? [],
 			}));
 		}
 
 		const subscriberTierId = user.subscription?.subscription_tier_id;
 
-		const postTierMap = await this.postRepository.findTierIdsForPosts(posts.map(post => post.id));
-
 		return posts.map(post => {
+			const allowedTierIds = postTierMap[post.id] ?? [];
+
 			const base: PostResponseDto = {
 				...post,
 				video_id: post.video_id ?? undefined,
 				locked_preview: undefined,
+				subscription_tier_ids: allowedTierIds,
 			};
 
 			return {
 				...base,
 				...(this.buildSubscriberView({
 					post,
-					allowedTierIds: postTierMap[post.id] ?? [],
+					allowedTierIds,
 					subscriberTierId,
 				}) as Record<string, unknown>),
 			};

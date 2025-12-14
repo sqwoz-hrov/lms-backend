@@ -122,10 +122,6 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 			description: params.description,
 			payment_method_id: params.paymentMethodId,
 			metadata: params.metadata,
-			confirmation: {
-				type: 'redirect',
-				return_url: this.ensureReturnUrl(),
-			},
 		};
 		return await this.req<YookassaPaymentResponse>('POST', 'payments', {
 			body,

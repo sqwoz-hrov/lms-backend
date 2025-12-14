@@ -16,11 +16,15 @@ export class GetPostUsecase implements UsecaseInterface {
 			throw new NotFoundException('Пост не найден');
 		}
 
+		const postTierMap = await this.postRepository.findTierIdsForPosts([post.id]);
+		const allowedTierIds = postTierMap[post.id] ?? [];
+
 		const base: PostResponseDto = {
 			...post,
 			video_id: post.video_id ?? undefined,
 			markdown_content: post.markdown_content,
 			locked_preview: undefined,
+			subscription_tier_ids: allowedTierIds,
 		};
 
 		if (user.role !== 'subscriber') {
@@ -28,13 +32,12 @@ export class GetPostUsecase implements UsecaseInterface {
 		}
 
 		const subscriberTierId = user.subscription?.subscription_tier_id;
-		const postTierMap = await this.postRepository.findTierIdsForPosts([post.id]);
 
 		return {
 			...base,
 			...(this.buildSubscriberView({
 				post,
-				allowedTierIds: postTierMap[post.id] ?? [],
+				allowedTierIds,
 				subscriberTierId,
 			}) as Record<string, unknown>),
 		};
