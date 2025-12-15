@@ -45,6 +45,18 @@ export default tseslint.config(
           argsIgnorePattern: '^_',
         },
       ],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'kysely',
+              importNames: ['Generated'],
+              message: 'Import Generated from src/common/kysely-types/generated instead.',
+            },
+          ],
+        },
+      ],
       'no-restricted-syntax': [
         'error',
         {
@@ -56,6 +68,11 @@ export default tseslint.config(
           selector:
             "CallExpression[callee.property.name='executeTakeFirst']:has(CallExpression[callee.property.name='selectFrom'])[callee.object.callee.property.name!='limit'][callee.object.callee.property.name!='returning'][callee.object.callee.property.name!='returningAll']",
           message: 'You must call .limit(1) before executeTakeFirst().',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='set'][callee.object.callee.property.name='updateTable'][callee.object.arguments.0.value=/^(interview_transcription|subscription|payment_method)$/] > ObjectExpression.arguments:not(:has(Property[key.name='updated_at']))",
+          message: 'Include updated_at when calling updateTable(...).set({...}).',
         },
       ],
       'prefer-spread': 'off',

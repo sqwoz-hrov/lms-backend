@@ -1,5 +1,6 @@
-import { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
+import { ColumnType, Insertable, Selectable, Updateable } from 'kysely';
 import { Subscription, SubscriptionTable } from '../subscription/subscription.entity';
+import { Generated } from '../common/kysely-types/generated';
 
 export type UserRole = 'admin' | 'user' | 'subscriber';
 

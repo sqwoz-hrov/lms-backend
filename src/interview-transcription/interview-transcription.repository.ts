@@ -60,6 +60,16 @@ export class InterviewTranscriptionRepository {
 			.execute();
 	}
 
+	async findForUser(userId: string): Promise<InterviewTranscription[]> {
+		return await this.connection
+			.selectFrom('interview_transcription')
+			.innerJoin('video', 'video.id', 'interview_transcription.video_id')
+			.selectAll('interview_transcription')
+			.where('video.user_id', '=', userId)
+			.orderBy('interview_transcription.created_at', 'desc')
+			.execute();
+	}
+
 	async updateStatus(
 		id: string,
 		status: InterviewTranscriptionStatus,
@@ -67,7 +77,11 @@ export class InterviewTranscriptionRepository {
 	): Promise<InterviewTranscription | undefined> {
 		return await this.connection
 			.updateTable('interview_transcription')
-			.set({ status, ...extraUpdates })
+			.set({
+				status,
+				...extraUpdates,
+				updated_at: new Date(),
+			})
 			.where('id', '=', id)
 			.returningAll()
 			.executeTakeFirst();
@@ -76,7 +90,7 @@ export class InterviewTranscriptionRepository {
 	async markProcessing(id: string): Promise<InterviewTranscription | undefined> {
 		return await this.connection
 			.updateTable('interview_transcription')
-			.set({ status: 'processing' })
+			.set({ status: 'processing', updated_at: new Date() })
 			.where('id', '=', id)
 			.where('status', '=', 'created')
 			.returningAll()
@@ -86,7 +100,7 @@ export class InterviewTranscriptionRepository {
 	async markDone(id: string, s3TranscriptionKey: string): Promise<InterviewTranscription | undefined> {
 		return await this.connection
 			.updateTable('interview_transcription')
-			.set({ status: 'done', s3_transcription_key: s3TranscriptionKey })
+			.set({ status: 'done', s3_transcription_key: s3TranscriptionKey, updated_at: new Date() })
 			.where('id', '=', id)
 			.returningAll()
 			.executeTakeFirst();

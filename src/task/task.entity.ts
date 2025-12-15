@@ -1,4 +1,6 @@
-import { Generated, Insertable, Selectable, Updateable } from 'kysely';
+import { Insertable, Selectable, Updateable } from 'kysely';
+import { Generated } from '../common/kysely-types/generated';
+import { Timestamp } from '../common/kysely-types/timestamp';
 
 export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'in_review' | 'done';
 
@@ -8,8 +10,8 @@ export interface TaskTable {
 	mentor_user_id: string;
 	summary: string;
 	markdown_content_id: string;
-	deadline: Date;
-	created_at: Generated<Date>;
+	deadline: Timestamp;
+	created_at: Generated<Timestamp>;
 	priority: number;
 	status: TaskStatus;
 }

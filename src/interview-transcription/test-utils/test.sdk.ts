@@ -7,6 +7,28 @@ import { InterviewTranscriptionWebhookDto } from '../dto/interview-transcription
 export class InterviewTranscriptionsTestSdk implements ValidateSDK<InterviewTranscriptionsTestSdk> {
 	constructor(private readonly httpClient: TestHttpClient) {}
 
+	private buildQuery(params?: Record<string, string | undefined>): string {
+		if (!params) {
+			return '';
+		}
+
+		const entries = Object.entries(params).filter(([, value]) => value !== undefined && value !== null) as [
+			string,
+			string,
+		][];
+
+		if (entries.length === 0) {
+			return '';
+		}
+
+		const searchParams = new URLSearchParams();
+		for (const [key, value] of entries) {
+			searchParams.set(key, value);
+		}
+
+		return `?${searchParams.toString()}`;
+	}
+
 	async startTranscription({ params, userMeta }: { params: StartInterviewTranscriptionDto; userMeta: UserMeta }) {
 		return await this.httpClient.request<InterviewTranscriptionResponseDto>({
 			path: '/interview-transcriptions',
@@ -31,6 +53,24 @@ export class InterviewTranscriptionsTestSdk implements ValidateSDK<InterviewTran
 			body: params,
 			userMeta,
 			headers,
+		});
+	}
+
+	async listTranscriptions({ userMeta, params }: { userMeta: UserMeta; params: { user_id?: string } }) {
+		const search = this.buildQuery(params);
+		return await this.httpClient.request<InterviewTranscriptionResponseDto[]>({
+			path: `/interview-transcriptions${search}`,
+			method: 'GET',
+			userMeta,
+		});
+	}
+
+	async getTranscription({ userMeta, params }: { userMeta: UserMeta; params: { video_id: string } }) {
+		const search = this.buildQuery(params);
+		return await this.httpClient.request<InterviewTranscriptionResponseDto>({
+			path: `/interview-transcriptions/get-transcription${search}`,
+			method: 'GET',
+			userMeta,
 		});
 	}
 }

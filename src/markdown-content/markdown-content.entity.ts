@@ -1,4 +1,5 @@
-import { Generated, Insertable, Selectable, Updateable } from 'kysely';
+import { Insertable, Selectable, Updateable } from 'kysely';
+import { Generated } from '../common/kysely-types/generated';
 
 export interface MarkDownContentTable {
 	id: Generated<string>;

@@ -78,7 +78,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 
 		await usersRepo.connection
 			.updateTable('subscription')
-			.set({ last_billing_attempt: lastAttempt })
+			.set({ last_billing_attempt: lastAttempt, updated_at: new Date() })
 			.where('id', '=', existingSubscription.id)
 			.execute();
 
@@ -133,7 +133,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 
 		await usersRepo.connection
 			.updateTable('subscription')
-			.set({ last_billing_attempt: lastAttempt })
+			.set({ last_billing_attempt: lastAttempt, updated_at: new Date() })
 			.where('id', '=', subscription.id)
 			.execute();
 
