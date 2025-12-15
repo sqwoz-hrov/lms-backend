@@ -13,7 +13,7 @@ import { InterviewTranscriptionsTestSdk } from '../../test-utils/test.sdk';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { VideosTestRepository } from '../../../video/test-utils/test.repo';
 
-describe('[E2E] Get interview transcription usecase', () => {
+describe('[E2E] Get interview transcription by video id usecase', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
 	let videosRepo: VideosTestRepository;
@@ -44,55 +44,65 @@ describe('[E2E] Get interview transcription usecase', () => {
 	});
 
 	it('rejects unauthenticated calls', async () => {
-		const res = await sdk.getTranscription({
-			params: { transcription_id: '00000000-0000-0000-0000-000000000000' },
+		const res = await sdk.getTranscriptionByVideoId({
+			params: { video_id: '00000000-0000-0000-0000-000000000000' },
 			userMeta: { isAuth: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('returns 404 when transcription does not exist', async () => {
+	it('returns 404 when video does not exist', async () => {
 		const user = await createTestUser(usersRepo);
 
-		const res = await sdk.getTranscription({
-			params: { transcription_id: user.id },
+		const res = await sdk.getTranscriptionByVideoId({
+			params: { video_id: user.id },
 			userMeta: { isAuth: true, isWrongAccessJwt: false, userId: user.id },
 		});
 
 		expect(res.status).to.equal(HttpStatus.NOT_FOUND);
 	});
 
-	it('returns 403 when accessing someone else transcription', async () => {
+	it('returns 403 when accessing someone else video', async () => {
 		const owner = await createTestUser(usersRepo);
 		const intruder = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
 
-		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
-
-		const res = await sdk.getTranscription({
-			params: { transcription_id: transcription.id },
+		const res = await sdk.getTranscriptionByVideoId({
+			params: { video_id: video.id },
 			userMeta: { isAuth: true, isWrongAccessJwt: false, userId: intruder.id },
 		});
 
 		expect(res.status).to.equal(HttpStatus.FORBIDDEN);
 	});
 
-	it(`returns transcription if user is it's owner`, async () => {
+	it('returns 404 when transcription does not exist', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id);
+
+		const res = await sdk.getTranscriptionByVideoId({
+			params: { video_id: video.id },
+			userMeta: { isAuth: true, isWrongAccessJwt: false, userId: owner.id },
+		});
+
+		expect(res.status).to.equal(HttpStatus.NOT_FOUND);
+	});
+
+	it(`returns transcription for a video if user is it's owner`, async () => {
 		const owner = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
 
 		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id, {
-			s3_transcription_key: 'transcriptions/owner.json',
+			s3_transcription_key: 'transcriptions/a.json',
 		});
 
-		const res = await sdk.getTranscription({
-			params: { transcription_id: transcription.id },
+		const res = await sdk.getTranscriptionByVideoId({
+			params: { video_id: video.id },
 			userMeta: { isAuth: true, isWrongAccessJwt: false, userId: owner.id },
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status !== HttpStatus.OK) throw new Error('Failed to get transcription by id');
+		if (res.status !== HttpStatus.OK) throw new Error('Failed to get transcription');
 
 		expect(res.body.id).to.equal(transcription.id);
 		expect(res.body.video_id).to.equal(video.id);
@@ -104,13 +114,13 @@ describe('[E2E] Get interview transcription usecase', () => {
 		const owner = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
 
-		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id, {
+		await createTestInterviewTranscription(transcriptionsRepo, video.id, {
 			status: 'processing',
 			s3_transcription_key: null,
 		});
 
-		const res = await sdk.getTranscription({
-			params: { transcription_id: transcription.id },
+		const res = await sdk.getTranscriptionByVideoId({
+			params: { video_id: video.id },
 			userMeta: { isAuth: true, isWrongAccessJwt: false, userId: admin.id },
 		});
 

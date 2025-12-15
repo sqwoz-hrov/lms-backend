@@ -2,14 +2,13 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { InterviewTranscriptionResponseDto } from '../../dto/interview-transcription-response.dto';
-import { GetInterviewTranscriptionDto } from '../../dto/get-interview-transcription.dto';
+import { GetInterviewTranscriptionByVideoIdDto } from '../../dto/get-interview-transcription-by-video-id.dto';
 import { InterviewTranscriptionRepository } from '../../interview-transcription.repository';
 import { VideoRepository } from '../../../video/video.repoistory';
 import { S3VideoStorageAdapter } from '../../../video/adapters/s3-video-storage.adapter';
-import { InterviewTranscription } from '../../interview-transcription.entity';
 
 @Injectable()
-export class GetInterviewTranscriptionUsecase implements UsecaseInterface {
+export class GetInterviewTranscriptionByVideoIdUsecase implements UsecaseInterface {
 	constructor(
 		private readonly videoRepository: VideoRepository,
 		private readonly transcriptionRepository: InterviewTranscriptionRepository,
@@ -20,15 +19,10 @@ export class GetInterviewTranscriptionUsecase implements UsecaseInterface {
 		params,
 		user,
 	}: {
-		params: GetInterviewTranscriptionDto;
+		params: GetInterviewTranscriptionByVideoIdDto;
 		user: UserWithSubscriptionTier;
 	}): Promise<InterviewTranscriptionResponseDto> {
-		const transcription = await this.transcriptionRepository.findById(params.transcription_id);
-		if (!transcription) {
-			throw new NotFoundException('Транскрибация не найдена');
-		}
-
-		const video = await this.videoRepository.findById(transcription.video_id);
+		const video = await this.videoRepository.findById(params.video_id);
 		if (!video) {
 			throw new NotFoundException('Видео не найдено');
 		}
@@ -37,23 +31,23 @@ export class GetInterviewTranscriptionUsecase implements UsecaseInterface {
 			throw new ForbiddenException('Вы можете просматривать транскрибации только своих видео');
 		}
 
-		const transcription_url = await this.buildTranscriptionUrl(transcription);
+		const transcription = await this.transcriptionRepository.findLatestByVideoId(video.id);
+		if (!transcription) {
+			throw new NotFoundException('Транскрибация не найдена');
+		}
+
+		let transcription_url: string | undefined;
+		if (transcription.status === 'done' && transcription.s3_transcription_key) {
+			transcription_url = await this.s3VideoStorageAdapter.getPresignedUrl(transcription.s3_transcription_key, {
+				asAttachmentName: this.extractFileName(transcription.s3_transcription_key),
+				responseContentType: 'application/json',
+			});
+		}
 
 		return {
 			...transcription,
 			transcription_url,
 		};
-	}
-
-	private async buildTranscriptionUrl(transcription: InterviewTranscription): Promise<string | undefined> {
-		if (transcription.status !== 'done' || !transcription.s3_transcription_key) {
-			return undefined;
-		}
-
-		return await this.s3VideoStorageAdapter.getPresignedUrl(transcription.s3_transcription_key, {
-			asAttachmentName: this.extractFileName(transcription.s3_transcription_key),
-			responseContentType: 'application/json',
-		});
 	}
 
 	private extractFileName(key: string): string {

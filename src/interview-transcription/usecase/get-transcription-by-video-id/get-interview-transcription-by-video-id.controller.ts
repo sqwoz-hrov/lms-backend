@@ -4,23 +4,23 @@ import { RequestWithUser } from '../../../common/interface/request-with-user.int
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { InterviewTranscriptionResponseDto } from '../../dto/interview-transcription-response.dto';
-import { GetInterviewTranscriptionDto } from '../../dto/get-interview-transcription.dto';
-import { GetInterviewTranscriptionUsecase } from './get-interview-transcription.usecase';
+import { GetInterviewTranscriptionByVideoIdDto } from '../../dto/get-interview-transcription-by-video-id.dto';
+import { GetInterviewTranscriptionByVideoIdUsecase } from './get-interview-transcription-by-video-id.usecase';
 
 @ApiTags('Interview Transcriptions')
 @Controller('interview-transcriptions')
 @Roles('admin', 'user', 'subscriber')
-export class GetInterviewTranscriptionController {
-	constructor(private readonly usecase: GetInterviewTranscriptionUsecase) {}
+export class GetInterviewTranscriptionByVideoIdController {
+	constructor(private readonly usecase: GetInterviewTranscriptionByVideoIdUsecase) {}
 
 	@Route({
-		summary: 'Возвращает транскрибацию интервью по идентификатору транскрибации',
+		summary: 'Возвращает транскрибацию интервью по идентификатору видео',
 		responseType: InterviewTranscriptionResponseDto,
 	})
-	@Get(':transcription_id')
+	@Get('by-video-id/:video_id')
 	@HttpCode(HttpStatus.OK)
 	async get(
-		@Param() params: GetInterviewTranscriptionDto,
+		@Param() params: GetInterviewTranscriptionByVideoIdDto,
 		@Req() req: RequestWithUser,
 	): Promise<InterviewTranscriptionResponseDto> {
 		return await this.usecase.execute({ params, user: req.user });

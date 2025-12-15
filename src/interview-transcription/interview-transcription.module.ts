@@ -13,6 +13,9 @@ import { StartInterviewTranscriptionController } from './usecase/start-transcrip
 import { StartInterviewTranscriptionUsecase } from './usecase/start-transcription/start-interview-transcription.usecase';
 import { ListInterviewTranscriptionsController } from './usecase/list-transcriptions/list-interview-transcriptions.controller';
 import { ListInterviewTranscriptionsUsecase } from './usecase/list-transcriptions/list-interview-transcriptions.usecase';
+import { GetInterviewTranscriptionByVideoIdController } from './usecase/get-transcription-by-video-id/get-interview-transcription-by-video-id.controller';
+import { GetInterviewTranscriptionByVideoIdUsecase } from './usecase/get-transcription-by-video-id/get-interview-transcription-by-video-id.usecase';
+import { S3VideoStorageAdapter } from '../video/adapters/s3-video-storage.adapter';
 import { GetInterviewTranscriptionController } from './usecase/get-transcription/get-interview-transcription.controller';
 import { GetInterviewTranscriptionUsecase } from './usecase/get-transcription/get-interview-transcription.usecase';
 
@@ -26,6 +29,7 @@ export class InterviewTranscriptionModule {
 				StartInterviewTranscriptionController,
 				HandleTranscriptionFinishWebhookController,
 				ListInterviewTranscriptionsController,
+				GetInterviewTranscriptionByVideoIdController,
 				GetInterviewTranscriptionController,
 			],
 			providers: [
@@ -35,8 +39,10 @@ export class InterviewTranscriptionModule {
 				StartInterviewTranscriptionUsecase,
 				HandleTranscriptionFinishWebhookUsecase,
 				ListInterviewTranscriptionsUsecase,
+				GetInterviewTranscriptionByVideoIdUsecase,
 				GetInterviewTranscriptionUsecase,
 				VideoRepository,
+				S3VideoStorageAdapter,
 				{
 					provide: VM_ORCHESTRATOR_ADAPTER,
 					useClass: useFakeVmOrchestrator ? TensordockFakeAdapter : TensordockAdapter,

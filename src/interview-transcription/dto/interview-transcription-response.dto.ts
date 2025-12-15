@@ -20,6 +20,13 @@ export class InterviewTranscriptionResponseDto {
 	@IsString()
 	s3_transcription_key?: string | null;
 
+	@ApiPropertyOptional({
+		description: 'Временная ссылка для скачивания транскрибации',
+	})
+	@IsOptional()
+	@IsString()
+	transcription_url?: string;
+
 	@ApiProperty()
 	@IsDate()
 	created_at: Date;

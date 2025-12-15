@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsUUID } from 'class-validator';
 
-export class GetInterviewTranscriptionDto {
+export class GetInterviewTranscriptionByVideoIdDto {
 	@ApiProperty()
 	@IsUUID()
-	transcription_id: string;
+	video_id: string;
 }

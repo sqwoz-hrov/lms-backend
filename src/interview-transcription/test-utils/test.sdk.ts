@@ -65,10 +65,17 @@ export class InterviewTranscriptionsTestSdk implements ValidateSDK<InterviewTran
 		});
 	}
 
-	async getTranscription({ userMeta, params }: { userMeta: UserMeta; params: { video_id: string } }) {
-		const search = this.buildQuery(params);
+	async getTranscriptionByVideoId({ userMeta, params }: { userMeta: UserMeta; params: { video_id: string } }) {
 		return await this.httpClient.request<InterviewTranscriptionResponseDto>({
-			path: `/interview-transcriptions/get-transcription${search}`,
+			path: `/interview-transcriptions/by-video-id/${params.video_id}`,
+			method: 'GET',
+			userMeta,
+		});
+	}
+
+	async getTranscription({ userMeta, params }: { userMeta: UserMeta; params: { transcription_id: string } }) {
+		return await this.httpClient.request<InterviewTranscriptionResponseDto>({
+			path: `/interview-transcriptions/${params.transcription_id}`,
 			method: 'GET',
 			userMeta,
 		});
