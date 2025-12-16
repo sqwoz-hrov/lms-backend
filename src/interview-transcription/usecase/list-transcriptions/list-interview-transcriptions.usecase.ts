@@ -16,10 +16,10 @@ export class ListInterviewTranscriptionsUsecase implements UsecaseInterface {
 		user: UserWithSubscriptionTier;
 		params: ListInterviewTranscriptionsDto;
 	}): Promise<InterviewTranscriptionResponseDto[]> {
-		if (user.role !== 'admin' && params.user_id) {
-			params.user_id = user.id;
+		if (user.role === 'admin') {
+			return await this.transcriptionRepository.findAll({ userId: params.user_id });
 		}
 
-		return await this.transcriptionRepository.findForUser(params.user_id ?? user.id);
+		return await this.transcriptionRepository.findForUser(user.id);
 	}
 }

@@ -81,6 +81,8 @@ describe('[E2E] List interview transcriptions usecase', () => {
 		expect(res.body).to.have.lengthOf(2);
 		expect(res.body[0].video_id).to.equal(videoB.id);
 		expect(res.body[1].video_id).to.equal(videoA.id);
+		expect(res.body[0].video?.id).to.equal(videoB.id);
+		expect(res.body[0].video?.user_id).to.equal(owner.id);
 	});
 
 	it('ignores user_id filter for non-admin users', async () => {
@@ -100,6 +102,7 @@ describe('[E2E] List interview transcriptions usecase', () => {
 		if (res.status !== HttpStatus.OK) throw new Error('Expected OK response');
 		expect(res.body).to.have.lengthOf(1);
 		expect(res.body[0].video_id).to.equal(video.id);
+		expect(res.body[0].video?.id).to.equal(video.id);
 	});
 
 	it('allows admin to request transcriptions for specific user', async () => {
@@ -118,5 +121,35 @@ describe('[E2E] List interview transcriptions usecase', () => {
 
 		expect(res.body).to.have.lengthOf(1);
 		expect(res.body[0].video_id).to.equal(video.id);
+		expect(res.body[0].video?.id).to.equal(video.id);
+	});
+
+	it('returns all transcriptions for admin without user filter', async () => {
+		const admin = await createTestAdmin(usersRepo);
+		const firstUser = await createTestUser(usersRepo);
+		const secondUser = await createTestUser(usersRepo);
+		const firstVideo = await createTestVideoRecord(videosRepo, firstUser.id);
+		const secondVideo = await createTestVideoRecord(videosRepo, secondUser.id);
+
+		await createTestInterviewTranscription(transcriptionsRepo, firstVideo.id, {
+			created_at: new Date('2024-01-01T10:00:00Z'),
+		});
+		await createTestInterviewTranscription(transcriptionsRepo, secondVideo.id, {
+			created_at: new Date('2024-01-01T12:00:00Z'),
+		});
+
+		const res = await sdk.listTranscriptions({
+			userMeta: { isAuth: true, isWrongAccessJwt: false, userId: admin.id },
+			params: {},
+		});
+
+		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status !== HttpStatus.OK) throw new Error('Admin request without filter failed');
+
+		expect(res.body).to.have.lengthOf(2);
+		expect(res.body[0].video_id).to.equal(secondVideo.id);
+		expect(res.body[1].video_id).to.equal(firstVideo.id);
+		expect(res.body[0].video?.user_id).to.equal(secondUser.id);
+		expect(res.body[1].video?.user_id).to.equal(firstUser.id);
 	});
 });

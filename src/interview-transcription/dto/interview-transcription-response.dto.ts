@@ -1,6 +1,30 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsDate, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import { InterviewTranscriptionStatus, STATUS_VALUES } from '../interview-transcription.entity';
+
+export class InterviewTranscriptionVideoDto {
+	@ApiProperty()
+	@IsUUID()
+	id: string;
+
+	@ApiProperty()
+	@IsUUID()
+	user_id: string;
+
+	@ApiProperty()
+	@IsString()
+	filename: string;
+
+	@ApiPropertyOptional({ nullable: true })
+	@IsOptional()
+	@IsString()
+	mime_type?: string | null;
+
+	@ApiProperty()
+	@IsDate()
+	created_at: Date;
+}
 
 export class InterviewTranscriptionResponseDto {
 	@ApiProperty()
@@ -30,4 +54,9 @@ export class InterviewTranscriptionResponseDto {
 	@ApiProperty()
 	@IsDate()
 	created_at: Date;
+
+	@ApiPropertyOptional({ type: () => InterviewTranscriptionVideoDto })
+	@IsOptional()
+	@Type(() => InterviewTranscriptionVideoDto)
+	video?: InterviewTranscriptionVideoDto;
 }
