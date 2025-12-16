@@ -49,6 +49,25 @@ export class InterviewTranscriptionRepository {
 			.executeTakeFirst();
 	}
 
+	async findByIdWithVideo(id: string): Promise<InterviewTranscriptionWithVideo | undefined> {
+		const row = (await this.connection
+			.selectFrom('interview_transcription')
+			.innerJoin('video', 'video.id', 'interview_transcription.video_id')
+			.selectAll('interview_transcription')
+			.select([
+				'video.id as video__id',
+				'video.user_id as video__user_id',
+				'video.filename as video__filename',
+				'video.mime_type as video__mime_type',
+				'video.created_at as video__created_at',
+			])
+			.where('interview_transcription.id', '=', id)
+			.limit(1)
+			.executeTakeFirst()) as InterviewTranscriptionWithVideoRow | undefined;
+
+		return row ? this.mapWithVideo(row) : undefined;
+	}
+
 	async findLatestByVideoId(
 		videoId: string,
 		statuses?: InterviewTranscriptionStatus[],

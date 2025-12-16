@@ -4,14 +4,12 @@ import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { InterviewTranscriptionResponseDto } from '../../dto/interview-transcription-response.dto';
 import { GetInterviewTranscriptionDto } from '../../dto/get-interview-transcription.dto';
 import { InterviewTranscriptionRepository } from '../../interview-transcription.repository';
-import { VideoRepository } from '../../../video/video.repoistory';
 import { S3VideoStorageAdapter } from '../../../video/adapters/s3-video-storage.adapter';
 import { InterviewTranscription } from '../../interview-transcription.entity';
 
 @Injectable()
 export class GetInterviewTranscriptionUsecase implements UsecaseInterface {
 	constructor(
-		private readonly videoRepository: VideoRepository,
 		private readonly transcriptionRepository: InterviewTranscriptionRepository,
 		private readonly s3VideoStorageAdapter: S3VideoStorageAdapter,
 	) {}
@@ -23,17 +21,12 @@ export class GetInterviewTranscriptionUsecase implements UsecaseInterface {
 		params: GetInterviewTranscriptionDto;
 		user: UserWithSubscriptionTier;
 	}): Promise<InterviewTranscriptionResponseDto> {
-		const transcription = await this.transcriptionRepository.findById(params.transcription_id);
+		const transcription = await this.transcriptionRepository.findByIdWithVideo(params.transcription_id);
 		if (!transcription) {
 			throw new NotFoundException('Транскрибация не найдена');
 		}
 
-		const video = await this.videoRepository.findById(transcription.video_id);
-		if (!video) {
-			throw new NotFoundException('Видео не найдено');
-		}
-
-		if (user.role !== 'admin' && video.user_id !== user.id) {
+		if (user.role !== 'admin' && transcription.video.user_id !== user.id) {
 			throw new ForbiddenException('Вы можете просматривать транскрибации только своих видео');
 		}
 
