@@ -1,4 +1,7 @@
-import { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
+import { Insertable, Selectable, Updateable } from 'kysely';
+import { VideoTable } from '../video/video.entity';
+import { Timestamp } from '../common/kysely-types/timestamp';
+import { Generated } from '../common/kysely-types/generated';
 
 export const STATUS_VALUES = ['created', 'processing', 'done'] as const;
 
@@ -9,8 +12,8 @@ export interface InterviewTranscriptionTable {
 	video_id: string;
 	status: InterviewTranscriptionStatus;
 	s3_transcription_key: string | null;
-	created_at: ColumnType<Date, string | undefined, never>;
-	updated_at: ColumnType<Date, string | undefined, string | undefined>;
+	created_at: Generated<Timestamp>;
+	updated_at: Generated<Timestamp>;
 }
 
 export type InterviewTranscription = Selectable<InterviewTranscriptionTable>;
@@ -19,4 +22,5 @@ export type InterviewTranscriptionUpdate = Updateable<InterviewTranscriptionTabl
 
 export interface InterviewTranscriptionAggregation {
 	interview_transcription: InterviewTranscriptionTable;
+	video: VideoTable;
 }

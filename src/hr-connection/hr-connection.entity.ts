@@ -1,4 +1,6 @@
-import { Generated, Insertable, Selectable, Updateable } from 'kysely';
+import { Insertable, Selectable, Updateable } from 'kysely';
+import { Generated } from '../common/kysely-types/generated';
+import { Timestamp } from '../common/kysely-types/timestamp';
 
 export type HrConnectionStatus = 'waiting_us' | 'waiting_hr' | 'rejected' | 'offer';
 
@@ -7,7 +9,7 @@ export interface HrConnectionTable {
 	student_user_id: string;
 	name: string;
 	status: HrConnectionStatus;
-	created_at: Generated<Date>;
+	created_at: Generated<Timestamp>;
 	chat_link: string;
 }
 

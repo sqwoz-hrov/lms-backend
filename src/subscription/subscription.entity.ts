@@ -1,4 +1,6 @@
-import { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
+import { ColumnType, Insertable, Selectable, Updateable } from 'kysely';
+import { Generated } from '../common/kysely-types/generated';
+import { Timestamp } from '../common/kysely-types/timestamp';
 
 export interface SubscriptionTable {
 	id: Generated<string>;
@@ -10,8 +12,8 @@ export interface SubscriptionTable {
 	billing_period_days: number;
 	current_period_end: ColumnType<Date | null, Date | string | null | undefined>;
 	last_billing_attempt: ColumnType<Date | null, Date | string | null | undefined>;
-	created_at: Generated<Date>;
-	updated_at: ColumnType<Date, Date | string | undefined, Date | string | undefined>;
+	created_at: Generated<Timestamp>;
+	updated_at: Generated<Timestamp>;
 }
 
 export type Subscription = Selectable<SubscriptionTable>;
@@ -32,8 +34,8 @@ export interface PaymentMethodTable {
 	user_id: string;
 	payment_method_id: string;
 	status: ColumnType<PaymentMethodStatus, PaymentMethodStatus | undefined, PaymentMethodStatus | undefined>;
-	created_at: Generated<Date>;
-	updated_at: ColumnType<Date, Date | string | undefined, Date | string | undefined>;
+	created_at: Generated<Timestamp>;
+	updated_at: Generated<Timestamp>;
 }
 
 export type PaymentMethod = Selectable<PaymentMethodTable>;
@@ -45,7 +47,7 @@ export interface PaymentEventTable {
 	user_id: ColumnType<string | null, string | null | undefined>;
 	subscription_id: ColumnType<string | null, string | null | undefined>;
 	event: ColumnType<unknown, unknown>;
-	created_at: Generated<Date>;
+	created_at: Generated<Timestamp>;
 }
 
 export type PaymentEvent = Selectable<PaymentEventTable>;

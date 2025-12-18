@@ -1,11 +1,13 @@
-import { Generated, Insertable, Selectable, Updateable } from 'kysely';
+import { Insertable, Selectable, Updateable } from 'kysely';
+import { Generated } from '../common/kysely-types/generated';
+import { Timestamp } from '../common/kysely-types/timestamp';
 
 export interface PostTable {
 	id: Generated<string>;
 	title: string;
 	markdown_content_id: string;
 	video_id: string | null;
-	created_at: Generated<Date>;
+	created_at: Generated<Timestamp>;
 }
 
 export type Post = Selectable<PostTable>;

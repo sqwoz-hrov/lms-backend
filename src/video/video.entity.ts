@@ -1,4 +1,6 @@
-import { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
+import { Insertable, Selectable, Updateable } from 'kysely';
+import { Generated } from '../common/kysely-types/generated';
+import { Timestamp } from '../common/kysely-types/timestamp';
 
 export type UploadPhase = 'receiving' | 'converting' | 'hashing' | 'uploading_s3' | 'completed' | 'failed';
 
@@ -18,7 +20,7 @@ export type VideoTable = {
 	upload_offset: Generated<string>;
 	checksum_sha256_base64: string | null;
 	storage_key: string | null;
-	created_at: ColumnType<Date, string | undefined, never>;
+	created_at: Generated<Timestamp>;
 };
 
 export type Video = Selectable<VideoTable>;

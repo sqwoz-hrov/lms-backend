@@ -35,6 +35,7 @@ import { YookassaModule } from './yookassa/yookassa.module';
 import { PaymentModule } from './payment/payment.module';
 import { PostModule } from './post/post.module';
 import { InterviewTranscriptionModule } from './interview-transcription/interview-transcription.module';
+import { SseModule } from './sse/sse.module';
 
 @Module({
 	imports: [
@@ -76,6 +77,7 @@ import { InterviewTranscriptionModule } from './interview-transcription/intervie
 		UserModule,
 		VideoModule,
 		PostModule,
+		SseModule,
 	],
 	controllers: [],
 	providers: [],
