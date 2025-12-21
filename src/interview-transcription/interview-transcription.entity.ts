@@ -3,7 +3,7 @@ import { VideoTable } from '../video/video.entity';
 import { Timestamp } from '../common/kysely-types/timestamp';
 import { Generated } from '../common/kysely-types/generated';
 
-export const STATUS_VALUES = ['created', 'processing', 'done'] as const;
+export const STATUS_VALUES = ['created', 'processing', 'restarted', 'done'] as const;
 
 export type InterviewTranscriptionStatus = (typeof STATUS_VALUES)[number];
 

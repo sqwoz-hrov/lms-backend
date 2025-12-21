@@ -94,6 +94,18 @@ export class InterviewTranscriptionRepository {
 			.execute();
 	}
 
+	async findByStatuses(statuses: InterviewTranscriptionStatus[]): Promise<InterviewTranscription[]> {
+		if (statuses.length === 0) {
+			return [];
+		}
+
+		return await this.connection
+			.selectFrom('interview_transcription')
+			.selectAll()
+			.where('status', 'in', statuses)
+			.execute();
+	}
+
 	async findAll(filters: { userId?: string } = {}): Promise<InterviewTranscriptionWithVideo[]> {
 		let query = this.connection
 			.selectFrom('interview_transcription')
@@ -156,7 +168,7 @@ export class InterviewTranscriptionRepository {
 			.updateTable('interview_transcription')
 			.set({ status: 'processing', updated_at: new Date() })
 			.where('id', '=', id)
-			.where('status', '=', 'created')
+			.where('status', 'in', ['created', 'restarted'])
 			.returningAll()
 			.executeTakeFirst();
 	}

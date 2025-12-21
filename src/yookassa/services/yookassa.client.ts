@@ -19,11 +19,9 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 	private readonly logger = new Logger(YookassaClient.name);
 	private readonly baseUrl: string;
 	private readonly basicAuthToken: string | null;
-	private readonly oauthToken: string | null;
 
 	constructor(@Inject(yookassaConfig.KEY) private readonly config: ConfigType<typeof yookassaConfig>) {
 		this.baseUrl = this.config.apiUrl.replace(/\/+$/, '');
-		this.oauthToken = this.config.oauthToken ?? null;
 		this.basicAuthToken = `${Buffer.from(`${this.config.shopId}:${this.config.secretKey}`).toString('base64')}`;
 	}
 
