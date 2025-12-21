@@ -35,9 +35,13 @@ export class StartInterviewTranscriptionUsecase implements UsecaseInterface {
 			throw new BadRequestException('Видео еще обрабатывается, транскрибация недоступна');
 		}
 
-		const existing = await this.transcriptionRepository.findLatestByVideoId(video.id, ['created', 'processing']);
+		const existing = await this.transcriptionRepository.findLatestByVideoId(video.id, [
+			'created',
+			'processing',
+			'restarted',
+		]);
 		if (existing) {
-			if (existing.status === 'created') {
+			if (existing.status === 'created' || existing.status === 'restarted') {
 				return await this.transcriptionService.enqueueTranscription(existing.id);
 			}
 

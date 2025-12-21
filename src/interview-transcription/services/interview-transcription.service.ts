@@ -19,6 +19,7 @@ type InterviewTranscriptionJobPayload = {
 	storageKey: string;
 	videoId: string;
 	interviewTranscriptionId: string;
+	forceRestart: boolean;
 };
 
 const QUEUE_NAME = 'interview-transcription';
@@ -63,7 +64,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 	}
 
 	async enqueuePendingTranscriptions(): Promise<void> {
-		const pending = await this.transcriptionRepository.findByStatus('created');
+		const pending = await this.transcriptionRepository.findByStatuses(['created', 'restarted']);
 		if (pending.length === 0) {
 			return;
 		}
@@ -86,8 +87,11 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 		if (!transcription) {
 			throw new NotFoundException('Запись транскрибации интервью не найдена');
 		}
-		if (transcription.status !== 'created') {
-			this.logger.debug(`Transcription ${interviewTranscriptionId} is already ${transcription.status}, skipping`);
+		const allowedStatuses: InterviewTranscription['status'][] = ['created', 'processing', 'restarted'];
+		if (!allowedStatuses.includes(transcription.status)) {
+			this.logger.debug(
+				`Transcription ${interviewTranscriptionId} is already ${transcription.status}, skipping enqueue`,
+			);
 			return transcription;
 		}
 
@@ -100,21 +104,31 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 			throw new BadRequestException('Видеофайл еще не загружен в хранилище');
 		}
 
+		const forceRestart = transcription.status === 'restarted';
 		await this.ensureVmRunning();
 		await this.queue.add(
 			JOB_NAME,
-			{ storageKey: video.storage_key, videoId: video.id, interviewTranscriptionId },
+			{ storageKey: video.storage_key, videoId: video.id, interviewTranscriptionId, forceRestart },
 			{ removeOnComplete: true, removeOnFail: false },
 		);
 		this.logger.log(`Transcription ${interviewTranscriptionId} queued for processing`);
 
-		const updated = await this.transcriptionRepository.markProcessing(interviewTranscriptionId);
-		if (!updated) {
-			this.logger.warn(`Failed to mark transcription ${interviewTranscriptionId} as processing`);
+		let updated = transcription;
+		if (transcription.status === 'processing') {
+			this.logger.debug(
+				`Transcription ${interviewTranscriptionId} already processing, enqueued another job without status update`,
+			);
 		} else {
-			this.logger.debug(`Transcription ${interviewTranscriptionId} marked as processing`);
+			const markProcessingResult = await this.transcriptionRepository.markProcessing(interviewTranscriptionId);
+			if (!markProcessingResult) {
+				this.logger.warn(`Failed to mark transcription ${interviewTranscriptionId} as processing`);
+			} else {
+				this.logger.debug(`Transcription ${interviewTranscriptionId} marked as processing`);
+				updated = markProcessingResult;
+			}
 		}
-		return updated ?? transcription;
+
+		return updated;
 	}
 
 	async handleTranscriptionFinished(): Promise<void> {

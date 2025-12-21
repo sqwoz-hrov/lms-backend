@@ -18,6 +18,8 @@ import { GetInterviewTranscriptionByVideoIdUsecase } from './usecase/get-transcr
 import { S3VideoStorageAdapter } from '../video/adapters/s3-video-storage.adapter';
 import { GetInterviewTranscriptionController } from './usecase/get-transcription/get-interview-transcription.controller';
 import { GetInterviewTranscriptionUsecase } from './usecase/get-transcription/get-interview-transcription.usecase';
+import { RestartInterviewTranscriptionController } from './usecase/restart-transcription/restart-interview-transcription.controller';
+import { RestartInterviewTranscriptionUsecase } from './usecase/restart-transcription/restart-interview-transcription.usecase';
 
 @Module({})
 export class InterviewTranscriptionModule {
@@ -27,6 +29,7 @@ export class InterviewTranscriptionModule {
 			imports: [SseModule],
 			controllers: [
 				StartInterviewTranscriptionController,
+				RestartInterviewTranscriptionController,
 				HandleTranscriptionFinishWebhookController,
 				ListInterviewTranscriptionsController,
 				GetInterviewTranscriptionByVideoIdController,
@@ -37,6 +40,7 @@ export class InterviewTranscriptionModule {
 				InterviewTranscriptionService,
 				InterviewTranscriptionChunkEventsService,
 				StartInterviewTranscriptionUsecase,
+				RestartInterviewTranscriptionUsecase,
 				HandleTranscriptionFinishWebhookUsecase,
 				ListInterviewTranscriptionsUsecase,
 				GetInterviewTranscriptionByVideoIdUsecase,

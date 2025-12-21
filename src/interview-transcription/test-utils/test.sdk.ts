@@ -1,6 +1,7 @@
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
 import { InterviewTranscriptionResponseDto } from '../dto/interview-transcription-response.dto';
+import { RestartInterviewTranscriptionDto } from '../dto/restart-interview-transcription.dto';
 import { StartInterviewTranscriptionDto } from '../dto/start-interview-transcription.dto';
 import { InterviewTranscriptionWebhookDto } from '../dto/interview-transcription-webhook.dto';
 
@@ -32,6 +33,15 @@ export class InterviewTranscriptionsTestSdk implements ValidateSDK<InterviewTran
 	async startTranscription({ params, userMeta }: { params: StartInterviewTranscriptionDto; userMeta: UserMeta }) {
 		return await this.httpClient.request<InterviewTranscriptionResponseDto>({
 			path: '/interview-transcriptions',
+			method: 'POST',
+			body: params,
+			userMeta,
+		});
+	}
+
+	async restartTranscription({ params, userMeta }: { params: RestartInterviewTranscriptionDto; userMeta: UserMeta }) {
+		return await this.httpClient.request<InterviewTranscriptionResponseDto>({
+			path: '/interview-transcriptions/restart',
 			method: 'POST',
 			body: params,
 			userMeta,
