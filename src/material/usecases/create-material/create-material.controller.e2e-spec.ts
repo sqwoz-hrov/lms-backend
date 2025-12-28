@@ -108,7 +108,23 @@ describe('[E2E] Create material usecase', () => {
 		if (res.status != 201) throw new Error();
 		expect(res.body.name).to.equal(dto.name);
 		expect(res.body.subject_id).to.equal(dto.subject_id);
-		expect(res.body.type).to.equal(dto.type);
 		expect(res.body.markdown_content).to.equal(dto.markdown_content);
+	});
+
+	it('Rejects creating material without video or markdown', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+		const subject = await createTestSubject(subjectUtilRepository);
+		const dto = createTestMaterialDto(subject.id, { markdown_content: undefined });
+
+		const res = await materialTestSdk.createMaterial({
+			params: dto,
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 });

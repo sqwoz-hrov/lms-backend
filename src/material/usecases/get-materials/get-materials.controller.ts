@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { RequestWithUser } from '../../../common/interface/request-with-user.interface';
-import { MaterialResponseDto } from '../../dto/base-material.dto';
+import { MaterialResponseDto } from '../../dto/material-response.dto';
 import { GetMaterialsDto } from '../../dto/get-materials.dto';
 import { GetMaterialsUsecase } from './get-materials.usecase';
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { MarkdownContentService } from '../../../markdown-content/services/markdown-content.service';
-import { MaterialResponseDto } from '../../dto/base-material.dto';
+import { MaterialResponseDto } from '../../dto/material-response.dto';
 import { ArchiveMaterialDto } from '../../dto/archive-material.dto';
 import { MaterialRepository } from '../../material.repository';
 

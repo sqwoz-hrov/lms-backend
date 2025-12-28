@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { MarkdownContentService } from '../../../markdown-content/services/markdown-content.service';
-import { MaterialResponseDto } from '../../dto/base-material.dto';
+import { MaterialResponseDto } from '../../dto/material-response.dto';
 import { UpdateMaterialDto } from '../../dto/update-material.dto';
 import { MaterialRepository } from '../../material.repository';
 
@@ -20,60 +20,49 @@ export class EditMaterialUsecase implements UsecaseInterface {
 		}
 
 		const { id, markdown_content, ...updateData } = params;
-		const targetType = updateData.type ?? existingMaterial.type;
-		const updates: Record<string, any> = { ...updateData };
+		const updates = { ...updateData };
 
-		const videoProvided = updateData?.video_id;
-		const markdownIdProvided = updateData?.markdown_content_id;
+		let markdownContentId =
+			updateData.markdown_content_id !== undefined
+				? updateData.markdown_content_id
+				: existingMaterial.markdown_content_id;
 
-		const nextVideoId =
-			targetType === 'article'
-				? videoProvided
-					? updateData.video_id
-					: null
-				: videoProvided
-					? updateData.video_id
-					: existingMaterial.video_id;
+		let markdownContent: Awaited<ReturnType<MarkdownContentService['uploadMarkdownContent']>> | undefined;
 
-		const nextMarkdownId =
-			targetType === 'video'
-				? markdownIdProvided
-					? updateData.markdown_content_id
-					: null
-				: markdownIdProvided
-					? updateData.markdown_content_id
-					: existingMaterial.markdown_content_id;
+		if (typeof markdown_content === 'string') {
+			const resolvedMarkdownId = typeof markdownContentId === 'string' ? markdownContentId : undefined;
 
-		const hasMarkdownPayload = markdown_content !== undefined;
-		const willHaveMarkdown = hasMarkdownPayload || (nextMarkdownId !== undefined && nextMarkdownId !== null);
+			if (resolvedMarkdownId && resolvedMarkdownId.length > 0) {
+				markdownContent = await this.markdownContentService.updateMarkdownContent(resolvedMarkdownId, markdown_content);
+				markdownContentId = resolvedMarkdownId;
+			} else {
+				markdownContent = await this.markdownContentService.uploadMarkdownContent(markdown_content);
+				markdownContentId = markdownContent.id;
+			}
+		}
+
+		if (markdownContentId !== undefined) {
+			updates.markdown_content_id = markdownContentId;
+		}
+
+		const nextVideoId = updateData.video_id !== undefined ? updateData.video_id : existingMaterial.video_id;
+
+		let nextMarkdownId: string | null;
+
+		if (updates.markdown_content_id !== undefined) {
+			nextMarkdownId = updates.markdown_content_id;
+		} else {
+			nextMarkdownId = existingMaterial.markdown_content_id;
+		}
+
+		const willHaveMarkdown = nextMarkdownId !== undefined && nextMarkdownId !== null;
 		const willHaveVideo = nextVideoId !== undefined && nextVideoId !== null;
 
-		if (targetType === 'video') {
-			if (willHaveMarkdown) {
-				throw new BadRequestException('Markdown content is not allowed for video materials');
-			}
-			updates.markdown_content_id = null;
-		} else if (targetType === 'article') {
-			if (willHaveVideo) {
-				throw new BadRequestException('Video id is not allowed for article materials');
-			}
-			if (!willHaveMarkdown) {
-				throw new BadRequestException('Article materials require markdown content');
-			}
-			updates.video_id = null;
-		} else if (targetType !== 'other') {
-			throw new BadRequestException('Unsupported material type');
+		if (!willHaveMarkdown && !willHaveVideo) {
+			throw new BadRequestException('Material must include video or markdown content');
 		}
 
-		const markdownContent = markdown_content
-			? await this.markdownContentService.uploadMarkdownContent(markdown_content)
-			: undefined;
-
-		if (markdownContent && !markdownIdProvided) {
-			updates.markdown_content_id = markdownContent.id;
-		}
-
-		const updatedMaterial = await this.materialRepository.update(id, updates as any);
+		const updatedMaterial = await this.materialRepository.update(id, updates);
 
 		return {
 			...updatedMaterial,
