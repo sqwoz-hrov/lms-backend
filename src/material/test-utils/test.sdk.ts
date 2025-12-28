@@ -1,7 +1,7 @@
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
 import { ArchiveMaterialDto } from '../dto/archive-material.dto';
-import { MaterialResponseDto } from '../dto/base-material.dto';
+import { MaterialResponseDto } from '../dto/material-response.dto';
 import { CreateMaterialDto } from '../dto/create-material.dto';
 import { GetMaterialsDto } from '../dto/get-materials.dto';
 import { UpdateMaterialDto } from '../dto/update-material.dto';

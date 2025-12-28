@@ -1,16 +1,14 @@
 import { Insertable, Selectable, Updateable } from 'kysely';
 import { Generated } from '../common/kysely-types/generated';
-
-export type MaterialType = 'article' | 'video' | 'other';
+import { Nullable } from '../common/kysely-types/nullable';
 
 export interface MaterialTable {
 	id: Generated<string>;
-	student_user_id: string | undefined;
+	student_user_id: Nullable<string>;
 	subject_id: string;
 	name: string;
-	type: MaterialType;
-	video_id: string | undefined;
-	markdown_content_id: string | undefined;
+	video_id: Nullable<string>;
+	markdown_content_id: Nullable<string>;
 	is_archived: Generated<boolean>;
 }
 

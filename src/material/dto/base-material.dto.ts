@@ -1,10 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
-import { MaterialType } from '../material.entity';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { strictToBoolean } from '../../common/nest/transform-pipes/transform-boolean';
-
-const MaterialTypes: MaterialType[] = ['article', 'video', 'other'];
 
 export class BaseMaterialDto {
 	@ApiProperty()
@@ -12,10 +9,10 @@ export class BaseMaterialDto {
 	@IsNotEmpty()
 	id: string;
 
-	@ApiProperty({ required: false, type: 'string' })
+	@ApiProperty({ required: false, type: 'string', nullable: true })
 	@IsUUID()
 	@IsOptional()
-	student_user_id?: string | undefined;
+	student_user_id?: string | null;
 
 	@ApiProperty()
 	@IsString()
@@ -27,30 +24,23 @@ export class BaseMaterialDto {
 	@IsNotEmpty()
 	name: string;
 
-	@ApiProperty({ enum: MaterialTypes })
-	@IsEnum(MaterialTypes)
-	@IsNotEmpty()
-	type: MaterialType;
-
-	@ApiProperty({ required: false, type: 'string' })
+	@ApiProperty({ required: false, type: 'string', nullable: true })
 	@IsString()
 	@IsOptional()
-	video_id: string | undefined;
+	video_id: string | null | undefined;
 
-	@ApiProperty({ required: false })
+	@ApiProperty({ required: false, type: 'string', nullable: true })
 	@IsString()
 	@IsOptional()
-	markdown_content_id: string | undefined;
+	markdown_content_id: string | null | undefined;
 
-	@ApiProperty({ description: 'Resolved markdown content as text', required: false, type: 'string' })
+	@ApiProperty({ description: 'Resolved markdown content as text', required: false, type: 'string', nullable: true })
 	@IsString()
 	@IsOptional()
-	markdown_content?: string | undefined;
+	markdown_content?: string | null | undefined;
 
 	@ApiProperty()
 	@IsBoolean()
 	@Transform(strictToBoolean)
 	is_archived: boolean;
 }
-
-export class MaterialResponseDto extends BaseMaterialDto {}

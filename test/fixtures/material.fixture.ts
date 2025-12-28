@@ -19,7 +19,6 @@ export const createTestMaterialDto = (
 	return {
 		subject_id: subjectId,
 		name: randomWord(),
-		type: 'article',
 		video_id: undefined,
 		markdown_content: '# Example material content',
 		...overrides,
@@ -50,7 +49,6 @@ export const createTestMaterial = async (
 			student_user_id,
 			subject_id: subject.id,
 			name: overrides.material?.name ?? randomWord(),
-			type: overrides.material?.type ?? 'article',
 			video_id: overrides.material?.video_id,
 			markdown_content_id: markdownContent.id,
 			...overrides.material,

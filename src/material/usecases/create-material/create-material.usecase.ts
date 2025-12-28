@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { MarkdownContentService } from '../../../markdown-content/services/markdown-content.service';
-import { MaterialResponseDto } from '../../dto/base-material.dto';
+import { MaterialResponseDto } from '../../dto/material-response.dto';
 import { CreateMaterialDto } from '../../dto/create-material.dto';
 import { MaterialRepository } from '../../material.repository';
 
@@ -14,6 +14,13 @@ export class CreateMaterialUsecase implements UsecaseInterface {
 
 	async execute(params: CreateMaterialDto): Promise<MaterialResponseDto> {
 		const { markdown_content, ...materialData } = params;
+
+		const hasVideo = materialData.video_id !== undefined && materialData.video_id !== null;
+		const hasMarkdownPayload = markdown_content !== undefined;
+
+		if (!hasVideo && !hasMarkdownPayload) {
+			throw new BadRequestException('Material must include video or markdown content');
+		}
 
 		const markdownContent = markdown_content
 			? await this.markdownContentService.uploadMarkdownContent(markdown_content)
