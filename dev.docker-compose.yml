@@ -3,7 +3,7 @@ services:
     image: postgres:17.5
     container_name: lms-postgres
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: lms-backend
       POSTGRES_PASSWORD: lms-backend
@@ -24,7 +24,7 @@ services:
     volumes:
       - redis-data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - lms-network
 
