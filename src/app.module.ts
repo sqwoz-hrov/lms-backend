@@ -69,7 +69,7 @@ import { SseModule } from './sse/sse.module';
 		MetricsModule,
 		SubjectModule,
 		TaskModule,
-		TelegramModule.forRoot({ useTelegramAPI: true }),
+		TelegramModule.forRoot({ useTelegramAPI: process.env.NODE_ENV !== 'dev' }),
 		YookassaModule.forRoot({ useYookassaAPI: true }),
 		SubscriptionTierModule,
 		SubscriptionModule,
