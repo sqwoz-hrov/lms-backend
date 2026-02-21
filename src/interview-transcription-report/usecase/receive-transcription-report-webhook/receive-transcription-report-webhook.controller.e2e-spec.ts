@@ -79,7 +79,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 				},
 			],
 			candidateNameInTranscription: 'SPEAKER_03',
-            candidateName: 'Cheeel',
+			candidateName: 'Cheeel',
 		};
 
 		const res = await sdk.sendReportWebhook({
@@ -103,7 +103,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 				},
 			],
 			candidateNameInTranscription: 'SPEAKER_04',
-            candidateName: 'Cheeel',
+			candidateName: 'Cheeel',
 		};
 
 		const res = await sdk.sendReportWebhook({
@@ -115,7 +115,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 
-	it('returns 400 when payload\'s candidateNameInTranscription is invalid', async () => {
+	it("returns 400 when payload's candidateNameInTranscription is invalid", async () => {
 		const owner = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
 		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
@@ -145,7 +145,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 				},
 			],
 			candidateNameInTranscription: 'Cheeel',
-            candidateName: 'Cheeel',
+			candidateName: 'Cheeel',
 		};
 
 		const res = await sdk.sendReportWebhook({
@@ -154,7 +154,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 			headers: buildWebhookHeaders(payload, webhookConfig),
 		});
 
-        expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 
 	it('saves the report and returns 200 with a valid payload', async () => {
@@ -187,7 +187,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 				},
 			],
 			candidateNameInTranscription: 'SPEAKER_01',
-            candidateName: 'Cheeel',
+			candidateName: 'Cheeel',
 		};
 
 		const res = await sdk.sendReportWebhook({
@@ -200,6 +200,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		if (res.status !== HttpStatus.OK) throw new Error('Webhook request failed');
 
 		const stored = (await reportsRepo.findAll()).at(0);
+		// this causes linting errors
 		expect(stored).to.exist;
 		expect(stored?.interview_transcription_id).to.equal(transcription.id);
 		expect(stored?.candidate_name).to.equal(payload.candidateName);
@@ -284,34 +285,34 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		expect(threw, 'Expected DB insert to throw a check constraint violation').to.be.true;
 	});
 
-    it('DB check constraint rejects directly inserted row with invalid candidate_name_in_transcription', async () => {
-        const owner = await createTestUser(usersRepo);
-        const video = await createTestVideoRecord(videosRepo, owner.id);
-        const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
+	it('DB check constraint rejects directly inserted row with invalid candidate_name_in_transcription', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id);
+		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
 
-        let threw = false;
-        try {
-            await reportsRepo.insertRaw({
-                interview_transcription_id: transcription.id,
-                llm_report_parsed: JSON.stringify([
-                    {
-                        hintType: 'praise',
-                        lineId: 1,
-                        topic: 'Code structure',
-                        praise: 'Clean separation of concerns',
-                    },
-                ]) as any,
-                candidate_name_in_transcription: randomUUID(), // random string, won't match ^SPEAKER_\d+$
-            });
-        } catch (err: unknown) {
-            threw = true;
-            // Postgres raises check_violation error code 23514 for violated CHECK constraints
-            expect((err as any).code).to.equal('23514');
-        }
+		let threw = false;
+		try {
+			await reportsRepo.insertRaw({
+				interview_transcription_id: transcription.id,
+				llm_report_parsed: JSON.stringify([
+					{
+						hintType: 'praise',
+						lineId: 1,
+						topic: 'Code structure',
+						praise: 'Clean separation of concerns',
+					},
+				]) as unknown as any,
+				candidate_name_in_transcription: randomUUID(), // random string, won't match ^SPEAKER_\d+$
+			});
+		} catch (err: unknown) {
+			threw = true;
+			// Postgres raises check_violation error code 23514 for violated CHECK constraints
+			expect((err as any).code).to.equal('23514');
+		}
 
-        expect(threw, 'Expected DB insert to throw a check constraint violation on candidate_name_in_transcription').to.be.true;
-    });
-
+		expect(threw, 'Expected DB insert to throw a check constraint violation on candidate_name_in_transcription').to.be
+			.true;
+	});
 
 	it('returns 401 when webhook signature is wrong', async function () {
 		if (!webhookConfig.webhookSecret) {
@@ -329,7 +330,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 			params: payload,
 			userMeta: { isAuth: false },
 			headers: {
-				...buildWebhookHeaders(payload, {...webhookConfig, webhookSecret: 'wrong_secret'}),
+				...buildWebhookHeaders(payload, { ...webhookConfig, webhookSecret: 'wrong_secret' }),
 			},
 		});
 

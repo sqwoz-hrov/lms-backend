@@ -29,14 +29,11 @@ export class InterviewTranscriptionReportController {
 
 	@Route({
 		summary: 'Webhook получения отчёта транскрибации интервью',
-        requestBodyType: ReceiveTranscriptionReportWebhookDto,
+		requestBodyType: ReceiveTranscriptionReportWebhookDto,
 	})
 	@Post('receive')
 	@HttpCode(HttpStatus.OK)
-	async receive(
-		@Body() body: unknown,
-		@Req() req: RawBodyRequest<Request>,
-	): Promise<void> {
+	async receive(@Body() body: unknown, @Req() req: RawBodyRequest<Request>): Promise<void> {
 		this.verifySignature(req);
 		await this.usecase.execute({ params: body });
 	}

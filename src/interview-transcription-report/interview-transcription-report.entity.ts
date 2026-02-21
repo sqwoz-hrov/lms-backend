@@ -1,11 +1,17 @@
-import { Generated, Insertable, Selectable, Updateable } from "kysely";
+import { Insertable, Selectable, Updateable } from 'kysely';
+import { Generated } from '../common/kysely-types/generated';
 
 export type LLMReportParsed = (
-	{ hintType: 'error';
-		lineId: number; topic: string; errorType: 'blunder' | 'inaccuracy'; whyBad: string; howToFix: string
-	} |
-	{ hintType: 'note'; lineId: number; topic: string; note: string } |
-	{ hintType: 'praise'; lineId: number; topic: string; praise: string }
+	| {
+			hintType: 'error';
+			lineId: number;
+			topic: string;
+			errorType: 'blunder' | 'inaccuracy';
+			whyBad: string;
+			howToFix: string;
+	  }
+	| { hintType: 'note'; lineId: number; topic: string; note: string }
+	| { hintType: 'praise'; lineId: number; topic: string; praise: string }
 )[];
 export interface InterviewTranscriptionReportTable {
 	id: Generated<string>; // uuid v7
@@ -18,4 +24,3 @@ export interface InterviewTranscriptionReportTable {
 export type InterviewTranscriptionReport = Selectable<InterviewTranscriptionReportTable>;
 export type NewInterviewTranscriptionReport = Insertable<InterviewTranscriptionReportTable>;
 export type InterviewTranscriptionReportUpdate = Updateable<InterviewTranscriptionReportTable>;
-

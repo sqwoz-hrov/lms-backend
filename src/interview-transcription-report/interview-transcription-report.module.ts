@@ -5,9 +5,6 @@ import { InterviewTranscriptionReportRepository } from './interview-transcriptio
 
 @Module({
 	controllers: [InterviewTranscriptionReportController],
-	providers: [
-		ReceiveTranscriptionReportWebhookUsecase,
-		InterviewTranscriptionReportRepository,
-	],
+	providers: [ReceiveTranscriptionReportWebhookUsecase, InterviewTranscriptionReportRepository],
 })
 export class InterviewTranscriptionReportModule {}

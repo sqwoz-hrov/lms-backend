@@ -31,8 +31,11 @@ const llmReportParsedSchema = z.array(
 const webhookPayloadSchema = z.object({
 	transcriptionId: z.string().uuid(),
 	llmReportParsed: llmReportParsedSchema,
-	candidateNameInTranscription: z.string().min(1).regex(/^SPEAKER_\d+$/),
-    candidateName: z.string().min(1).optional(),
+	candidateNameInTranscription: z
+		.string()
+		.min(1)
+		.regex(/^SPEAKER_\d+$/),
+	candidateName: z.string().min(1).optional(),
 });
 
 export type ReceiveTranscriptionReportWebhookParams = z.infer<typeof webhookPayloadSchema>;
@@ -55,7 +58,7 @@ export class ReceiveTranscriptionReportWebhookUsecase implements UsecaseInterfac
 			interview_transcription_id: parsed.data.transcriptionId,
 			llm_report_parsed: parsed.data.llmReportParsed,
 			candidate_name_in_transcription: parsed.data.candidateNameInTranscription,
-            candidate_name: parsed.data.candidateName,
+			candidate_name: parsed.data.candidateName,
 		});
 	}
 }

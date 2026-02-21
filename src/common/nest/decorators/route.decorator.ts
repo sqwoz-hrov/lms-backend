@@ -29,9 +29,13 @@ export const Route = ({
 		UseInterceptors(RequestLoggerInterceptor),
 		ApiBearerAuth(),
 		ApiOperation({ summary, description }),
-		...(requestBodyType ? [ApiBody({
-			schema: { $ref: getSchemaPath(requestBodyType) },
-		})] : []),
+		...(requestBodyType
+			? [
+					ApiBody({
+						schema: { $ref: getSchemaPath(requestBodyType) },
+					}),
+				]
+			: []),
 		ApiResponse({
 			status: 'default',
 			description: 'Тело ответа',
