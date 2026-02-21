@@ -29,16 +29,17 @@ export class RestartInterviewTranscriptionUsecase implements UsecaseInterface {
 			throw new ForbiddenException('Вы можете перезапускать транскрибацию только для своих видео');
 		}
 
-		if (transcription.status === 'done') {
-			const updated = await this.transcriptionRepository.updateStatus(transcription.id, 'restarted', {
-				s3_transcription_key: null,
-			});
+		const shouldClearStoredKey = transcription.status === 'done';
+		const updated = await this.transcriptionRepository.updateStatus(
+			transcription.id,
+			'restarted',
+			shouldClearStoredKey ? { s3_transcription_key: null } : {},
+		);
 
-			if (!updated) {
-				throw new BadRequestException('Не удалось перезапустить транскрибацию интервью');
-			}
+		if (!updated) {
+			throw new BadRequestException('Не удалось перезапустить транскрибацию интервью');
 		}
 
-		return await this.transcriptionService.enqueueTranscription(transcription.id);
+		return await this.transcriptionService.enqueueTranscription(transcription.id, { forceRestart: true });
 	}
 }

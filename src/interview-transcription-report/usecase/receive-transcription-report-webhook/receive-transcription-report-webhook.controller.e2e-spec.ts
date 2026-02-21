@@ -15,6 +15,7 @@ import { VideosTestRepository } from '../../../video/test-utils/test.repo';
 import { InterviewTranscriptionReportTestRepository } from '../../test-utils/test.repo';
 import { InterviewTranscriptionReportTestSdk } from '../../test-utils/test.sdk';
 import { ReceiveTranscriptionReportWebhookDto } from '../../dto/receive-transcription-report-webhook.dto';
+import { LLMReportParsed } from '../../interview-transcription-report.entity';
 
 describe('[E2E] Receive transcription report webhook usecase', () => {
 	let app: INestApplication;
@@ -200,8 +201,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		if (res.status !== HttpStatus.OK) throw new Error('Webhook request failed');
 
 		const stored = (await reportsRepo.findAll()).at(0);
-		// this causes linting errors
-		expect(stored).to.exist;
+		expect(stored).to.not.eq(undefined);
 		expect(stored?.interview_transcription_id).to.equal(transcription.id);
 		expect(stored?.candidate_name).to.equal(payload.candidateName);
 	});
@@ -248,7 +248,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		if (res.status !== HttpStatus.OK) throw new Error('Webhook request failed');
 
 		const stored = (await reportsRepo.findAll()).at(0);
-		expect(stored).to.exist;
+		expect(stored).to.not.eq(undefined);
 		expect(stored?.interview_transcription_id).to.equal(transcription.id);
 		expect(stored?.candidate_name).to.equal(null);
 	});
@@ -272,7 +272,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		try {
 			await reportsRepo.insertRaw({
 				interview_transcription_id: transcription.id,
-				llm_report_parsed: JSON.stringify(invalidParsed) as any,
+				llm_report_parsed: invalidParsed as LLMReportParsed,
 				candidate_name_in_transcription: 'SPEAKER_01',
 				candidate_name: 'Test Candidate',
 			});
@@ -282,7 +282,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 			expect((err as any).code).to.equal('23514');
 		}
 
-		expect(threw, 'Expected DB insert to throw a check constraint violation').to.be.true;
+		expect(threw, 'Expected DB insert to throw a check constraint violation').to.eq(true);
 	});
 
 	it('DB check constraint rejects directly inserted row with invalid candidate_name_in_transcription', async () => {
@@ -301,7 +301,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 						topic: 'Code structure',
 						praise: 'Clean separation of concerns',
 					},
-				]) as unknown as any,
+				]) as unknown as LLMReportParsed,
 				candidate_name_in_transcription: randomUUID(), // random string, won't match ^SPEAKER_\d+$
 			});
 		} catch (err: unknown) {
@@ -310,8 +310,9 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 			expect((err as any).code).to.equal('23514');
 		}
 
-		expect(threw, 'Expected DB insert to throw a check constraint violation on candidate_name_in_transcription').to.be
-			.true;
+		expect(threw, 'Expected DB insert to throw a check constraint violation on candidate_name_in_transcription').to.eq(
+			true,
+		);
 	});
 
 	it('returns 401 when webhook signature is wrong', async function () {
