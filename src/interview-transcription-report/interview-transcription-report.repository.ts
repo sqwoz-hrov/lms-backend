@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import {
 	InterviewTranscriptionReport,
 	InterviewTranscriptionReportTable,
+	LLMReportParsed,
 	NewInterviewTranscriptionReport,
 } from './interview-transcription-report.entity';
 
@@ -19,11 +20,13 @@ export class InterviewTranscriptionReportRepository {
 		this.connection = dbProvider.getDatabase<ReportDb>();
 	}
 
-	async save(data: NewInterviewTranscriptionReport): Promise<InterviewTranscriptionReport> {
-		return await this.connection
-			.insertInto('interview_transcription_report')
-			.values(data)
-			.returningAll()
-			.executeTakeFirstOrThrow();
+	async save(data: NewInterviewTranscriptionReport): Promise<void> {
+			await this.connection
+				.insertInto('interview_transcription_report')
+				.values({
+                    ...data,
+                    llm_report_parsed: sql<LLMReportParsed>`${JSON.stringify(data.llm_report_parsed)}`,
+                })
+                .execute();
 	}
 }

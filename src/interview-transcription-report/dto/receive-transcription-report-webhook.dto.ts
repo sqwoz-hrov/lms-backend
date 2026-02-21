@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { IsArray, IsNotEmpty, IsString, IsUUID } from 'class-validator';
 
 export class ReceiveTranscriptionReportWebhookDto {
 	@ApiProperty()
@@ -7,7 +7,8 @@ export class ReceiveTranscriptionReportWebhookDto {
 	transcriptionId: string;
 
 	@ApiProperty({ type: 'array' })
-	llmReportParsed: unknown;
+	@IsArray()
+	llmReportParsed: unknown[];
 
 	@ApiProperty()
 	@IsString()

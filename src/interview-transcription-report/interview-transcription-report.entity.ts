@@ -1,7 +1,6 @@
 import { Generated, Insertable, Selectable, Updateable } from "kysely";
 
-// TODO: migrations
-type LLMReportParsed = (
+export type LLMReportParsed = (
 	{ hintType: 'error';
 		lineId: number; topic: string; errorType: 'blunder' | 'inaccuracy'; whyBad: string; howToFix: string
 	} |

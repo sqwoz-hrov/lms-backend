@@ -44,7 +44,7 @@ export class ReceiveTranscriptionReportWebhookUsecase implements UsecaseInterfac
 
 	constructor(private readonly transcriptionReportRepository: InterviewTranscriptionReportRepository) {}
 
-	async execute({ params }: { params: unknown }): Promise<InterviewTranscriptionReport> {
+	async execute({ params }: { params: unknown }): Promise<void> {
 		this.logger.debug('Received transcription report webhook with params:', params);
 
 		const parsed = webhookPayloadSchema.safeParse(params);
@@ -52,7 +52,7 @@ export class ReceiveTranscriptionReportWebhookUsecase implements UsecaseInterfac
 			throw new Error(`Invalid payload: ${parsed.error.message}`);
 		}
 
-		return await this.transcriptionReportRepository.save({
+		await this.transcriptionReportRepository.save({
 			interview_transcription_id: parsed.data.transcriptionId,
 			llm_report_parsed: parsed.data.llmReportParsed,
 			candidate_name_in_transcription: parsed.data.candidateNameInTranscription,

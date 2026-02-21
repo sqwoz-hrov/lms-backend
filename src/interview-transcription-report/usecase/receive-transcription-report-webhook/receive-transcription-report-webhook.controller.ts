@@ -15,7 +15,6 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { ConfigType } from '@nestjs/config';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { ReceiveTranscriptionReportWebhookDto } from '../../dto/receive-transcription-report-webhook.dto';
-import { InterviewTranscriptionReportResponseDto } from '../../dto/interview-transcription-report-response.dto';
 import { ReceiveTranscriptionReportWebhookUsecase } from './receive-transcription-report-webhook.usecase';
 import { interviewTranscriptionConfig } from '../../../config';
 
@@ -30,16 +29,16 @@ export class InterviewTranscriptionReportController {
 
 	@Route({
 		summary: 'Webhook получения отчёта транскрибации интервью',
-		responseType: InterviewTranscriptionReportResponseDto,
+        requestBodyType: ReceiveTranscriptionReportWebhookDto,
 	})
 	@Post('receive')
 	@HttpCode(HttpStatus.OK)
 	async receive(
-		@Body() dto: ReceiveTranscriptionReportWebhookDto,
+		@Body() dto: unknown,
 		@Req() req: RawBodyRequest<Request>,
-	): Promise<InterviewTranscriptionReportResponseDto> {
+	): Promise<void> {
 		this.verifySignature(req);
-		return await this.usecase.execute({ params: dto });
+		await this.usecase.execute({ params: dto });
 	}
 
 	private verifySignature(req: RawBodyRequest<Request>): void {
