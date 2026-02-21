@@ -81,7 +81,10 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 		}
 	}
 
-	async enqueueTranscription(interviewTranscriptionId: string): Promise<InterviewTranscription> {
+	async enqueueTranscription(
+		interviewTranscriptionId: string,
+		options: { forceRestart?: boolean } = {},
+	): Promise<InterviewTranscription> {
 		this.logger.debug(`Attempting to enqueue transcription ${interviewTranscriptionId}`);
 		const transcription = await this.transcriptionRepository.findById(interviewTranscriptionId);
 		if (!transcription) {
@@ -104,7 +107,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 			throw new BadRequestException('Видеофайл еще не загружен в хранилище');
 		}
 
-		const forceRestart = transcription.status === 'restarted';
+		const forceRestart = options.forceRestart ?? transcription.status === 'restarted';
 		await this.ensureVmRunning();
 		await this.queue.add(
 			JOB_NAME,

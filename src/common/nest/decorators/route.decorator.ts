@@ -1,5 +1,5 @@
 import { Type, UseFilters, UseInterceptors, applyDecorators } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, getSchemaPath } from '@nestjs/swagger';
 import { AllExceptionsFilter } from '../exception-filters/all-exceptions.filter';
 import { RequestLoggerInterceptor } from '../interceptors/request-logger.interceptor';
 // This is a hack but it helps with typing
@@ -9,12 +9,14 @@ export const Route = ({
 	summary,
 	description,
 	responseType,
+	requestBodyType,
 	isArray,
 	possibleErrors,
 }: {
 	summary: string;
 	description?: string;
 	responseType?: Type<unknown>;
+	requestBodyType?: Type<unknown>;
 	isArray?: boolean;
 	possibleErrors?: {
 		status?: number;
@@ -27,6 +29,13 @@ export const Route = ({
 		UseInterceptors(RequestLoggerInterceptor),
 		ApiBearerAuth(),
 		ApiOperation({ summary, description }),
+		...(requestBodyType
+			? [
+					ApiBody({
+						schema: { $ref: getSchemaPath(requestBodyType) },
+					}),
+				]
+			: []),
 		ApiResponse({
 			status: 'default',
 			description: 'Тело ответа',

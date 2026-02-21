@@ -36,6 +36,7 @@ import { PaymentModule } from './payment/payment.module';
 import { PostModule } from './post/post.module';
 import { InterviewTranscriptionModule } from './interview-transcription/interview-transcription.module';
 import { SseModule } from './sse/sse.module';
+import { InterviewTranscriptionReportModule } from './interview-transcription-report/interview-transcription-report.module';
 
 @Module({
 	imports: [
@@ -78,6 +79,7 @@ import { SseModule } from './sse/sse.module';
 		VideoModule,
 		PostModule,
 		SseModule,
+		InterviewTranscriptionReportModule,
 	],
 	controllers: [],
 	providers: [],
