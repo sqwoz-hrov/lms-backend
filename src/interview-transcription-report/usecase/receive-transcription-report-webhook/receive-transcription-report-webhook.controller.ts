@@ -34,11 +34,11 @@ export class InterviewTranscriptionReportController {
 	@Post('receive')
 	@HttpCode(HttpStatus.OK)
 	async receive(
-		@Body() dto: unknown,
+		@Body() body: unknown,
 		@Req() req: RawBodyRequest<Request>,
 	): Promise<void> {
 		this.verifySignature(req);
-		await this.usecase.execute({ params: dto });
+		await this.usecase.execute({ params: body });
 	}
 
 	private verifySignature(req: RawBodyRequest<Request>): void {

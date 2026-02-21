@@ -43,7 +43,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn('llm_report_parsed', 'jsonb', col => col.notNull())
 		.addColumn('candidate_name_in_transcription', 'text', col => col.notNull())
-		.addColumn('llm_report_raw', 'text', col => col.notNull())
+		.addColumn('candidate_name', 'text', col => col.notNull())
 		.addCheckConstraint(
 			'llm_report_parsed_is_array',
 			sql`jsonb_typeof(llm_report_parsed) = 'array'`,

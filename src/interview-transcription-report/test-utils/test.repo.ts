@@ -34,6 +34,13 @@ export class InterviewTranscriptionReportTestRepository {
 			.executeTakeFirst();
 	}
 
+    async findAll(): Promise<InterviewTranscriptionReport[]> {
+        return await this._connection
+            .selectFrom('interview_transcription_report')
+            .selectAll()
+            .execute();
+    }
+
 	async insertRaw(data: NewInterviewTranscriptionReport): Promise<InterviewTranscriptionReport> {
 		return await this._connection
 			.insertInto('interview_transcription_report')

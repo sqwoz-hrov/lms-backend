@@ -18,5 +18,5 @@ export class ReceiveTranscriptionReportWebhookDto {
 	@ApiProperty()
 	@IsString()
 	@IsNotEmpty()
-	llmReportRaw: string;
+    candidateName: string;
 }

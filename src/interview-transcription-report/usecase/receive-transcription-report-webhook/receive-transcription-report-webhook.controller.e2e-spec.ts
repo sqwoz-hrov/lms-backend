@@ -55,8 +55,8 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		const invalidPayload = {
 			transcriptionId: randomUUID(),
 			// llmReportParsed is missing entirely
-			candidateNameInTranscription: 'John Doe',
-			llmReportRaw: 'some raw text',
+			candidateNameInTranscription: 'SPEAKER_02',
+			candidateName: 'Cheeel',
 		};
 
 		const res = await sdk.sendReportWebhook({
@@ -78,8 +78,8 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 					topic: 'Some topic',
 				},
 			],
-			candidateNameInTranscription: 'John Doe',
-			llmReportRaw: 'some raw text',
+			candidateNameInTranscription: 'SPEAKER_03',
+            candidateName: 'Cheeel',
 		};
 
 		const res = await sdk.sendReportWebhook({
@@ -102,8 +102,8 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 					// errorType, whyBad, howToFix are missing
 				},
 			],
-			candidateNameInTranscription: 'Jane Doe',
-			llmReportRaw: 'some raw text',
+			candidateNameInTranscription: 'SPEAKER_04',
+            candidateName: 'Cheeel',
 		};
 
 		const res = await sdk.sendReportWebhook({
@@ -115,7 +115,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		expect(res.status).to.be.oneOf([HttpStatus.BAD_REQUEST, HttpStatus.INTERNAL_SERVER_ERROR]);
 	});
 
-	it.only('saves the report and returns 200 with a valid payload', async () => {
+	it('saves the report and returns 200 with a valid payload', async () => {
 		const owner = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
 		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
@@ -144,8 +144,8 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 					praise: 'Clean separation of concerns',
 				},
 			],
-			candidateNameInTranscription: 'Candidate A',
-			llmReportRaw: 'Full raw LLM output here',
+			candidateNameInTranscription: 'SPEAKER_01',
+            candidateName: 'Cheeel',
 		};
 
 		const res = await sdk.sendReportWebhook({
@@ -157,11 +157,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		expect(res.status).to.equal(HttpStatus.OK);
 		if (res.status !== HttpStatus.OK) throw new Error('Webhook request failed');
 
-		expect(res.body.interview_transcription_id).to.equal(transcription.id);
-		expect(res.body.candidate_name_in_transcription).to.equal('Candidate A');
-		expect(res.body.llm_report_raw).to.equal('Full raw LLM output here');
-
-		const stored = await reportsRepo.findById(res.body.id);
+		const stored = (await reportsRepo.findAll()).at(0);
 		expect(stored).to.exist;
 		expect(stored?.interview_transcription_id).to.equal(transcription.id);
 	});
@@ -186,8 +182,8 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 			await reportsRepo.insertRaw({
 				interview_transcription_id: transcription.id,
 				llm_report_parsed: invalidParsed as any,
-				candidate_name_in_transcription: 'Test Candidate',
-				llm_report_raw: 'raw',
+				candidate_name_in_transcription: 'SPEAKER_01',
+				candidate_name: 'Test Candidate',
 			});
 		} catch (err: unknown) {
 			threw = true;
