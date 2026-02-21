@@ -12,7 +12,7 @@ export interface InterviewTranscriptionReportTable {
 	interview_transcription_id: string; // foreign key to interview_transcription table
 	llm_report_parsed: LLMReportParsed; // jsonb, check constraint to ensure it's an array of objects with the specified structure
 	candidate_name_in_transcription: string; // text, SPEAKER_01, SPEAKER_02, etc. - this is used to match the LLM report to the correct speaker in the transcription
-	candidate_name: string; // text, the actual name of the candidate, not just the placeholder in the transcription
+	candidate_name: string | undefined; // text, the actual name of the candidate, not just the placeholder in the transcription
 }
 
 export type InterviewTranscriptionReport = Selectable<InterviewTranscriptionReportTable>;

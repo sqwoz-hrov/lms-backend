@@ -1,8 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { z } from 'zod';
 import { InterviewTranscriptionReportRepository } from '../../interview-transcription-report.repository';
-import { InterviewTranscriptionReport } from '../../interview-transcription-report.entity';
 
 const llmReportParsedSchema = z.array(
 	z.discriminatedUnion('hintType', [
@@ -32,8 +31,8 @@ const llmReportParsedSchema = z.array(
 const webhookPayloadSchema = z.object({
 	transcriptionId: z.string().uuid(),
 	llmReportParsed: llmReportParsedSchema,
-	candidateNameInTranscription: z.string().min(1).startsWith('SPEAKER_'),
-    candidateName: z.string().min(1),
+	candidateNameInTranscription: z.string().min(1).regex(/^SPEAKER_\d+$/),
+    candidateName: z.string().min(1).optional(),
 });
 
 export type ReceiveTranscriptionReportWebhookParams = z.infer<typeof webhookPayloadSchema>;
@@ -49,7 +48,7 @@ export class ReceiveTranscriptionReportWebhookUsecase implements UsecaseInterfac
 
 		const parsed = webhookPayloadSchema.safeParse(params);
 		if (!parsed.success) {
-			throw new Error(`Invalid payload: ${parsed.error.message}`);
+			throw new BadRequestException(`Invalid payload: ${parsed.error.message}`);
 		}
 
 		await this.transcriptionReportRepository.save({
