@@ -193,6 +193,50 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 
 		expect(threw, 'Expected DB insert to throw a check constraint violation').to.be.true;
 	});
+
+	it('returns 401 when webhook signature is wrong', async function () {
+		if (!webhookConfig.webhookSecret) {
+			throw new Error('Webhook secret is not configured, cannot run signature validation tests');
+		}
+
+		const payload: ReceiveTranscriptionReportWebhookDto = {
+			transcriptionId: randomUUID(),
+			llmReportParsed: [],
+			candidateNameInTranscription: 'SPEAKER_01',
+			candidateName: 'Cheeel',
+		};
+
+		const res = await sdk.sendReportWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+			headers: {
+				...buildWebhookHeaders(payload, {...webhookConfig, webhookSecret: 'wrong_secret'}),
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
+	});
+
+	it('returns 401 when webhook signature header is absent', async function () {
+		if (!webhookConfig.webhookSecret) {
+			this.skip();
+		}
+
+		const payload: ReceiveTranscriptionReportWebhookDto = {
+			transcriptionId: randomUUID(),
+			llmReportParsed: [],
+			candidateNameInTranscription: 'SPEAKER_01',
+			candidateName: 'Cheeel',
+		};
+
+		const res = await sdk.sendReportWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+			// no headers — signature header is omitted entirely
+		});
+
+		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
+	});
 });
 
 const buildWebhookHeaders = (
