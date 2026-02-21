@@ -79,7 +79,7 @@ import { InterviewTranscriptionReportModule } from './interview-transcription-re
 		VideoModule,
 		PostModule,
 		SseModule,
-		InterviewTranscriptionSummaryModule,
+		InterviewTranscriptionReportModule,
 	],
 	controllers: [],
 	providers: [],
