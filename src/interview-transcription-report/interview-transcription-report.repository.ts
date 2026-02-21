@@ -20,11 +20,15 @@ export class InterviewTranscriptionReportRepository {
 	}
 
 	async save(data: NewInterviewTranscriptionReport): Promise<void> {
+		// PG driver turns top-level JS arrays into array literals, so stringify to feed the jsonb column valid JSON
+		const llmReportParsed =
+			typeof data.llm_report_parsed === 'string' ? data.llm_report_parsed : JSON.stringify(data.llm_report_parsed);
+
 		await this.connection
 			.insertInto('interview_transcription_report')
 			.values({
 				...data,
-				llm_report_parsed: sql<LLMReportParsed>`${JSON.stringify(data.llm_report_parsed)}`,
+				llm_report_parsed: sql<LLMReportParsed>`${llmReportParsed}`,
 			})
 			.execute();
 	}

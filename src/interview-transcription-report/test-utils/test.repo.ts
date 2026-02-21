@@ -1,8 +1,9 @@
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { DatabaseProvider } from '../../infra/db/db.provider';
 import {
 	InterviewTranscriptionReport,
 	InterviewTranscriptionReportTable,
+	LLMReportParsed,
 	NewInterviewTranscriptionReport,
 } from '../interview-transcription-report.entity';
 
@@ -39,9 +40,15 @@ export class InterviewTranscriptionReportTestRepository {
 	}
 
 	async insertRaw(data: NewInterviewTranscriptionReport): Promise<InterviewTranscriptionReport> {
+		const llmReportParsed =
+			typeof data.llm_report_parsed === 'string' ? data.llm_report_parsed : JSON.stringify(data.llm_report_parsed);
+
 		return await this._connection
 			.insertInto('interview_transcription_report')
-			.values(data)
+			.values({
+				...data,
+				llm_report_parsed: sql<LLMReportParsed>`${llmReportParsed}`,
+			})
 			.returningAll()
 			.executeTakeFirstOrThrow();
 	}
