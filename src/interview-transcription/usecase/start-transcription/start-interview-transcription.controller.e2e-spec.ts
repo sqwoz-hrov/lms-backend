@@ -16,6 +16,7 @@ import { InterviewTranscriptionsTestRepository } from '../../test-utils/test.rep
 import { InterviewTranscriptionsTestSdk } from '../../test-utils/test.sdk';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { VideosTestRepository } from '../../../video/test-utils/test.repo';
+import { STATUS_VALUES } from '../../interview-transcription.entity';
 
 describe('[E2E] Start interview transcription usecase', () => {
 	let app: INestApplication;
@@ -154,42 +155,23 @@ describe('[E2E] Start interview transcription usecase', () => {
 		expect(vmStatus.powerState).to.equal('running');
 	});
 
-	it('does not queue up transcription twice for one video', async () => {
-		const owner = await createTestUser(usersRepo);
-		const video = await createTestVideoRecord(videosRepo, owner.id);
+	for (const status of STATUS_VALUES) {
+		it(`returns 409 when a transcription in status "${status}" already exists for the video`, async () => {
+			const owner = await createTestUser(usersRepo);
+			const video = await createTestVideoRecord(videosRepo, owner.id);
 
-		const firstRes = await sdk.startTranscription({
-			params: { video_id: video.id },
-			userMeta: {
-				isAuth: true,
-				isWrongAccessJwt: false,
-				userId: owner.id,
-			},
+			await transcriptionsRepo.connection
+				.insertInto('interview_transcription')
+				.values({ video_id: video.id, status })
+				.execute();
+
+			const res = await sdk.startTranscription({
+				params: { video_id: video.id },
+				userMeta: { isAuth: true, isWrongAccessJwt: false, userId: owner.id },
+			});
+
+			expect(res.status).to.equal(HttpStatus.CONFLICT);
+			expect(await transcriptionsRepo.countByStatus(status)).to.equal(1);
 		});
-
-		expect(firstRes.status).to.equal(HttpStatus.CREATED);
-		if (firstRes.status !== HttpStatus.CREATED) {
-			throw new Error('Failed to start transcription');
-		}
-
-		expect(await queue.getWaitingCount()).to.equal(1);
-
-		const secondRes = await sdk.startTranscription({
-			params: { video_id: video.id },
-			userMeta: {
-				isAuth: true,
-				isWrongAccessJwt: false,
-				userId: owner.id,
-			},
-		});
-
-		expect(secondRes.status).to.equal(HttpStatus.CREATED);
-		if (secondRes.status !== HttpStatus.CREATED) {
-			throw new Error('Second request failed');
-		}
-
-		expect(secondRes.body.id).to.equal(firstRes.body.id);
-		expect(await queue.getWaitingCount()).to.equal(1);
-		expect(await transcriptionsRepo.countByStatus('processing')).to.equal(1);
-	});
+	}
 });

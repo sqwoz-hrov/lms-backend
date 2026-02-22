@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { StartInterviewTranscriptionDto } from '../../dto/start-interview-transcription.dto';
@@ -35,17 +35,9 @@ export class StartInterviewTranscriptionUsecase implements UsecaseInterface {
 			throw new BadRequestException('Видео еще обрабатывается, транскрибация недоступна');
 		}
 
-		const existing = await this.transcriptionRepository.findLatestByVideoId(video.id, [
-			'created',
-			'processing',
-			'restarted',
-		]);
+		const existing = await this.transcriptionRepository.findLatestByVideoId(video.id);
 		if (existing) {
-			if (existing.status === 'created' || existing.status === 'restarted') {
-				return await this.transcriptionService.enqueueTranscription(existing.id);
-			}
-
-			return existing;
+			throw new ConflictException('Транскрибация для этого видео уже существует');
 		}
 
 		const transcription = await this.transcriptionRepository.create({
