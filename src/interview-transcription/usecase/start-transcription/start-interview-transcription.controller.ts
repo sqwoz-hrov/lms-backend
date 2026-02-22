@@ -16,6 +16,20 @@ export class StartInterviewTranscriptionController {
 	@Route({
 		summary: 'Запускает транскрибацию интервью',
 		responseType: InterviewTranscriptionResponseDto,
+		possibleErrors: [
+			{
+				status: HttpStatus.BAD_REQUEST,
+				description: 'Неверные данные для запуска транскрибации',
+			},
+			{
+				status: HttpStatus.NOT_FOUND,
+				description: 'Интервью не найдено',
+			},
+			{
+				status: HttpStatus.CONFLICT,
+				description: 'Транскрибация уже запущена для данного интервью',
+			},
+		],
 	})
 	@Post()
 	@HttpCode(HttpStatus.CREATED)
