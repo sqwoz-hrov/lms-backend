@@ -161,7 +161,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 			return;
 		}
 
-		await this.stopVM();
+		await this.stopVm();
 	}
 
 	private async ensureVmRunning(): Promise<void> {
