@@ -134,14 +134,8 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 		return updated;
 	}
 
-	async handleTranscriptionFinished(): Promise<void> {
-		this.logger.debug('handleTranscriptionFinished invoked');
-		const processingCount = await this.transcriptionRepository.countByStatus('processing');
-		if (processingCount > 0) {
-			this.logger.debug(`Still ${processingCount} transcription(s) processing, keeping VM running`);
-			return;
-		}
-
+	private async stopVm(): Promise<void> {
+		this.logger.debug('Attempting to stop VM');
 		try {
 			await this.vmAdapter.stopVm();
 			this.logger.log('No active transcriptions left, VM stop requested');
@@ -151,6 +145,23 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 				error instanceof Error ? error.stack : undefined,
 			);
 		}
+	}
+
+	async handleTranscriptionFinished(): Promise<void> {
+		this.logger.debug('handleTranscriptionFinished invoked');
+		const processingCount = await this.transcriptionRepository.countByStatus('processing');
+		if (processingCount > 0) {
+			this.logger.debug(`Still ${processingCount} transcription(s) processing, keeping VM running`);
+			return;
+		}
+
+		const shouldStopVm = this.vmAdapter.shouldStopVmAfterTranscriptionsFinish();
+		if (!shouldStopVm) {
+			this.logger.debug('No active transcriptions left, but VM keep-alive is set');
+			return;
+		}
+
+		await this.stopVm();
 	}
 
 	private async ensureVmRunning(): Promise<void> {

@@ -42,6 +42,10 @@ export class TensordockAdapter implements VmOrchestratorAdapter {
 		}
 	}
 
+	shouldStopVmAfterTranscriptionsFinish(): boolean {
+		return !this.config.keepAlive;
+	}
+
 	async stopVm(): Promise<void> {
 		try {
 			await this.request(`instances/${this.config.vmId}/stop`, { method: 'POST' });
