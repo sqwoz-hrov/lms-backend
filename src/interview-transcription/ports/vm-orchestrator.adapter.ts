@@ -13,6 +13,7 @@ export interface VmOrchestratorAdapter {
 	startVm(): Promise<void>;
 	stopVm(): Promise<void>;
 	getVmStatus(): Promise<VmInstanceStatus>;
+	shouldStopVmAfterTranscriptionsFinish(): boolean;
 }
 
 export const VM_ORCHESTRATOR_ADAPTER = Symbol('VM_ORCHESTRATOR_ADAPTER');

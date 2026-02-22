@@ -11,6 +11,10 @@ export class TensordockFakeAdapter implements VmOrchestratorAdapter {
 		return Promise.resolve();
 	}
 
+	shouldStopVmAfterTranscriptionsFinish(): boolean {
+		return true;
+	}
+
 	stopVm(): Promise<void> {
 		this.powerState = 'stopped';
 		return Promise.resolve();
