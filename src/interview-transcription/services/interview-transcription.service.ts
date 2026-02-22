@@ -134,7 +134,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 		return updated;
 	}
 
-	private async stopVM(): Promise<void> {
+	private async stopVm(): Promise<void> {
 		this.logger.debug('Attempting to stop VM');
 		try {
 			await this.vmAdapter.stopVm();
