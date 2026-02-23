@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class InterviewTranscriptionReportResponseDto {
 	@ApiProperty()
@@ -17,7 +17,8 @@ export class InterviewTranscriptionReportResponseDto {
 	@IsString()
 	candidate_name_in_transcription: string;
 
-	@ApiProperty()
+	@ApiPropertyOptional({ nullable: true })
+	@IsOptional()
 	@IsString()
-	llm_report_raw: string;
+	candidate_name: string | null;
 }

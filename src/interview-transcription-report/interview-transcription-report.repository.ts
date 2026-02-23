@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Kysely, sql } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import {
+	InterviewTranscriptionReport,
 	InterviewTranscriptionReportTable,
 	LLMReportParsed,
 	NewInterviewTranscriptionReport,
@@ -31,5 +32,14 @@ export class InterviewTranscriptionReportRepository {
 				llm_report_parsed: sql<LLMReportParsed>`${llmReportParsed}`,
 			})
 			.execute();
+	}
+
+	async findByTranscriptionId(transcriptionId: string): Promise<InterviewTranscriptionReport | undefined> {
+		return await this.connection
+			.selectFrom('interview_transcription_report')
+			.selectAll()
+			.where('interview_transcription_id', '=', transcriptionId)
+			.limit(1)
+			.executeTakeFirst();
 	}
 }
