@@ -1,20 +1,15 @@
 import { z } from 'zod';
 
-const interviewTranscriptionChunkEventSchema = z.object({
-	type: z.literal('interview-transcription-chunk'),
-	interviewTranscriptionId: z.string(),
-	videoId: z.string(),
-	chunkIndex: z.number(),
-	text: z.string(),
-	startTimeSec: z.number(),
-	endTimeSec: z.number(),
-	speakerLabel: z.string().optional(),
-});
-
-export type InterviewTranscriptionChunkSSE = z.infer<typeof interviewTranscriptionChunkEventSchema>;
+const uploadPhaseSchema = z.enum(['receiving', 'converting', 'hashing', 'uploading_s3', 'completed', 'failed']);
 
 const sseEventSchemas = {
-	'interview-transcription-chunk': interviewTranscriptionChunkEventSchema,
+	interview_transcription_report_ready: z.object({
+		transcriptionId: z.string().uuid(),
+	}),
+	video_upload_phase_changed: z.object({
+		videoId: z.string().uuid(),
+		phase: uploadPhaseSchema,
+	}),
 } as const;
 
 export type SseEventMap = {
@@ -24,4 +19,12 @@ export type SseEventMap = {
 export const validateSseEventPayload = <TEvent extends keyof typeof sseEventSchemas>(
 	event: TEvent,
 	payload: unknown,
-): SseEventMap[TEvent] => sseEventSchemas[event].parse(payload);
+): SseEventMap[TEvent] => {
+	const schema = sseEventSchemas[event] as z.ZodTypeAny | undefined;
+
+	if (!schema) {
+		throw new Error(`No SSE schema registered for event ${event}`);
+	}
+
+	return schema.parse(payload) as SseEventMap[TEvent];
+};
