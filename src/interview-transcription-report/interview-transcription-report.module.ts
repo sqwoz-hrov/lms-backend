@@ -7,10 +7,7 @@ import { GetTranscriptionReportUsecase } from './usecase/get-transcription-repor
 import { InterviewTranscriptionRepository } from '../interview-transcription/interview-transcription.repository';
 
 @Module({
-	controllers: [
-		InterviewTranscriptionReportController,
-		GetTranscriptionReportController,
-	],
+	controllers: [InterviewTranscriptionReportController, GetTranscriptionReportController],
 	providers: [
 		ReceiveTranscriptionReportWebhookUsecase,
 		InterviewTranscriptionReportRepository,

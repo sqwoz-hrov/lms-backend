@@ -90,7 +90,7 @@ describe('[E2E] Get transcription report usecase', () => {
 		expect(res.status).to.equal(HttpStatus.NOT_FOUND);
 	});
 
-	it('returns 403 when a regular user tries to get someone else\'s report', async () => {
+	it("returns 403 when a regular user tries to get someone else's report", async () => {
 		const owner = await createTestUser(usersRepo);
 		const intruder = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
@@ -105,7 +105,7 @@ describe('[E2E] Get transcription report usecase', () => {
 		expect(res.status).to.equal(HttpStatus.FORBIDDEN);
 	});
 
-	it('returns 403 when a subscriber tries to get someone else\'s report', async () => {
+	it("returns 403 when a subscriber tries to get someone else's report", async () => {
 		const owner = await createTestUser(usersRepo);
 		const subscriber = await createTestSubscriber(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
@@ -148,7 +148,7 @@ describe('[E2E] Get transcription report usecase', () => {
 		});
 	}
 
-	it('allows an admin to get any user\'s transcription report', async () => {
+	it("allows an admin to get any user's transcription report", async () => {
 		const admin = await createTestAdmin(usersRepo);
 		const owner = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);

@@ -24,13 +24,7 @@ export class InterviewTranscriptionReportTestSdk implements ValidateSDK<Intervie
 		});
 	}
 
-	async getReport({
-		params,
-		userMeta,
-	}: {
-		params: { transcription_id: string };
-		userMeta: UserMeta;
-	}) {
+	async getReport({ params, userMeta }: { params: { transcription_id: string }; userMeta: UserMeta }) {
 		return await this.httpClient.request<InterviewTranscriptionReportResponseDto>({
 			path: `/interview-transcription-reports/${params.transcription_id}`,
 			method: 'GET',
