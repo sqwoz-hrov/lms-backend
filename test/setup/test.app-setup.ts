@@ -39,6 +39,7 @@ import { PaymentModule } from '../../src/payment/payment.module';
 import { YookassaModule } from '../../src/yookassa/yookassa.module';
 import { PostModule } from '../../src/post/post.module';
 import { InterviewTranscriptionReportModule } from '../../src/interview-transcription-report/interview-transcription-report.module';
+import { SseModule } from '../../src/sse/sse.module';
 import { setupValidation } from '../../src/validation';
 import { setupRawBodyParsing } from '../../src/raw-body';
 import { startAllContainers } from './test.start-all-containers';
@@ -98,6 +99,7 @@ export const mochaHooks = {
 				PostModule,
 				UserModule,
 				VideoModule,
+				SseModule,
 				InterviewTranscriptionModule.forRoot({ useFakeVmOrchestrator: true }),
 				InterviewTranscriptionReportModule,
 			],

@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { z } from 'zod';
 import { InterviewTranscriptionReportRepository } from '../../interview-transcription-report.repository';
+import { InterviewTranscriptionRepository } from '../../../interview-transcription/interview-transcription.repository';
+import { SseService } from '../../../sse/sse.service';
 
 const llmReportParsedSchema = z.array(
 	z.discriminatedUnion('hintType', [
@@ -44,7 +46,11 @@ export type ReceiveTranscriptionReportWebhookParams = z.infer<typeof webhookPayl
 export class ReceiveTranscriptionReportWebhookUsecase implements UsecaseInterface {
 	private readonly logger = new Logger(ReceiveTranscriptionReportWebhookUsecase.name);
 
-	constructor(private readonly transcriptionReportRepository: InterviewTranscriptionReportRepository) {}
+	constructor(
+		private readonly transcriptionReportRepository: InterviewTranscriptionReportRepository,
+		private readonly transcriptionRepository: InterviewTranscriptionRepository,
+		private readonly sseService: SseService,
+	) {}
 
 	async execute({ params }: { params: unknown }): Promise<void> {
 		this.logger.debug('Received transcription report webhook with params:', params);
@@ -59,6 +65,21 @@ export class ReceiveTranscriptionReportWebhookUsecase implements UsecaseInterfac
 			llm_report_parsed: parsed.data.llmReportParsed,
 			candidate_name_in_transcription: parsed.data.candidateNameInTranscription,
 			candidate_name: parsed.data.candidateName,
+		});
+
+		await this.emitTranscriptionReadyEvent(parsed.data.transcriptionId);
+	}
+
+	private async emitTranscriptionReadyEvent(transcriptionId: string): Promise<void> {
+		const transcription = await this.transcriptionRepository.findByIdWithVideo(transcriptionId);
+
+		if (!transcription) {
+			this.logger.warn(`Transcription ${transcriptionId} not found, skip SSE notification`);
+			return;
+		}
+
+		this.sseService.sendEvent(transcription.video.user_id, 'interview_transcription_report_ready', {
+			transcriptionId,
 		});
 	}
 }

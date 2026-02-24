@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { UploadPhase, Video } from '../video.entity';
 import { VideoRepository } from '../video.repoistory';
 import { Phase, PhaseHandler } from '../ports/phase-handler';
@@ -9,6 +9,7 @@ import { UploadingS3Handler } from '../workflow-phases/upload.handler';
 import { TerminalHandler } from '../workflow-phases/terminal.handler';
 import { VideoStorageService } from './video-storage.service';
 import { VideoTranscoderService } from './video-transcoder.service';
+import { SseService } from '../../sse/sse.service';
 
 export type AdvanceResult = {
 	videoId: string;
@@ -27,6 +28,8 @@ export class WorkflowRunnerService {
 		private readonly videoRepo: VideoRepository,
 		private readonly storage: VideoStorageService,
 		private readonly transcoder: VideoTranscoderService,
+		@Inject(SseService)
+		private readonly sseService: SseService,
 	) {
 		const terminal = new TerminalHandler();
 		const receivingGate = new ReceivingGateHandler();
@@ -98,6 +101,9 @@ export class WorkflowRunnerService {
 			this.logger.log(
 				`Advanced video ${video.id} from phase=${video.phase} to phase=${updated.phase} via ${logicalPhase}`,
 			);
+			if (updated.phase !== video.phase) {
+				this.emitVideoPhaseChanged(updated);
+			}
 			return {
 				toPhase: updated.phase,
 				didWork: true,
@@ -109,6 +115,9 @@ export class WorkflowRunnerService {
 				e as Error,
 			);
 			const failed = await this.videoRepo.setPhase(video.id, 'failed');
+			if (failed.phase !== video.phase) {
+				this.emitVideoPhaseChanged(failed);
+			}
 			return { toPhase: failed.phase, didWork: true, terminal: true };
 		}
 	}
@@ -119,5 +128,12 @@ export class WorkflowRunnerService {
 			throw new Error(`No handler registered for phase: ${phase}`);
 		}
 		return handler;
+	}
+
+	private emitVideoPhaseChanged(video: Video): void {
+		this.sseService.sendEvent(video.user_id, 'video_upload_phase_changed', {
+			videoId: video.id,
+			phase: video.phase,
+		});
 	}
 }
