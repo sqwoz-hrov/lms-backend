@@ -158,53 +158,55 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 
-	it('saves the report and returns 200 with a valid payload', async () => {
-		const owner = await createTestUser(usersRepo);
-		const video = await createTestVideoRecord(videosRepo, owner.id);
-		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
+	for (const hintErrorType of ['blunder', 'inaccuracy', 'mistake', 'missedWin'] as const) {
+		it(`saves the report and returns 200 with a valid payload, errorType is ${hintErrorType}`, async () => {
+			const owner = await createTestUser(usersRepo);
+			const video = await createTestVideoRecord(videosRepo, owner.id);
+			const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
 
-		const payload: ReceiveTranscriptionReportWebhookDto = {
-			transcriptionId: transcription.id,
-			llmReportParsed: [
-				{
-					hintType: 'error',
-					lineId: 3,
-					topic: 'Async/Await',
-					errorType: 'blunder',
-					whyBad: 'Missed error handling',
-					howToFix: 'Wrap in try/catch',
-				},
-				{
-					hintType: 'note',
-					lineId: 7,
-					topic: 'TypeScript',
-					note: 'Good use of generics',
-				},
-				{
-					hintType: 'praise',
-					lineId: 12,
-					topic: 'Code structure',
-					praise: 'Clean separation of concerns',
-				},
-			],
-			candidateNameInTranscription: 'SPEAKER_01',
-			candidateName: 'Cheeel',
-		};
+			const payload: ReceiveTranscriptionReportWebhookDto = {
+				transcriptionId: transcription.id,
+				llmReportParsed: [
+					{
+						hintType: 'error',
+						lineId: 3,
+						topic: 'Async/Await',
+						errorType: hintErrorType,
+						whyBad: 'Missed error handling',
+						howToFix: 'Wrap in try/catch',
+					},
+					{
+						hintType: 'note',
+						lineId: 7,
+						topic: 'TypeScript',
+						note: 'Good use of generics',
+					},
+					{
+						hintType: 'praise',
+						lineId: 12,
+						topic: 'Code structure',
+						praise: 'Clean separation of concerns',
+					},
+				],
+				candidateNameInTranscription: 'SPEAKER_01',
+				candidateName: 'Cheeel',
+			};
 
-		const res = await sdk.sendReportWebhook({
-			params: payload,
-			userMeta: { isAuth: false },
-			headers: buildWebhookHeaders(payload, webhookConfig),
+			const res = await sdk.sendReportWebhook({
+				params: payload,
+				userMeta: { isAuth: false },
+				headers: buildWebhookHeaders(payload, webhookConfig),
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status !== HttpStatus.OK) throw new Error('Webhook request failed');
+
+			const stored = (await reportsRepo.findAll()).at(0);
+			expect(stored).to.not.eq(undefined);
+			expect(stored?.interview_transcription_id).to.equal(transcription.id);
+			expect(stored?.candidate_name).to.equal(payload.candidateName);
 		});
-
-		expect(res.status).to.equal(HttpStatus.OK);
-		if (res.status !== HttpStatus.OK) throw new Error('Webhook request failed');
-
-		const stored = (await reportsRepo.findAll()).at(0);
-		expect(stored).to.not.eq(undefined);
-		expect(stored?.interview_transcription_id).to.equal(transcription.id);
-		expect(stored?.candidate_name).to.equal(payload.candidateName);
-	});
+	}
 
 	it('saves the report and returns 200 with a valid payload (empty candidateName)', async () => {
 		const owner = await createTestUser(usersRepo);
