@@ -11,7 +11,7 @@ const llmReportParsedSchema = z.array(
 			hintType: z.literal('error'),
 			lineId: z.number().int(),
 			topic: z.string(),
-			errorType: z.enum(['blunder', 'inaccuracy']),
+			errorType: z.enum(['blunder', 'inaccuracy', 'missedWin', 'mistake']),
 			whyBad: z.string(),
 			howToFix: z.string(),
 		}),

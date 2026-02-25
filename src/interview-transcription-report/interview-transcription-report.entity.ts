@@ -6,7 +6,7 @@ export type LLMReportParsed = (
 			hintType: 'error';
 			lineId: number;
 			topic: string;
-			errorType: 'blunder' | 'inaccuracy';
+			errorType: 'blunder' | 'inaccuracy' | 'missedWin' | 'mistake';
 			whyBad: string;
 			howToFix: string;
 	  }
