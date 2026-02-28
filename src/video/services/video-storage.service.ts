@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import { Readable, Writable } from 'stream';
 import { S3VideoStorageAdapter } from '../adapters/s3-video-storage.adapter';
+import { buildTranscriptionAudioStorageKey } from '../utils/transcription-audio-key';
 
 export type UploadLocalFileInput = {
 	localPath: string;
@@ -77,6 +78,30 @@ export class VideoStorageService {
 			this.logger.error('Parallel S3 upload failed', err as Error);
 			this.closeStreamSafely(rsHot, 'rsHot');
 			this.closeStreamSafely(rsCold, 'rsCold');
+			throw err;
+		}
+	}
+
+	public async uploadTranscriptionAudio(input: {
+		videoId: string;
+		localPath: string;
+		metadata?: Record<string, string>;
+	}): Promise<{ storageKey: string }> {
+		const key = buildTranscriptionAudioStorageKey(input.videoId);
+		const stream = fs.createReadStream(input.localPath, { highWaterMark: 1024 * 1024 });
+		const contentLength = fs.statSync(input.localPath).size;
+
+		try {
+			return await this.s3Storage.uploadStreamToTranscriptionAudio({
+				key,
+				stream,
+				contentType: 'audio/wav',
+				contentLength,
+				metadata: input.metadata,
+			});
+		} catch (err) {
+			this.logger.error(`Failed to upload transcription audio for video ${input.videoId}`, err as Error);
+			this.closeStreamSafely(stream, 'transcriptionAudioStream');
 			throw err;
 		}
 	}

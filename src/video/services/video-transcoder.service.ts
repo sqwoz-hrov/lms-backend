@@ -22,6 +22,10 @@ type EnsureResult = {
 	didTranscode: boolean;
 };
 
+type ExtractTranscriptionAudioOptions = {
+	inputPath: string;
+};
+
 @Injectable()
 export class VideoTranscoderService {
 	private readonly logger = new Logger(VideoTranscoderService.name);
@@ -103,6 +107,32 @@ export class VideoTranscoderService {
 		};
 	}
 
+	async extractTranscriptionAudio(opts: ExtractTranscriptionAudioOptions): Promise<{ outputPath: string }> {
+		const { inputPath } = opts;
+		if (!fs.existsSync(inputPath)) {
+			throw new Error(`Cannot extract transcription audio from missing file at ${inputPath}`);
+		}
+
+		const outputPath = this.buildTranscriptionAudioOutputPath(inputPath);
+		if (fs.existsSync(outputPath)) {
+			fs.unlinkSync(outputPath);
+		}
+
+		await new Promise<void>((resolve, reject) => {
+			ffmpegFluent(inputPath)
+				.noVideo()
+				.audioCodec('pcm_s16le')
+				.audioFrequency(16000)
+				.audioChannels(1)
+				.format('wav')
+				.on('error', reject)
+				.on('end', () => resolve())
+				.save(outputPath);
+		});
+
+		return { outputPath };
+	}
+
 	private buildOutputPath(input: string): string {
 		const dir = path.dirname(input);
 		const base = path.parse(input).name;
@@ -113,6 +143,12 @@ export class VideoTranscoderService {
 			attempt += 1;
 		}
 		return candidate;
+	}
+
+	buildTranscriptionAudioOutputPath(input: string): string {
+		const dir = path.dirname(input);
+		const base = path.parse(input).name;
+		return path.join(dir, `${base}.transcription.wav`);
 	}
 
 	private async runTranscodeSmart(input: string, output: string): Promise<void> {

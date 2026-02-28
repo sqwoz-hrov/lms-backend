@@ -4,7 +4,7 @@ import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { InterviewTranscriptionResponseDto } from '../../dto/interview-transcription-response.dto';
 import { GetInterviewTranscriptionDto } from '../../dto/get-interview-transcription.dto';
 import { InterviewTranscriptionRepository } from '../../interview-transcription.repository';
-import { S3VideoStorageAdapter } from '../../../video/adapters/s3-video-storage.adapter';
+import { S3PresignedUrlBucket, S3VideoStorageAdapter } from '../../../video/adapters/s3-video-storage.adapter';
 import { InterviewTranscription } from '../../interview-transcription.entity';
 
 @Injectable()
@@ -46,6 +46,7 @@ export class GetInterviewTranscriptionUsecase implements UsecaseInterface {
 		return await this.s3VideoStorageAdapter.getPresignedUrl(transcription.s3_transcription_key, {
 			asAttachmentName: this.extractFileName(transcription.s3_transcription_key),
 			responseContentType: 'application/json',
+			bucket: S3PresignedUrlBucket.TRANSCRIPTION_AUDIO,
 		});
 	}
 
