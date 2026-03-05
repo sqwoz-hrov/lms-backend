@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from '../../../common/interface/request-with-user.interface';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
-import { PostResponseDto } from '../../dto/base-post.dto';
+import { PostListResponseDto } from '../../dto/base-post.dto';
 import { GetPostsDto } from '../../dto/get-posts.dto';
 import { ListPostsUsecase } from './list-posts.usecase';
 
@@ -15,12 +15,11 @@ export class ListPostsController {
 
 	@Route({
 		summary: 'Получает список постов',
-		responseType: PostResponseDto,
-		isArray: true,
+		responseType: PostListResponseDto,
 	})
 	@Get()
 	@HttpCode(HttpStatus.OK)
-	async list(@Query() query: GetPostsDto, @Req() req: RequestWithUser): Promise<PostResponseDto[]> {
+	async list(@Query() query: GetPostsDto, @Req() req: RequestWithUser): Promise<PostListResponseDto> {
 		const user = req['user'];
 		return await this.listPostsUsecase.execute({ user, params: query });
 	}

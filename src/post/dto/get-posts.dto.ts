@@ -1,21 +1,19 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional, IsPositive, IsUUID, Max } from 'class-validator';
+import { IsInt, IsOptional, IsPositive, IsString, IsUUID, Max } from 'class-validator';
 
 export class GetPostsDto {
 	@ApiPropertyOptional({
-		description: 'Загрузить посты, созданные после указанной даты',
-		format: 'date-time',
+		description: 'Загрузить посты после курсора (opaque string)',
 	})
-	@IsDateString()
+	@IsString()
 	@IsOptional()
 	after?: string;
 
 	@ApiPropertyOptional({
-		description: 'Загрузить посты, созданные до указанной даты',
-		format: 'date-time',
+		description: 'Загрузить посты до курсора (opaque string)',
 	})
-	@IsDateString()
+	@IsString()
 	@IsOptional()
 	before?: string;
 

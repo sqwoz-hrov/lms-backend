@@ -1,7 +1,7 @@
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
 import { CreatePostDto } from '../dto/create-post.dto';
-import { PostResponseDto } from '../dto/base-post.dto';
+import { PostListResponseDto, PostResponseDto } from '../dto/base-post.dto';
 import { UpdatePostDto } from '../dto/update-post.dto';
 import { DeletePostDto } from '../dto/delete-post.dto';
 import { GetPostsDto } from '../dto/get-posts.dto';
@@ -39,7 +39,7 @@ export class PostsTestSdk implements ValidateSDK<PostsTestSdk> {
 			}
 		}
 
-		return this.testClient.request<PostResponseDto[]>({
+		return this.testClient.request<PostListResponseDto>({
 			path,
 			method: 'GET',
 			userMeta,

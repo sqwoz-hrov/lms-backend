@@ -1,21 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
-import { PostResponseDto } from '../../dto/base-post.dto';
+import { PostListResponseDto, PostResponseDto } from '../../dto/base-post.dto';
 import { GetPostsDto } from '../../dto/get-posts.dto';
 import { PostRepository } from '../../post.repository';
 import { PostWithContent } from '../../post.entity';
+import { decodePostCursor, encodePostCursor } from '../../utils/post-cursor.util';
 
 @Injectable()
 export class ListPostsUsecase implements UsecaseInterface {
 	constructor(private readonly postRepository: PostRepository) {}
 
-	async execute({ user, params }: { user: UserWithSubscriptionTier; params: GetPostsDto }): Promise<PostResponseDto[]> {
+	async execute({
+		user,
+		params,
+	}: {
+		user: UserWithSubscriptionTier;
+		params: GetPostsDto;
+	}): Promise<PostListResponseDto> {
 		const { after, before, limit, subscription_tier_id: requestedSubscriptionTierId } = params;
 
 		const pagination = {
-			after: after ? new Date(after) : undefined,
-			before: before ? new Date(before) : undefined,
+			after: after ? decodePostCursor(after) : undefined,
+			before: before ? decodePostCursor(before) : undefined,
 			limit,
 		};
 
@@ -27,19 +34,9 @@ export class ListPostsUsecase implements UsecaseInterface {
 		const postTierMap = await this.postRepository.findTierIdsForPosts(posts.map(post => post.id));
 
 		const isSubscriber = user.role === 'subscriber';
-
-		if (!isSubscriber) {
-			return posts.map(post => ({
-				...post,
-				video_id: post.video_id ?? undefined,
-				locked_preview: undefined,
-				subscription_tier_ids: postTierMap[post.id] ?? [],
-			}));
-		}
-
 		const subscriberTierId = user.subscription?.subscription_tier_id;
 
-		return posts.map(post => {
+		const items = posts.map(post => {
 			const allowedTierIds = postTierMap[post.id] ?? [];
 
 			const base: PostResponseDto = {
@@ -48,6 +45,10 @@ export class ListPostsUsecase implements UsecaseInterface {
 				locked_preview: undefined,
 				subscription_tier_ids: allowedTierIds,
 			};
+
+			if (!isSubscriber) {
+				return base;
+			}
 
 			return {
 				...base,
@@ -58,6 +59,26 @@ export class ListPostsUsecase implements UsecaseInterface {
 				}) as Record<string, unknown>),
 			};
 		});
+
+		const nextCursor = items.length
+			? encodePostCursor({
+					id: items[items.length - 1].id,
+					created_at: new Date(items[items.length - 1].created_at),
+				})
+			: undefined;
+
+		const prevCursor = items.length
+			? encodePostCursor({
+					id: items[0].id,
+					created_at: new Date(items[0].created_at),
+				})
+			: undefined;
+
+		return {
+			items,
+			next_cursor: nextCursor,
+			prev_cursor: prevCursor,
+		};
 	}
 
 	private buildSubscriberView({

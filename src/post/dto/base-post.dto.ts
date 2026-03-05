@@ -52,3 +52,20 @@ export class PostResponseDto extends BasePostDto {
 	@IsOptional()
 	locked_preview?: LockedPostPreviewDto;
 }
+
+export class PostListResponseDto {
+	@ApiProperty({ type: () => [PostResponseDto] })
+	@ValidateNested({ each: true })
+	@Type(() => PostResponseDto)
+	items: PostResponseDto[];
+
+	@ApiPropertyOptional({ description: 'Cursor for loading older posts' })
+	@IsString()
+	@IsOptional()
+	next_cursor?: string;
+
+	@ApiPropertyOptional({ description: 'Cursor for loading newer posts' })
+	@IsString()
+	@IsOptional()
+	prev_cursor?: string;
+}

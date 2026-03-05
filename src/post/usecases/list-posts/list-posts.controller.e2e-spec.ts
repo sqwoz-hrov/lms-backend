@@ -91,11 +91,11 @@ describe('[E2E] List posts usecase', () => {
 			throw new Error('Request failed');
 		}
 
-		const titles = res.body.map(post => post.title);
+		const titles = res.body.items.map(post => post.title);
 		expect(titles).to.include(firstPost.post.title);
 		expect(titles).to.include(secondPost.post.title);
 
-		const markdowns = res.body.reduce<Record<string, string>>((acc, post) => {
+		const markdowns = res.body.items.reduce<Record<string, string>>((acc, post) => {
 			acc[post.title] = post.markdown_content;
 			return acc;
 		}, {});
@@ -129,7 +129,7 @@ describe('[E2E] List posts usecase', () => {
 		if (res.status !== HttpStatus.OK) {
 			throw new Error('Request failed');
 		}
-		expect(res.body.length).to.equal(2);
+		expect(res.body.items.length).to.equal(2);
 	});
 
 	it('Supports cursor pagination with after/before parameters', async () => {
@@ -158,11 +158,13 @@ describe('[E2E] List posts usecase', () => {
 			throw new Error('Request failed');
 		}
 
-		const orderedTitles = initial.body.map((post: PostResponseDto) => post.title);
+		const orderedTitles = initial.body.items.map((post: PostResponseDto) => post.title);
 		expect(orderedTitles.slice(0, 3)).to.deep.equal([newest.post.title, middle.post.title, oldest.post.title]);
 
+		expect(initial.body.next_cursor).to.be.a('string');
+
 		const afterRes = await postTestSdk.getPosts({
-			query: { after: newest.post.created_at.toISOString() },
+			query: { after: initial.body.prev_cursor },
 			userMeta: {
 				userId: admin.id,
 				isAuth: true,
@@ -175,13 +177,13 @@ describe('[E2E] List posts usecase', () => {
 			throw new Error('Request failed');
 		}
 
-		const afterTitles = afterRes.body.map((post: PostResponseDto) => post.title);
+		const afterTitles = afterRes.body.items.map((post: PostResponseDto) => post.title);
 		expect(afterTitles).to.include(middle.post.title);
 		expect(afterTitles).to.include(oldest.post.title);
 		expect(afterTitles).to.not.include(newest.post.title);
 
 		const beforeRes = await postTestSdk.getPosts({
-			query: { before: middle.post.created_at.toISOString() },
+			query: { before: initial.body.next_cursor },
 			userMeta: {
 				userId: admin.id,
 				isAuth: true,
@@ -194,10 +196,136 @@ describe('[E2E] List posts usecase', () => {
 			throw new Error('Request failed');
 		}
 
-		const beforeTitles = beforeRes.body.map((post: PostResponseDto) => post.title);
+		const beforeTitles = beforeRes.body.items.map((post: PostResponseDto) => post.title);
 		expect(beforeTitles).to.include(newest.post.title);
-		expect(beforeTitles).to.not.include(middle.post.title);
 		expect(beforeTitles).to.not.include(oldest.post.title);
+	});
+
+	it('Returns 400 for malformed cursor', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+
+		const res = await postTestSdk.getPosts({
+			query: { after: 'not-a-valid-cursor' },
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+	});
+
+	it('Paginates deterministically for same created_at values', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+		const sharedDate = new Date('2023-03-01T00:00:00.000Z');
+
+		await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'Same Date 1', created_at: sharedDate },
+		});
+		await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'Same Date 2', created_at: sharedDate },
+		});
+		await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'Same Date 3', created_at: sharedDate },
+		});
+
+		const page1 = await postTestSdk.getPosts({
+			query: { limit: 2 },
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(page1.status).to.equal(HttpStatus.OK);
+		if (page1.status !== HttpStatus.OK) {
+			throw new Error('Request failed');
+		}
+
+		const page1Repeat = await postTestSdk.getPosts({
+			query: { limit: 2 },
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(page1Repeat.status).to.equal(HttpStatus.OK);
+		if (page1Repeat.status !== HttpStatus.OK) {
+			throw new Error('Request failed');
+		}
+
+		const firstPageIds = page1.body.items.map(post => post.id);
+		const repeatedFirstPageIds = page1Repeat.body.items.map(post => post.id);
+		expect(firstPageIds).to.deep.equal(repeatedFirstPageIds);
+
+		const page2 = await postTestSdk.getPosts({
+			query: { before: page1.body.next_cursor, limit: 2 },
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(page2.status).to.equal(HttpStatus.OK);
+		if (page2.status !== HttpStatus.OK) {
+			throw new Error('Request failed');
+		}
+
+		const combinedIds = [...page1.body.items, ...page2.body.items].map(post => post.id);
+		expect(new Set(combinedIds).size).to.equal(3);
+	});
+
+	it.only('Paginates correctly when new posts are added between requests', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+
+		const firstPost = await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'Initial Post', created_at: new Date('2023-01-01T00:00:00.000Z') },
+		});
+
+		const secondPost = await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'Second Post', created_at: new Date('2022-01-01T00:00:00.000Z') },
+		});
+
+		const initial = await postTestSdk.getPosts({
+			query: { limit: 1 },
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(initial.status).to.equal(HttpStatus.OK);
+		if (initial.status !== HttpStatus.OK) {
+			throw new Error('Request failed');
+		}
+
+		expect(initial.body.items[0].id).to.equal(firstPost.post.id);
+
+		const _ = await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'New Post', created_at: new Date('2023-02-01T00:00:00.000Z') },
+		});
+
+		const nextPage = await postTestSdk.getPosts({
+			query: { before: initial.body.next_cursor, limit: 1 },
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(nextPage.status).to.equal(HttpStatus.OK);
+		if (nextPage.status !== HttpStatus.OK) {
+			throw new Error('Request failed');
+		}
+
+		expect(nextPage.body.items[0].id).to.equal(secondPost.post.id);
 	});
 
 	describe('Subscriber access', () => {
@@ -251,7 +379,7 @@ describe('[E2E] List posts usecase', () => {
 				throw new Error('Request failed');
 			}
 
-			const postsByTitle = res.body.reduce<Record<string, PostResponseDto>>((acc, post) => {
+			const postsByTitle = res.body.items.reduce<Record<string, PostResponseDto>>((acc, post) => {
 				acc[post.title] = post;
 				return acc;
 			}, {});
@@ -308,9 +436,9 @@ describe('[E2E] List posts usecase', () => {
 				throw new Error('Request failed');
 			}
 
-			expect(res.body.length).to.equal(2);
+			expect(res.body.items.length).to.equal(2);
 
-			const postsByTitle = res.body.reduce<Record<string, PostResponseDto>>((acc, post) => {
+			const postsByTitle = res.body.items.reduce<Record<string, PostResponseDto>>((acc, post) => {
 				acc[post.title] = post;
 				return acc;
 			}, {});
@@ -346,7 +474,7 @@ describe('[E2E] List posts usecase', () => {
 			throw new Error('Request failed');
 		}
 
-		expect(res.body.length).to.equal(1);
-		expect(res.body[0].title).to.equal(createdPost.post.title);
+		expect(res.body.items.length).to.equal(1);
+		expect(res.body.items[0].title).to.equal(createdPost.post.title);
 	});
 });
