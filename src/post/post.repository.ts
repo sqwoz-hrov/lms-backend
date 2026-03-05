@@ -1,12 +1,13 @@
 import { Inject } from '@nestjs/common';
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { MarkDownContentAggregation } from '../markdown-content/markdown-content.entity';
 import { NewPost, Post, PostAggregation, PostUpdate, PostWithContent } from './post.entity';
-import { applyCursorPagination, CursorPaginationInput } from '../common/utils/pagination.util';
+import { CursorPaginationInput } from '../common/utils/pagination.util';
+import { PostCursorPayload } from './utils/post-cursor.util';
 
 type PaginatedPostsParams = {
-	pagination?: CursorPaginationInput<Date>;
+	pagination?: CursorPaginationInput<PostCursorPayload>;
 	subscriptionTierId?: string;
 };
 
@@ -66,6 +67,7 @@ export class PostRepository {
 
 	async list(params: PaginatedPostsParams = {}): Promise<PostWithContent[]> {
 		const { pagination, subscriptionTierId } = params;
+		const limit = Math.min(Math.max(1, pagination?.limit ?? 25), 30);
 
 		let query = this.connection
 			.selectFrom('post')
@@ -92,17 +94,19 @@ export class PostRepository {
 			);
 		}
 
-		type PostRow = Post & { markdown_content: string | null };
+		if (pagination?.after) {
+			query = query.where(
+				sql<boolean>`(post.created_at, post.id) > (${pagination.after.created_at}, ${pagination.after.id})`,
+			);
+		}
 
-		const rows = (await applyCursorPagination(query, pagination ?? {}, {
-			cursor: 'post.created_at',
-			orderBy: 'post.created_at',
-			sortDirection: 'desc',
-			defaultLimit: 25,
-			maxLimit: 100,
-		})
-			.orderBy('post.id', 'desc')
-			.execute()) as PostRow[];
+		if (pagination?.before) {
+			query = query.where(
+				sql<boolean>`(post.created_at, post.id) < (${pagination.before.created_at}, ${pagination.before.id})`,
+			);
+		}
+
+		const rows = await query.orderBy('post.created_at', 'desc').orderBy('post.id', 'desc').limit(limit).execute();
 
 		return rows.map(row => ({
 			...row,
