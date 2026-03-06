@@ -81,5 +81,7 @@ describe('[E2E] Get me usecase', () => {
 		expect(res.body.telegram_username).to.equal(user.telegram_username);
 		expect(res.body.is_billable).to.equal(false);
 		expect(res.body.is_archived).to.equal(true);
+		expect(res.body.settings.theme).to.equal('light');
+		expect(res.body.settings.homepage).to.equal('home');
 	});
 });
