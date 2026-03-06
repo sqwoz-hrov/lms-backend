@@ -163,27 +163,8 @@ describe('[E2E] List posts usecase', () => {
 
 		expect(initial.body.next_cursor).to.be.a('string');
 
-		const afterRes = await postTestSdk.getPosts({
-			query: { after: initial.body.prev_cursor },
-			userMeta: {
-				userId: admin.id,
-				isAuth: true,
-				isWrongAccessJwt: false,
-			},
-		});
-
-		expect(afterRes.status).to.equal(HttpStatus.OK);
-		if (afterRes.status !== HttpStatus.OK) {
-			throw new Error('Request failed');
-		}
-
-		const afterTitles = afterRes.body.items.map((post: PostResponseDto) => post.title);
-		expect(afterTitles).to.include(middle.post.title);
-		expect(afterTitles).to.include(oldest.post.title);
-		expect(afterTitles).to.not.include(newest.post.title);
-
 		const beforeRes = await postTestSdk.getPosts({
-			query: { before: initial.body.next_cursor },
+			query: { before: initial.body.prev_cursor },
 			userMeta: {
 				userId: admin.id,
 				isAuth: true,
@@ -197,8 +178,28 @@ describe('[E2E] List posts usecase', () => {
 		}
 
 		const beforeTitles = beforeRes.body.items.map((post: PostResponseDto) => post.title);
-		expect(beforeTitles).to.include(newest.post.title);
-		expect(beforeTitles).to.not.include(oldest.post.title);
+		expect(beforeTitles).to.include(middle.post.title);
+		expect(beforeTitles).to.include(oldest.post.title);
+		expect(beforeTitles).to.not.include(newest.post.title);
+
+		const afterRes = await postTestSdk.getPosts({
+			query: { after: initial.body.next_cursor },
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(afterRes.status).to.equal(HttpStatus.OK);
+		if (afterRes.status !== HttpStatus.OK) {
+			throw new Error('Request failed');
+		}
+
+		const afterTitles = afterRes.body.items.map((post: PostResponseDto) => post.title);
+		expect(afterTitles).to.include(newest.post.title);
+		expect(afterTitles).to.include(middle.post.title);
+		expect(afterTitles).to.not.include(oldest.post.title);
 	});
 
 	it('Returns 400 for malformed cursor', async () => {
@@ -280,7 +281,7 @@ describe('[E2E] List posts usecase', () => {
 		expect(new Set(combinedIds).size).to.equal(3);
 	});
 
-	it.only('Paginates correctly when new posts are added between requests', async () => {
+	it('Paginates correctly when new posts are added between requests', async () => {
 		const admin = await createTestAdmin(userUtilRepository);
 
 		const firstPost = await createTestPost(postUtilRepository, markdownUtilRepository, {
