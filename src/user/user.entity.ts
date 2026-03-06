@@ -12,7 +12,7 @@ export type HomepagePreference = (typeof HOMEPAGE_OPTIONS)[number];
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
 	theme: 'light',
-	homepage: 'posts',
+	homepage: 'home',
 };
 
 export interface UserSettings {
