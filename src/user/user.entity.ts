@@ -7,8 +7,17 @@ export type UserRole = 'admin' | 'user' | 'subscriber';
 export const COLOR_THEMES = ['dark', 'light'] as const;
 export type ColorTheme = (typeof COLOR_THEMES)[number];
 
+export const HOMEPAGE_OPTIONS = ['posts', 'home', 'transcriptions'] as const;
+export type HomepagePreference = (typeof HOMEPAGE_OPTIONS)[number];
+
+export const DEFAULT_USER_SETTINGS: UserSettings = {
+	theme: 'light',
+	homepage: 'home',
+};
+
 export interface UserSettings {
 	theme: ColorTheme;
+	homepage: HomepagePreference;
 }
 
 export interface SubscriptionTierTable {

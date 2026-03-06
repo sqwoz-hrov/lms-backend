@@ -43,3 +43,10 @@ This document enumerates the high-level domain agents that compose the `lms-back
 - Before spinning up a new contract/module to understand how the existing agents divide responsibilities.
 - When onboarding teammates so they can quickly map business domains to code modules.
 - When writing docs, use this file to locate the right agent and link back to it for clarity.
+
+## Setup commands
+
+- Get npm and npx commands: `nvm use v22`
+- Add package: `npm install`
+- Make migration: `npx kysely migration make`
+- Run e2e tests: `npm run test:e2e`

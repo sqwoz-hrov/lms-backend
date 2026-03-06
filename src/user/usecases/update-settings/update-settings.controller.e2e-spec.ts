@@ -1,6 +1,7 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
+import { sql } from 'kysely';
 import { createTestUser } from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
@@ -37,7 +38,7 @@ describe('[E2E] Update user settings usecase', () => {
 
 	it('Unauthenticated gets 401', async () => {
 		const res = await userTestSdk.updateSettings({
-			params: { theme: 'dark' },
+			params: { theme: 'dark', homepage: 'posts' },
 			userMeta: { isAuth: false },
 		});
 
@@ -48,13 +49,13 @@ describe('[E2E] Update user settings usecase', () => {
 		const user = await createTestUser(utilRepository);
 
 		const res = await userTestSdk.updateSettings({
-			params: { theme: 'dark' },
+			params: { theme: 'dark', homepage: 'transcriptions' },
 			userMeta: { isAuth: true, userId: user.id, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
 		if (res.status !== HttpStatus.OK) return;
-		expect(res.body).to.deep.equal({ theme: 'dark' });
+		expect(res.body).to.deep.equal({ theme: 'dark', homepage: 'transcriptions' });
 
 		const updated = await utilRepository.connection
 			.selectFrom('user')
@@ -63,14 +64,14 @@ describe('[E2E] Update user settings usecase', () => {
 			.limit(1)
 			.executeTakeFirstOrThrow();
 
-		expect(updated.settings).to.deep.equal({ theme: 'dark' });
+		expect(updated.settings).to.deep.equal({ theme: 'dark', homepage: 'transcriptions' });
 	});
 
 	it('Rejects invalid theme values', async () => {
 		const user = await createTestUser(utilRepository);
 
 		const res = await userTestSdk.updateSettings({
-			params: { theme: 'blue' } as unknown as UpdateUserSettingsDto,
+			params: { theme: 'blue', homepage: 'posts' } as unknown as UpdateUserSettingsDto,
 			userMeta: { isAuth: true, userId: user.id, isWrongAccessJwt: false },
 		});
 
@@ -81,13 +82,17 @@ describe('[E2E] Update user settings usecase', () => {
 		const user = await createTestUser(utilRepository);
 
 		const res = await userTestSdk.updateSettings({
-			params: { theme: 'light', random: 'value' } as UpdateUserSettingsDto & { random: string },
+			params: {
+				theme: 'light',
+				homepage: 'home',
+				random: 'value',
+			} as UpdateUserSettingsDto & { random: string },
 			userMeta: { isAuth: true, userId: user.id, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
 		if (res.status !== HttpStatus.OK) return;
-		expect(res.body).to.deep.equal({ theme: 'light' });
+		expect(res.body).to.deep.equal({ theme: 'light', homepage: 'home' });
 
 		const updated = await utilRepository.connection
 			.selectFrom('user')
@@ -96,6 +101,50 @@ describe('[E2E] Update user settings usecase', () => {
 			.limit(1)
 			.executeTakeFirstOrThrow();
 
-		expect(updated.settings).to.deep.equal({ theme: 'light' });
+		expect(updated.settings).to.deep.equal({ theme: 'light', homepage: 'home' });
+	});
+
+	it('DB check constraint rejects invalid settings object', async () => {
+		const user = await createTestUser(utilRepository);
+
+		let thrown: unknown;
+		try {
+			await utilRepository.connection
+				.updateTable('user')
+				.set({
+					settings: sql`jsonb_build_object('theme', 'light', 'homepage', 'invalid-homepage')`,
+				})
+				.where('id', '=', user.id)
+				.execute();
+		} catch (error) {
+			thrown = error;
+		}
+
+		expect(thrown).to.be.instanceOf(Error);
+		if (thrown instanceof Error) {
+			expect(thrown.message).to.include('user_settings_check');
+		}
+	});
+
+	it('DB check constraint rejects settings with extra keys', async () => {
+		const user = await createTestUser(utilRepository);
+
+		let thrown: unknown;
+		try {
+			await utilRepository.connection
+				.updateTable('user')
+				.set({
+					settings: sql`jsonb_build_object('theme', 'light', 'homepage', 'home', 'extra', 'value')`,
+				})
+				.where('id', '=', user.id)
+				.execute();
+		} catch (error) {
+			thrown = error;
+		}
+
+		expect(thrown).to.be.instanceOf(Error);
+		if (thrown instanceof Error) {
+			expect(thrown.message).to.include('user_settings_check');
+		}
 	});
 });

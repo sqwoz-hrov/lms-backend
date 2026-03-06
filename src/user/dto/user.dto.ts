@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 import { UserRole, UserWithNullableSubscriptionTier } from '../user.entity';
 import { SubscriptionTierDto } from './subsription-tier.dto';
+import { UserSettingsDto, toUserSettingsDto } from './user-settings.dto';
 import { string } from 'zod';
 
 export const UserRoles: UserRole[] = ['admin', 'user', 'subscriber'];
@@ -88,6 +89,14 @@ export class PublicSignupDto extends PickType(BaseUserDto, ['name', 'email', 'te
 export class UpdateUserDto extends OmitType(BaseUserDto, ['id']) {}
 
 export class UserResponseDto extends BaseUserDto {
+	@ApiProperty({
+		description: 'User interface settings',
+		type: () => UserSettingsDto,
+	})
+	@ValidateNested()
+	@Type(() => UserSettingsDto)
+	settings: UserSettingsDto;
+
 	@ApiPropertyOptional({
 		description: 'Subscription tier information',
 		type: () => SubscriptionTierDto,
@@ -119,6 +128,7 @@ export const toUserResponseDto = (user: UserWithNullableSubscriptionTier): UserR
 		active_until: activeUntil,
 		is_billable: isBillable,
 		is_archived: user.is_archived,
+		settings: toUserSettingsDto(user.settings),
 		subscription_tier: subscriptionTier
 			? {
 					id: subscriptionTier.id,

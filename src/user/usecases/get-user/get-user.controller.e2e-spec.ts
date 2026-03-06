@@ -39,6 +39,10 @@ describe('[E2E] Get user by id usecase', () => {
 			: null,
 		is_billable: user.subscription ? !user.subscription.is_gifted : false,
 		is_archived: user.is_archived ?? false,
+		settings: {
+			theme: user.settings.theme,
+			homepage: user.settings.homepage,
+		},
 		subscription_tier: user.subscription_tier ?? null,
 		...overrides,
 	});
