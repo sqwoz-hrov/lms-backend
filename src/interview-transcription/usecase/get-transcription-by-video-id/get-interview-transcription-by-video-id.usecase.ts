@@ -41,7 +41,7 @@ export class GetInterviewTranscriptionByVideoIdUsecase implements UsecaseInterfa
 			transcription_url = await this.s3VideoStorageAdapter.getPresignedUrl(transcription.s3_transcription_key, {
 				asAttachmentName: this.extractFileName(transcription.s3_transcription_key),
 				responseContentType: 'application/json',
-				bucket: S3PresignedUrlBucket.TRANSCRIPTION_AUDIO,
+				bucket: S3PresignedUrlBucket.VIDEOS_HOT,
 			});
 		}
 
