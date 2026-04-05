@@ -18,6 +18,8 @@ import { GetInterviewTranscriptionController } from './usecase/get-transcription
 import { GetInterviewTranscriptionUsecase } from './usecase/get-transcription/get-interview-transcription.usecase';
 import { RestartInterviewTranscriptionController } from './usecase/restart-transcription/restart-interview-transcription.controller';
 import { RestartInterviewTranscriptionUsecase } from './usecase/restart-transcription/restart-interview-transcription.usecase';
+import { RetryTranscriptionAnalysisController } from './usecase/retry-transcription-analysis/retry-transcription-analysis.controller';
+import { RetryTranscriptionAnalysisUsecase } from './usecase/retry-transcription-analysis/retry-transcription-analysis.usecase';
 
 @Module({})
 export class InterviewTranscriptionModule {
@@ -32,12 +34,14 @@ export class InterviewTranscriptionModule {
 				ListInterviewTranscriptionsController,
 				GetInterviewTranscriptionByVideoIdController,
 				GetInterviewTranscriptionController,
+				RetryTranscriptionAnalysisController,
 			],
 			providers: [
 				InterviewTranscriptionRepository,
 				InterviewTranscriptionService,
 				StartInterviewTranscriptionUsecase,
 				RestartInterviewTranscriptionUsecase,
+				RetryTranscriptionAnalysisUsecase,
 				HandleTranscriptionFinishWebhookUsecase,
 				ListInterviewTranscriptionsUsecase,
 				GetInterviewTranscriptionByVideoIdUsecase,

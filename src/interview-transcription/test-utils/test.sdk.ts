@@ -90,4 +90,12 @@ export class InterviewTranscriptionsTestSdk implements ValidateSDK<InterviewTran
 			userMeta,
 		});
 	}
+
+	async retryAnalysis({ params, userMeta }: { params: { transcription_id: string }; userMeta: UserMeta }) {
+		return await this.httpClient.request({
+			path: `/interview-transcription/${params.transcription_id}/retry-analysis`,
+			method: 'POST',
+			userMeta,
+		});
+	}
 }

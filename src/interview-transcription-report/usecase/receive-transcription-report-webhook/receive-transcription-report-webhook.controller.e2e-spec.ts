@@ -16,6 +16,7 @@ import { InterviewTranscriptionReportTestRepository } from '../../test-utils/tes
 import { InterviewTranscriptionReportTestSdk } from '../../test-utils/test.sdk';
 import { ReceiveTranscriptionReportWebhookDto } from '../../dto/receive-transcription-report-webhook.dto';
 import { LLMReportParsed } from '../../interview-transcription-report.entity';
+import { InterviewTranscriptionsTestSdk } from '../../../interview-transcription/test-utils/test.sdk';
 
 describe('[E2E] Receive transcription report webhook usecase', () => {
 	let app: INestApplication;
@@ -24,6 +25,7 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 	let transcriptionsRepo: InterviewTranscriptionsTestRepository;
 	let reportsRepo: InterviewTranscriptionReportTestRepository;
 	let sdk: InterviewTranscriptionReportTestSdk;
+	let transcriptionSdk: InterviewTranscriptionsTestSdk;
 	let webhookConfig: ConfigType<typeof interviewTranscriptionConfig>;
 
 	before(function (this: ISharedContext) {
@@ -34,6 +36,15 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		transcriptionsRepo = new InterviewTranscriptionsTestRepository(db);
 		reportsRepo = new InterviewTranscriptionReportTestRepository(db);
 		sdk = new InterviewTranscriptionReportTestSdk(
+			new TestHttpClient(
+				{
+					host: 'http://127.0.0.1',
+					port: 3000,
+				},
+				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
+			),
+		);
+		transcriptionSdk = new InterviewTranscriptionsTestSdk(
 			new TestHttpClient(
 				{
 					host: 'http://127.0.0.1',
@@ -253,6 +264,83 @@ describe('[E2E] Receive transcription report webhook usecase', () => {
 		expect(stored).to.not.eq(undefined);
 		expect(stored?.interview_transcription_id).to.equal(transcription.id);
 		expect(stored?.candidate_name).to.equal(null);
+	});
+
+	it('updates existing report after retry-analysis when webhook is received a second time', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id);
+		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id, {
+			status: 'done',
+			s3_transcription_key: 'transcriptions/result.json',
+		});
+
+		const firstPayload: ReceiveTranscriptionReportWebhookDto = {
+			transcriptionId: transcription.id,
+			llmReportParsed: [
+				{
+					hintType: 'error',
+					lineId: 2,
+					topic: 'System design',
+					errorType: 'mistake',
+					whyBad: 'Missed core tradeoff explanation',
+					howToFix: 'Compare consistency and availability explicitly',
+				},
+			],
+			candidateNameInTranscription: 'SPEAKER_01',
+			candidateName: 'Initial Candidate',
+		};
+
+		const firstWebhookRes = await sdk.sendReportWebhook({
+			params: firstPayload,
+			userMeta: { isAuth: false },
+			headers: buildWebhookHeaders(firstPayload, webhookConfig),
+		});
+
+		expect(firstWebhookRes.status).to.equal(HttpStatus.OK);
+
+		const retryRes = await transcriptionSdk.retryAnalysis({
+			params: { transcription_id: transcription.id },
+			userMeta: { isAuth: true, isWrongAccessJwt: false, userId: owner.id },
+		});
+
+		expect(retryRes.status).to.equal(HttpStatus.OK);
+
+		const secondPayload: ReceiveTranscriptionReportWebhookDto = {
+			transcriptionId: transcription.id,
+			llmReportParsed: [
+				{
+					hintType: 'note',
+					lineId: 11,
+					topic: 'Communication',
+					note: 'Clarified assumptions before implementation',
+				},
+				{
+					hintType: 'praise',
+					lineId: 14,
+					topic: 'Testing strategy',
+					praise: 'Added edge-case coverage before refactor',
+				},
+			],
+			candidateNameInTranscription: 'SPEAKER_02',
+			candidateName: 'Updated Candidate',
+		};
+
+		const secondWebhookRes = await sdk.sendReportWebhook({
+			params: secondPayload,
+			userMeta: { isAuth: false },
+			headers: buildWebhookHeaders(secondPayload, webhookConfig),
+		});
+
+		expect(secondWebhookRes.status).to.equal(HttpStatus.OK);
+
+		const reports = await reportsRepo.findAll();
+		expect(reports).to.have.length(1);
+
+		const stored = reports.at(0);
+		expect(stored?.interview_transcription_id).to.equal(transcription.id);
+		expect(stored?.candidate_name_in_transcription).to.equal(secondPayload.candidateNameInTranscription);
+		expect(stored?.candidate_name).to.equal(secondPayload.candidateName);
+		expect(stored?.llm_report_parsed).to.deep.equal(secondPayload.llmReportParsed);
 	});
 
 	it('DB check constraint rejects directly inserted row with invalid llm_report_parsed', async () => {
