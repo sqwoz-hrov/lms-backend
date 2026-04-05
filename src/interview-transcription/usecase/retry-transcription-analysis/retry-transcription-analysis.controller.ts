@@ -8,7 +8,7 @@ import { RetryTranscriptionAnalysisParamsDto } from '../../../interview-transcri
 import { RetryTranscriptionAnalysisUsecase } from './retry-transcription-analysis.usecase';
 
 @ApiTags('Interview Transcription Reports')
-@Controller('interview-transcription')
+@Controller('interview-transcriptions')
 @Roles('admin', 'user', 'subscriber')
 export class RetryTranscriptionAnalysisController {
 	constructor(private readonly usecase: RetryTranscriptionAnalysisUsecase) {}
