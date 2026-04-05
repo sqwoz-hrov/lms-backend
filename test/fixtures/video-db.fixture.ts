@@ -21,6 +21,7 @@ export const createTestVideoRecord = async (
 			phase: 'completed',
 			uploaded_ranges: sql`${JSON.stringify([{ start: 0, end: 100 }])}`,
 			storage_key: 'videos/test-video.mp4',
+			transcription_audio_storage_key: 'transcription-audio/video/test-video/source.wav',
 			checksum_sha256_base64: null,
 			created_at: new Date().toISOString(),
 			...overrides,

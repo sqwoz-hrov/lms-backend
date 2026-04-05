@@ -5,7 +5,7 @@ import { InterviewTranscriptionResponseDto } from '../../dto/interview-transcrip
 import { GetInterviewTranscriptionByVideoIdDto } from '../../dto/get-interview-transcription-by-video-id.dto';
 import { InterviewTranscriptionRepository } from '../../interview-transcription.repository';
 import { VideoRepository } from '../../../video/video.repoistory';
-import { S3VideoStorageAdapter } from '../../../video/adapters/s3-video-storage.adapter';
+import { S3PresignedUrlBucket, S3VideoStorageAdapter } from '../../../video/adapters/s3-video-storage.adapter';
 
 @Injectable()
 export class GetInterviewTranscriptionByVideoIdUsecase implements UsecaseInterface {
@@ -41,6 +41,7 @@ export class GetInterviewTranscriptionByVideoIdUsecase implements UsecaseInterfa
 			transcription_url = await this.s3VideoStorageAdapter.getPresignedUrl(transcription.s3_transcription_key, {
 				asAttachmentName: this.extractFileName(transcription.s3_transcription_key),
 				responseContentType: 'application/json',
+				bucket: S3PresignedUrlBucket.VIDEOS_HOT,
 			});
 		}
 

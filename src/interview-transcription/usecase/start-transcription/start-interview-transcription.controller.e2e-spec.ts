@@ -125,6 +125,24 @@ describe('[E2E] Start interview transcription usecase', () => {
 		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 
+	it('rejects video without extracted transcription audio', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id, {
+			transcription_audio_storage_key: null,
+		});
+
+		const res = await sdk.startTranscription({
+			params: { video_id: video.id },
+			userMeta: {
+				isAuth: true,
+				isWrongAccessJwt: false,
+				userId: owner.id,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+	});
+
 	it('creates transcription record, enqueues job and powers on VM', async () => {
 		const owner = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
@@ -149,7 +167,11 @@ describe('[E2E] Start interview transcription usecase', () => {
 		expect(stored?.status).to.equal('processing');
 
 		const [job] = await queue.getJobs(['waiting']);
-		expect(job?.data).to.include({ storageKey: video.storage_key, videoId: video.id });
+		expect(job?.data).to.include({
+			audioStorageKey: video.transcription_audio_storage_key,
+			videoId: video.id,
+		});
+		expect(job?.data).to.not.have.property('storageKey');
 
 		const vmStatus = await vmAdapter.getVmStatus();
 		expect(vmStatus.powerState).to.equal('running');

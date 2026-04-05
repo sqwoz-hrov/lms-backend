@@ -19,6 +19,7 @@
     "format:fix": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "mocha 'src/**/*.spec.ts' --require ts-node/register/transpile-only --timeout 1000",
     "test:e2e": "mocha 'src/**/*.e2e-spec.ts' -r ts-node/register/transpile-only -r ./test/setup/test.app-setup.ts --timeout 30000",
+    "backfill:transcription-audio": "node -r ts-node/register/transpile-only src/video/scripts/backfill-transcription-audio.ts",
     "infra:dev:up": "docker compose -f dev.docker-compose.yml up -d",
     "infra:dev:down": "docker compose -f dev.docker-compose.yml down",
     "migrations:dev:up": "npx kysely migrate up",

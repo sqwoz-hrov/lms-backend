@@ -20,6 +20,7 @@ export type VideoTable = {
 	upload_offset: Generated<string>;
 	checksum_sha256_base64: string | null;
 	storage_key: string | null;
+	transcription_audio_storage_key: string | null;
 	created_at: Generated<Timestamp>;
 };
 

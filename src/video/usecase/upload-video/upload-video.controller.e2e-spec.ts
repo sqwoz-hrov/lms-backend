@@ -25,6 +25,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 	let s3: S3Client;
 	let S3_HOT_BUCKET: string;
 	let S3_COLD_BUCKET: string;
+	let S3_TRANSCRIPTION_AUDIO_BUCKET: string;
 
 	let storageSvc: VideoStorageService;
 	let s3UploadSpy: sinon.SinonSpy;
@@ -63,16 +64,16 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		};
 	}
 
-	async function waitForStorageKey(videoId: string, opts?: { timeoutMs?: number; intervalMs?: number }) {
+	async function waitForUploadArtifacts(videoId: string, opts?: { timeoutMs?: number; intervalMs?: number }) {
 		const timeoutMs = opts?.timeoutMs ?? 15_000;
 		const intervalMs = opts?.intervalMs ?? 250;
 		const startedAt = Date.now();
 
 		for (;;) {
 			const video = await videoTestRepo.findById(videoId);
-			if (video?.storage_key) return video;
+			if (video?.storage_key && video.transcription_audio_storage_key) return video;
 			if (Date.now() - startedAt > timeoutMs) {
-				throw new Error(`Timed out waiting for storage_key on video ${videoId}`);
+				throw new Error(`Timed out waiting for upload artifacts on video ${videoId}`);
 			}
 			await new Promise(resolve => setTimeout(resolve, intervalMs));
 		}
@@ -144,6 +145,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		const s3Conf = app.get<ConfigType<typeof s3Config>>(s3Config.KEY);
 		S3_HOT_BUCKET = s3Conf.videosHotBucketName;
 		S3_COLD_BUCKET = s3Conf.videosColdBucketName;
+		S3_TRANSCRIPTION_AUDIO_BUCKET = s3Conf.transcriptionAudioBucketName;
 
 		s3 = new S3Client({
 			endpoint: s3Conf.endpoint,
@@ -167,6 +169,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		await videoTestRepo.clearAll();
 		await clearBucket(s3, S3_HOT_BUCKET);
 		await clearBucket(s3, S3_COLD_BUCKET);
+		await clearBucket(s3, S3_TRANSCRIPTION_AUDIO_BUCKET);
 		s3UploadSpy.restore();
 	});
 
@@ -207,15 +210,23 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		const createdId = res.body.id;
 		expect(createdId).to.be.a('string');
 
-		const storedVideo = await waitForStorageKey(createdId);
+		const storedVideo = await waitForUploadArtifacts(createdId);
 		expect(storedVideo).to.be.an('object');
 
 		const storageKey = storedVideo?.storage_key ?? undefined;
 		expect(storageKey).to.be.a('string');
+		expect(storedVideo?.transcription_audio_storage_key).to.be.a('string');
 
 		const hotObject = await headObjectInfo(s3, S3_HOT_BUCKET, storageKey);
 		expect(hotObject).to.be.an('object');
 		expect(hotObject?.contentType).to.equal('video/mp4');
+		const audioObject = await headObjectInfo(
+			s3,
+			S3_TRANSCRIPTION_AUDIO_BUCKET,
+			storedVideo?.transcription_audio_storage_key ?? undefined,
+		);
+		expect(audioObject).to.be.an('object');
+		expect(audioObject?.contentType).to.equal('audio/wav');
 	});
 
 	it('resumes upload after client interruption (2 raw chunks); waits for async S3 upload', async function () {
@@ -255,15 +266,23 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		const createdId = res2.body.id;
 		expect(createdId).to.be.a('string');
 
-		const storedVideo = await waitForStorageKey(createdId);
+		const storedVideo = await waitForUploadArtifacts(createdId);
 		expect(storedVideo).to.be.an('object');
 
 		const storageKey = storedVideo?.storage_key ?? undefined;
 		expect(storageKey).to.be.a('string');
+		expect(storedVideo?.transcription_audio_storage_key).to.be.a('string');
 
 		const hotObject = await headObjectInfo(s3, S3_HOT_BUCKET, storageKey);
 		expect(hotObject).to.be.an('object');
 		expect(hotObject?.contentType).to.equal('video/mp4');
+		const audioObject = await headObjectInfo(
+			s3,
+			S3_TRANSCRIPTION_AUDIO_BUCKET,
+			storedVideo?.transcription_audio_storage_key ?? undefined,
+		);
+		expect(audioObject).to.be.an('object');
+		expect(audioObject?.contentType).to.equal('audio/wav');
 	});
 
 	it('does not start S3 upload until temp file is complete (raw)', async function () {
@@ -299,14 +318,22 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		const createdId = res2.body.id;
 		expect(createdId).to.be.a('string');
 
-		const storedVideo = await waitForStorageKey(createdId);
+		const storedVideo = await waitForUploadArtifacts(createdId);
 		expect(storedVideo).to.be.an('object');
 
 		const storageKey = storedVideo?.storage_key ?? undefined;
 		expect(storageKey).to.be.a('string');
+		expect(storedVideo?.transcription_audio_storage_key).to.be.a('string');
 
 		const hotObject = await headObjectInfo(s3, S3_HOT_BUCKET, storageKey);
 		expect(hotObject).to.be.an('object');
 		expect(hotObject?.contentType).to.equal('video/mp4');
+		const audioObject = await headObjectInfo(
+			s3,
+			S3_TRANSCRIPTION_AUDIO_BUCKET,
+			storedVideo?.transcription_audio_storage_key ?? undefined,
+		);
+		expect(audioObject).to.be.an('object');
+		expect(audioObject?.contentType).to.equal('audio/wav');
 	});
 });

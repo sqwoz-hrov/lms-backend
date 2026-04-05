@@ -54,6 +54,7 @@ export async function startAllContainers(
 
 	await ensureBucket(s3, _s3Config.videosHotBucketName);
 	await ensureBucket(s3, _s3Config.videosColdBucketName);
+	await ensureBucket(s3, _s3Config.transcriptionAudioBucketName);
 
 	// ---- миграции
 	await runMigrations({ useReal: true, connectionInfo: _dbConfig });
