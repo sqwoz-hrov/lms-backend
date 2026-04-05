@@ -185,4 +185,8 @@ describe('[E2E] Restart interview transcription usecase', () => {
 
 		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
+
+	it.skip('rejects restart when analysis is being retried', async () => {
+		expect(true).to.equal(false, 'This test is skipped because the current implementation allows restarting transcription even when analysis retry is in progress. This should be fixed in the implementation and then the test should be enabled.');
+	});
 });

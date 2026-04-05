@@ -155,6 +155,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 		}
 
 		const video = await this.videoRepository.findById(transcription.video_id);
+
 		if (!video) {
 			throw new NotFoundException('Видео для транскрибации не найдено');
 		}

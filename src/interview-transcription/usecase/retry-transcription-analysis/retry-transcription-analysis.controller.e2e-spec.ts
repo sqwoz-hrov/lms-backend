@@ -101,6 +101,21 @@ describe('[E2E] Retry transcription analysis usecase', () => {
 		expect(waitingJobs).to.have.length(0);
 	});
 
+	it('rejects restart analysis when transcription audio file is missing on video', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id, {
+			transcription_audio_storage_key: null,
+		});
+		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
+
+		const res = await sdk.retryAnalysis({
+			params: { transcription_id: transcription.id },
+			userMeta: { isAuth: true, isWrongAccessJwt: false, userId: owner.id },
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+	});
+
 	it('allows owner to retry analysis only and enqueues analysisOnly job without status reset', async () => {
 		const owner = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
@@ -126,9 +141,14 @@ describe('[E2E] Retry transcription analysis usecase', () => {
 			videoId: video.id,
 			interviewTranscriptionId: transcription.id,
 			forceRestart: true,
+			audioStorageKey: video.transcription_audio_storage_key,
 			startFrom: 'analysis',
 		});
 		expect(job?.data.forceRestart).to.equal(true);
+		expect(job?.data).to.not.have.property('storageKey');
+
+		const vmStatus = await vmAdapter.getVmStatus();
+		expect(vmStatus.powerState).to.equal('running');
 	});
 
 	it('rejects retry analysis from a different non-admin user', async () => {
@@ -155,7 +175,10 @@ describe('[E2E] Retry transcription analysis usecase', () => {
 		const admin = await createTestAdmin(usersRepo);
 		const owner = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
-		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
+		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id, {
+			s3_transcription_key: 'transcriptions/existing.json',
+			status: 'done',
+		});
 
 		const res = await sdk.retryAnalysis({
 			params: { transcription_id: transcription.id },
@@ -163,5 +186,16 @@ describe('[E2E] Retry transcription analysis usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
+
+		const stored = await transcriptionsRepo.findById(transcription.id);
+		expect(stored?.status).to.equal('done');
+		expect(stored?.s3_transcription_key).to.equal('transcriptions/existing.json');
+
+		const [job] = await queue.getJobs(['waiting']);
+		expect(job?.data.forceRestart).to.equal(true);
+		expect(job?.data).to.not.have.property('storageKey');
+
+		const vmStatus = await vmAdapter.getVmStatus();
+		expect(vmStatus.powerState).to.equal('running');
 	});
 });
