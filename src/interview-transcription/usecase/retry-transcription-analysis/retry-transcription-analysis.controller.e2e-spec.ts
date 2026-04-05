@@ -83,6 +83,24 @@ describe('[E2E] Retry transcription analysis usecase', () => {
 		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 
+	it('returns 400 when transcription is "failed" (well, retrying) and does not enqueue analysis retry', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id);
+		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id, {
+			status: 'restarted',
+		});
+
+		const res = await sdk.retryAnalysis({
+			params: { transcription_id: transcription.id },
+			userMeta: { isAuth: true, isWrongAccessJwt: false, userId: owner.id },
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+
+		const waitingJobs = await queue.getJobs(['waiting']);
+		expect(waitingJobs).to.have.length(0);
+	});
+
 	it('allows owner to retry analysis only and enqueues analysisOnly job without status reset', async () => {
 		const owner = await createTestUser(usersRepo);
 		const video = await createTestVideoRecord(videosRepo, owner.id);
