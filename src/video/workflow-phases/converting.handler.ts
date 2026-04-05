@@ -15,6 +15,9 @@ export class ConvertingHandler implements PhaseHandler {
 			throw new Error(`Tmp file missing for compression (video ${video.id})`);
 		}
 
+		await this.transcoder.extractTranscriptionAudio({
+			inputPath: video.tmp_path,
+		});
 		const result = await this.transcoder.ensureBrowserCompatible({
 			inputPath: video.tmp_path,
 			originalFilename: video.filename,

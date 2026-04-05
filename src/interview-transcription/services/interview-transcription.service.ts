@@ -16,7 +16,7 @@ import { InterviewTranscription } from '../interview-transcription.entity';
 import { REDIS_CONNECTION_KEY } from '../../infra/redis.const';
 
 type InterviewTranscriptionJobPayload = {
-	storageKey: string;
+	audioStorageKey: string;
 	videoId: string;
 	interviewTranscriptionId: string;
 	forceRestart: boolean;
@@ -104,8 +104,8 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 			throw new NotFoundException('Видео для транскрибации не найдено');
 		}
 
-		if (!video.storage_key) {
-			throw new BadRequestException('Видеофайл еще не загружен в хранилище');
+		if (!video.transcription_audio_storage_key) {
+			throw new BadRequestException('Аудиофайл для транскрибации еще не загружен в хранилище');
 		}
 
 		const forceRestart = options.forceRestart ?? transcription.status === 'restarted';
@@ -113,7 +113,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 		await this.queue.add(
 			JOB_NAME,
 			{
-				storageKey: video.storage_key,
+				audioStorageKey: video.transcription_audio_storage_key,
 				videoId: video.id,
 				interviewTranscriptionId,
 				forceRestart,
@@ -163,11 +163,15 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 			throw new BadRequestException('Видеофайл еще не загружен в хранилище');
 		}
 
+		if (!video.transcription_audio_storage_key) {
+			throw new BadRequestException('Аудиофайл для транскрибации еще не загружен в хранилище');
+		}
+
 		await this.ensureVmRunning();
 		await this.queue.add(
 			JOB_NAME,
 			{
-				storageKey: transcription.s3_transcription_key,
+				audioStorageKey: video.transcription_audio_storage_key,
 				videoId: video.id,
 				interviewTranscriptionId,
 				forceRestart: true,

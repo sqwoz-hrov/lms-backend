@@ -5,17 +5,23 @@ import { detectVideoMime } from '../utils/detect-video-mimetype';
 import { ensureFilenameExt } from '../utils/ensure-filename-extension';
 import { VideoRepository } from '../video.repoistory';
 import { VideoStorageService } from '../services/video-storage.service';
+import { VideoTranscoderService } from '../services/video-transcoder.service';
 
 export class UploadingS3Handler implements PhaseHandler {
 	constructor(
 		private readonly videoRepo: VideoRepository,
 		private readonly storage: VideoStorageService,
+		private readonly transcoder: VideoTranscoderService,
 	) {}
 
 	async handle(video: Video): Promise<PhaseHandleResult> {
 		const localPath = video.converted_tmp_path;
 		if (!localPath || !fs.existsSync(localPath)) {
 			throw new Error(`Tmp file missing for upload (video ${video.id})`);
+		}
+		const audioLocalPath = this.transcoder.buildTranscriptionAudioOutputPath(video.tmp_path);
+		if (!fs.existsSync(audioLocalPath)) {
+			throw new Error(`Transcription audio tmp file missing for upload (video ${video.id})`);
 		}
 
 		const detected = await detectVideoMime(localPath);
@@ -61,8 +67,23 @@ export class UploadingS3Handler implements PhaseHandler {
 			video = (await this.videoRepo.findById(video.id)) || video;
 		}
 
+		if (!video.transcription_audio_storage_key) {
+			const audioUploadResult = await this.storage.uploadTranscriptionAudio({
+				videoId: video.id,
+				localPath: audioLocalPath,
+				metadata: { userId: video.user_id },
+			});
+
+			await this.videoRepo.update(video.id, {
+				transcription_audio_storage_key: audioUploadResult.storageKey,
+			});
+		}
+
 		if (localPath && fs.existsSync(localPath)) {
 			fs.unlinkSync(localPath);
+		}
+		if (audioLocalPath && fs.existsSync(audioLocalPath)) {
+			fs.unlinkSync(audioLocalPath);
 		}
 
 		return { kind: 'advance', nextPhase: 'completed' };

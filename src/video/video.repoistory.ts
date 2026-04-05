@@ -10,7 +10,12 @@ export class VideoRepository {
 		this.connection = dbProvider.getDatabase<VideoAggregation>();
 	}
 
-	async save(data: Omit<NewVideo, 'updated_at' | 'version' | 'uploaded_ranges' | 'upload_offset'>): Promise<Video> {
+	async save(
+		data: Omit<
+			NewVideo,
+			'updated_at' | 'version' | 'uploaded_ranges' | 'upload_offset' | 'transcription_audio_storage_key'
+		>,
+	): Promise<Video> {
 		return await this.connection.transaction().execute(async trx => {
 			const res = await trx
 				.insertInto('video')
@@ -18,6 +23,7 @@ export class VideoRepository {
 					...data,
 					uploaded_ranges: [],
 					upload_offset: String(0),
+					transcription_audio_storage_key: null,
 				})
 				.returningAll()
 				.executeTakeFirstOrThrow();

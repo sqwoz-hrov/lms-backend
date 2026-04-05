@@ -6,6 +6,11 @@ import { s3Config } from '../../config';
 import { IS3VideoStorageAdapter, UploadStreamInput, UploadStreamResult } from '../ports/video-storage.adapter';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+export enum S3PresignedUrlBucket {
+	VIDEOS_HOT,
+	TRANSCRIPTION_AUDIO,
+}
+
 @Injectable()
 export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 	private readonly logger = new Logger(S3VideoStorageAdapter.name);
@@ -100,15 +105,40 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 		}
 	}
 
+	async uploadStreamToTranscriptionAudio(input: UploadStreamInput): Promise<UploadStreamResult> {
+		const upload = new Upload({
+			client: this.s3Client,
+			params: {
+				Bucket: this.config.transcriptionAudioBucketName,
+				Key: input.key,
+				Body: input.stream,
+				Metadata: input.metadata,
+				ACL: 'private',
+				ContentType: input.contentType,
+			},
+		});
+
+		try {
+			const result = await upload.done();
+			this.logger.log(`Transcription audio uploaded: ${input.key}`);
+			return { storageKey: result.Key ?? input.key };
+		} catch (error) {
+			this.logger.error('Error uploading transcription audio to S3:', error);
+			throw new Error('Failed to upload transcription audio to S3');
+		}
+	}
+
 	async getPresignedUrl(
 		key: string,
 		opts?: {
 			expiresInSeconds?: number;
 			asAttachmentName?: string;
 			responseContentType?: string;
+			bucket?: S3PresignedUrlBucket;
 		},
 	): Promise<string> {
 		const expiresIn = opts?.expiresInSeconds ?? 3600 * 3; // 3 hours
+		const bucketName = this.resolvePresignedUrlBucketName(opts?.bucket ?? S3PresignedUrlBucket.VIDEOS_HOT);
 
 		const responseContentDisposition = opts?.asAttachmentName
 			? `attachment; filename="${encodeURIComponent(opts.asAttachmentName)}"`
@@ -116,18 +146,30 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 
 		try {
 			const cmd = new GetObjectCommand({
-				Bucket: this.config.videosHotBucketName,
+				Bucket: bucketName,
 				Key: key,
 				ResponseContentDisposition: responseContentDisposition,
 				ResponseContentType: opts?.responseContentType,
 			});
 
 			const url = await getSignedUrl(this.s3Client, cmd, { expiresIn });
-			this.logger.log(`Issued presigned URL for hot video: ${key} (exp=${expiresIn}s)`);
+			this.logger.log(
+				`Issued presigned URL for bucket=${opts?.bucket ?? S3PresignedUrlBucket.VIDEOS_HOT}: ${key} (exp=${expiresIn}s)`,
+			);
 			return url;
 		} catch (error) {
 			this.logger.error(`Error creating presigned URL for ${key}:`, error as Error);
 			throw new Error('Failed to create presigned URL');
+		}
+	}
+
+	private resolvePresignedUrlBucketName(bucket: S3PresignedUrlBucket): string {
+		switch (bucket) {
+			case S3PresignedUrlBucket.TRANSCRIPTION_AUDIO:
+				return this.config.transcriptionAudioBucketName;
+			case S3PresignedUrlBucket.VIDEOS_HOT:
+			default:
+				return this.config.videosHotBucketName;
 		}
 	}
 }

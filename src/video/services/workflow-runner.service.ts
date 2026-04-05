@@ -38,7 +38,7 @@ export class WorkflowRunnerService {
 			'receiving-gate': receivingGate,
 			converting: new ConvertingHandler(this.videoRepo, this.transcoder),
 			hashing: new HashingHandler(this.videoRepo),
-			uploading_s3: new UploadingS3Handler(this.videoRepo, this.storage),
+			uploading_s3: new UploadingS3Handler(this.videoRepo, this.storage, this.transcoder),
 			completed: terminal,
 			failed: terminal,
 		};

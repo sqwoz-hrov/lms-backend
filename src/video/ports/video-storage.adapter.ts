@@ -14,4 +14,5 @@ export type UploadStreamResult = { storageKey: string };
 export interface IS3VideoStorageAdapter {
 	uploadStreamToCold(input: UploadStreamInput): Promise<UploadStreamResult>;
 	uploadStreamToHot(input: UploadStreamInput): Promise<UploadStreamResult>;
+	uploadStreamToTranscriptionAudio(input: UploadStreamInput): Promise<UploadStreamResult>;
 }

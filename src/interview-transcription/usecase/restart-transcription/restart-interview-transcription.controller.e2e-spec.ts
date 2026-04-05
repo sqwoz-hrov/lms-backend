@@ -134,10 +134,12 @@ describe('[E2E] Restart interview transcription usecase', () => {
 
 		const [job] = await queue.getJobs(['waiting']);
 		expect(job?.data).to.include({
+			audioStorageKey: video.transcription_audio_storage_key,
 			videoId: video.id,
 			interviewTranscriptionId: transcription.id,
 		});
 		expect(job?.data.forceRestart).to.equal(true);
+		expect(job?.data).to.not.have.property('storageKey');
 
 		const vmStatus = await vmAdapter.getVmStatus();
 		expect(vmStatus.powerState).to.equal('running');
@@ -163,5 +165,24 @@ describe('[E2E] Restart interview transcription usecase', () => {
 			throw new Error('Admin request failed');
 		}
 		expect(res.body.id).to.equal(transcription.id);
+	});
+
+	it('rejects restart when transcription audio file is missing on video', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id, {
+			transcription_audio_storage_key: null,
+		});
+		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id);
+
+		const res = await sdk.restartTranscription({
+			params: { interview_transcription_id: transcription.id },
+			userMeta: {
+				isAuth: true,
+				isWrongAccessJwt: false,
+				userId: owner.id,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 });
