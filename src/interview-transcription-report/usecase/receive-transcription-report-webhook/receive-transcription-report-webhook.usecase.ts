@@ -60,7 +60,7 @@ export class ReceiveTranscriptionReportWebhookUsecase implements UsecaseInterfac
 			throw new BadRequestException(`Invalid payload: ${parsed.error.message}`);
 		}
 
-		await this.transcriptionReportRepository.save({
+		await this.transcriptionReportRepository.saveOrReplaceByTranscriptionId({
 			interview_transcription_id: parsed.data.transcriptionId,
 			llm_report_parsed: parsed.data.llmReportParsed,
 			candidate_name_in_transcription: parsed.data.candidateNameInTranscription,

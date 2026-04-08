@@ -20,6 +20,7 @@ type InterviewTranscriptionJobPayload = {
 	videoId: string;
 	interviewTranscriptionId: string;
 	forceRestart: boolean;
+	startFrom?: 'transcription' | 'analysis';
 };
 
 const QUEUE_NAME = 'interview-transcription';
@@ -116,6 +117,7 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 				videoId: video.id,
 				interviewTranscriptionId,
 				forceRestart,
+				...(forceRestart && { startFrom: 'transcription' }),
 			},
 			{ removeOnComplete: true, removeOnFail: false },
 		);
@@ -137,6 +139,50 @@ export class InterviewTranscriptionService implements OnModuleInit, OnModuleDest
 		}
 
 		return updated;
+	}
+
+	async enqueueTranscriptionAnalysis(interviewTranscriptionId: string): Promise<InterviewTranscription> {
+		this.logger.debug(`Attempting to enqueue analysis for transcription ${interviewTranscriptionId}`);
+		const transcription = await this.transcriptionRepository.findById(interviewTranscriptionId);
+		if (!transcription) {
+			throw new NotFoundException('Запись транскрибации интервью не найдена');
+		}
+		if (transcription.status !== 'done') {
+			throw new BadRequestException('Аналитику можно запускать только для завершенных транскрибаций');
+		}
+		if (!transcription.s3_transcription_key) {
+			throw new BadRequestException('Нет готового файла транскрибации для анализа');
+		}
+
+		const video = await this.videoRepository.findById(transcription.video_id);
+
+		if (!video) {
+			throw new NotFoundException('Видео для транскрибации не найдено');
+		}
+
+		if (!video.storage_key) {
+			throw new BadRequestException('Видеофайл еще не загружен в хранилище');
+		}
+
+		if (!video.transcription_audio_storage_key) {
+			throw new BadRequestException('Аудиофайл для транскрибации еще не загружен в хранилище');
+		}
+
+		await this.ensureVmRunning();
+		await this.queue.add(
+			JOB_NAME,
+			{
+				audioStorageKey: video.transcription_audio_storage_key,
+				videoId: video.id,
+				interviewTranscriptionId,
+				forceRestart: true,
+				startFrom: 'analysis',
+			},
+			{ removeOnComplete: true, removeOnFail: false },
+		);
+		this.logger.log(`Analysis for transcription ${interviewTranscriptionId} queued`);
+
+		return transcription;
 	}
 
 	private async stopVm(): Promise<void> {

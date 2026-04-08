@@ -37,6 +37,7 @@ import { PostModule } from './post/post.module';
 import { InterviewTranscriptionModule } from './interview-transcription/interview-transcription.module';
 import { SseModule } from './sse/sse.module';
 import { InterviewTranscriptionReportModule } from './interview-transcription-report/interview-transcription-report.module';
+import { AiGatewayModule } from './ai-gateway/ai-gateway.module';
 
 @Module({
 	imports: [
@@ -80,6 +81,7 @@ import { InterviewTranscriptionReportModule } from './interview-transcription-re
 		PostModule,
 		SseModule,
 		InterviewTranscriptionReportModule,
+		AiGatewayModule,
 	],
 	controllers: [],
 	providers: [],

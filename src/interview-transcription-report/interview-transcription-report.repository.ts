@@ -34,6 +34,34 @@ export class InterviewTranscriptionReportRepository {
 			.execute();
 	}
 
+	async saveOrReplaceByTranscriptionId(data: NewInterviewTranscriptionReport): Promise<void> {
+		const llmReportParsed =
+			typeof data.llm_report_parsed === 'string' ? data.llm_report_parsed : JSON.stringify(data.llm_report_parsed);
+
+		const updated = await this.connection
+			.updateTable('interview_transcription_report')
+			.set({
+				llm_report_parsed: sql<LLMReportParsed>`${llmReportParsed}`,
+				candidate_name_in_transcription: data.candidate_name_in_transcription,
+				candidate_name: data.candidate_name ?? null,
+			})
+			.where('interview_transcription_id', '=', data.interview_transcription_id)
+			.returningAll()
+			.executeTakeFirst();
+
+		if (updated) {
+			return;
+		}
+
+		await this.connection
+			.insertInto('interview_transcription_report')
+			.values({
+				...data,
+				llm_report_parsed: sql<LLMReportParsed>`${llmReportParsed}`,
+			})
+			.execute();
+	}
+
 	async findByTranscriptionId(transcriptionId: string): Promise<InterviewTranscriptionReport | undefined> {
 		return await this.connection
 			.selectFrom('interview_transcription_report')
