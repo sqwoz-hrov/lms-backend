@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { InterviewTranscriptionResponseDto } from '../../dto/interview-transcription-response.dto';
@@ -27,12 +27,15 @@ type HandleTranscriptionFailedCancelledWebhookParams = z.infer<typeof webhookPay
 
 @Injectable()
 export class HandleTranscriptionFailedCancelledWebhookUsecase implements UsecaseInterface {
+    private readonly logger = new Logger(HandleTranscriptionFailedCancelledWebhookUsecase.name);
+
 	constructor(
 		private readonly transcriptionRepository: InterviewTranscriptionRepository,
 		private readonly transcriptionService: InterviewTranscriptionService,
 	) {}
 
 	async execute(params: unknown): Promise<InterviewTranscriptionResponseDto> {
+        this.logger.debug(`Received failed/cancelled webhook with payload: ${JSON.stringify(params)}`);
 		const parsed = webhookPayloadSchema.safeParse(params);
 		if (!parsed.success) {
 			throw new BadRequestException(`Invalid payload: ${parsed.error.message}`);
@@ -64,6 +67,7 @@ export class HandleTranscriptionFailedCancelledWebhookUsecase implements Usecase
 		}
 
 		await this.transcriptionService.handleTranscriptionFinished();
+		this.logger.debug(`Transcription ${existing.id} updated to status ${params.reason}`);
 		return updated;
 	}
 }
