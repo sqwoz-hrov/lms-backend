@@ -2,6 +2,7 @@ import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { createHmac, randomUUID } from 'node:crypto';
+import { createTestInterviewTranscription } from '../../../../test/fixtures/interview-transcription.fixture';
 import { createTestUser } from '../../../../test/fixtures/user.fixture';
 import { createTestVideoRecord } from '../../../../test/fixtures/video-db.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
@@ -104,6 +105,97 @@ describe('[E2E] Handle transcription finish webhook usecase', () => {
 
 		const vmStatus = await vmAdapter.getVmStatus();
 		expect(vmStatus.powerState).to.equal('stopped');
+	});
+
+	it('done webhook updates current done status if it so happened', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id);
+		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id, {
+			status: 'done',
+			s3_transcription_key: 'transcriptions/video.json',
+		});
+
+		const payload: InterviewTranscriptionWebhookDto = {
+			interview_transcription_id: transcription.id,
+			s3_transcription_key: 'transcriptions2/video.json',
+		};
+
+		const webhookRes = await sdk.sendFinishWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+			headers: buildWebhookHeaders(payload, webhookConfig),
+		});
+
+		expect(webhookRes.status).to.equal(HttpStatus.OK);
+		if (webhookRes.status !== HttpStatus.OK) throw new Error('Webhook request failed');
+
+		expect(webhookRes.body.status).to.equal('done');
+		expect(webhookRes.body.s3_transcription_key).to.equal('transcriptions2/video.json');
+
+		const stored = await transcriptionsRepo.findById(transcription.id);
+		expect(stored?.status).to.equal('done');
+		expect(stored?.s3_transcription_key).to.equal('transcriptions2/video.json');
+		expect(stored?.updated_at.getTime()).to.be.greaterThan(transcription.updated_at.getTime());
+	});
+
+	it('done webhook with valid payload overrides failed status', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id);
+		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id, {
+			status: 'failed',
+			s3_transcription_key: null,
+		});
+
+		const payload: InterviewTranscriptionWebhookDto = {
+			interview_transcription_id: transcription.id,
+			s3_transcription_key: 'transcriptions/failed-to-done.json',
+		};
+
+		const webhookRes = await sdk.sendFinishWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+			headers: buildWebhookHeaders(payload, webhookConfig),
+		});
+
+		expect(webhookRes.status).to.equal(HttpStatus.OK);
+		if (webhookRes.status !== HttpStatus.OK) throw new Error('Webhook request failed');
+
+		expect(webhookRes.body.status).to.equal('done');
+		expect(webhookRes.body.s3_transcription_key).to.equal('transcriptions/failed-to-done.json');
+
+		const stored = await transcriptionsRepo.findById(transcription.id);
+		expect(stored?.status).to.equal('done');
+		expect(stored?.s3_transcription_key).to.equal('transcriptions/failed-to-done.json');
+	});
+
+	it('done webhook with valid payload overrides cancelled status', async () => {
+		const owner = await createTestUser(usersRepo);
+		const video = await createTestVideoRecord(videosRepo, owner.id);
+		const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id, {
+			status: 'cancelled',
+			s3_transcription_key: null,
+		});
+
+		const payload: InterviewTranscriptionWebhookDto = {
+			interview_transcription_id: transcription.id,
+			s3_transcription_key: 'transcriptions/cancelled-to-done.json',
+		};
+
+		const webhookRes = await sdk.sendFinishWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+			headers: buildWebhookHeaders(payload, webhookConfig),
+		});
+
+		expect(webhookRes.status).to.equal(HttpStatus.OK);
+		if (webhookRes.status !== HttpStatus.OK) throw new Error('Webhook request failed');
+
+		expect(webhookRes.body.status).to.equal('done');
+		expect(webhookRes.body.s3_transcription_key).to.equal('transcriptions/cancelled-to-done.json');
+
+		const stored = await transcriptionsRepo.findById(transcription.id);
+		expect(stored?.status).to.equal('done');
+		expect(stored?.s3_transcription_key).to.equal('transcriptions/cancelled-to-done.json');
 	});
 });
 
