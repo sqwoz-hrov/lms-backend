@@ -120,6 +120,8 @@ describe('[E2E] Handle transcription finish webhook usecase', () => {
 			s3_transcription_key: 'transcriptions2/video.json',
 		};
 
+		await sleep(5);
+
 		const webhookRes = await sdk.sendFinishWebhook({
 			params: payload,
 			userMeta: { isAuth: false },
@@ -212,3 +214,5 @@ const buildWebhookHeaders = (
 		[config.webhookSignatureHeader]: signature,
 	};
 };
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
