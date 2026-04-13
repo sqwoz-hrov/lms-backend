@@ -105,7 +105,7 @@ describe('[E2E] Handle transcription failed/cancelled webhook usecase', () => {
 			const stored = await transcriptionsRepo.findById(transcription.id);
 			expect(stored?.status).to.equal('done');
 			expect(stored?.s3_transcription_key).to.equal('transcriptions/done.json');
-            expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
+			expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
 		});
 
 		for (const initialStatus of ['created', 'processing', 'restarted'] as const) {
@@ -165,7 +165,7 @@ describe('[E2E] Handle transcription failed/cancelled webhook usecase', () => {
 
 		const stored = await transcriptionsRepo.findById(transcription.id);
 		expect(stored?.status).to.equal('cancelled');
-        expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
+		expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
 	});
 
 	it('does not update cancelled webhook when transcription status is failed', async () => {
@@ -194,7 +194,7 @@ describe('[E2E] Handle transcription failed/cancelled webhook usecase', () => {
 
 		const stored = await transcriptionsRepo.findById(transcription.id);
 		expect(stored?.status).to.equal('failed');
-        expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
+		expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
 	});
 
 	it('does not update failed webhook when transcription status is cancelled', async () => {
@@ -223,7 +223,7 @@ describe('[E2E] Handle transcription failed/cancelled webhook usecase', () => {
 
 		const stored = await transcriptionsRepo.findById(transcription.id);
 		expect(stored?.status).to.equal('cancelled');
-        expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
+		expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
 	});
 
 	it('does not update failed webhook when transcription status is failed', async () => {
@@ -252,7 +252,7 @@ describe('[E2E] Handle transcription failed/cancelled webhook usecase', () => {
 
 		const stored = await transcriptionsRepo.findById(transcription.id);
 		expect(stored?.status).to.equal('failed');
-        expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
+		expect(stored?.updated_at.getTime()).to.equal(transcription.updated_at.getTime());
 	});
 });
 

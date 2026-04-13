@@ -29,12 +29,11 @@ export class RestartInterviewTranscriptionUsecase implements UsecaseInterface {
 			throw new ForbiddenException('Вы можете перезапускать транскрибацию только для своих видео');
 		}
 
-		const FINAL_STATUSES = ['done', 'failed', 'cancelled'] as const satisfies typeof transcription.status[];
+		const FINAL_STATUSES = ['done', 'failed', 'cancelled'] as const satisfies (typeof transcription.status)[];
 
 		if (FINAL_STATUSES.find(status => status === transcription.status) === undefined) {
 			throw new BadRequestException('Транскрибацию можно перезапустить только после её завершения');
 		}
-
 
 		const shouldClearStoredKey = transcription.status === 'done';
 		const updated = await this.transcriptionRepository.updateStatus(

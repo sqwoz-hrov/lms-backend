@@ -53,7 +53,7 @@ export class HandleTranscriptionFailedCancelledWebhookUsecase implements Usecase
 			throw new BadRequestException('Invalid payload: transcription does not belong to provided video');
 		}
 
-		const finalStatuses = ['failed', 'cancelled', 'done'] as const satisfies typeof existing.status[];
+		const finalStatuses = ['failed', 'cancelled', 'done'] as const satisfies (typeof existing.status)[];
 		if (finalStatuses.find(status => status === existing.status) !== undefined) {
 			return existing;
 		}
