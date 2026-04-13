@@ -27,7 +27,7 @@ type HandleTranscriptionFailedCancelledWebhookParams = z.infer<typeof webhookPay
 
 @Injectable()
 export class HandleTranscriptionFailedCancelledWebhookUsecase implements UsecaseInterface {
-    private readonly logger = new Logger(HandleTranscriptionFailedCancelledWebhookUsecase.name);
+	private readonly logger = new Logger(HandleTranscriptionFailedCancelledWebhookUsecase.name);
 
 	constructor(
 		private readonly transcriptionRepository: InterviewTranscriptionRepository,
@@ -35,7 +35,7 @@ export class HandleTranscriptionFailedCancelledWebhookUsecase implements Usecase
 	) {}
 
 	async execute(params: unknown): Promise<InterviewTranscriptionResponseDto> {
-        this.logger.debug(`Received failed/cancelled webhook with payload: ${JSON.stringify(params)}`);
+		this.logger.debug(`Received failed/cancelled webhook with payload: ${JSON.stringify(params)}`);
 		const parsed = webhookPayloadSchema.safeParse(params);
 		if (!parsed.success) {
 			throw new BadRequestException(`Invalid payload: ${parsed.error.message}`);
