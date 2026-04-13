@@ -185,4 +185,30 @@ describe('[E2E] Restart interview transcription usecase', () => {
 
 		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
+
+	for (const initialStatus of ['created', 'processing', 'restarted'] as const) {
+		it(`rejects restart when transcription is in ${initialStatus} status`, async () => {
+			const owner = await createTestUser(usersRepo);
+			const video = await createTestVideoRecord(videosRepo, owner.id);
+			const transcription = await createTestInterviewTranscription(transcriptionsRepo, video.id, {
+				status: initialStatus,
+			});
+
+			const res = await sdk.restartTranscription({
+				params: { interview_transcription_id: transcription.id },
+				userMeta: {
+					isAuth: true,
+					isWrongAccessJwt: false,
+					userId: owner.id,
+				},
+			});
+
+			if (res.status !== HttpStatus.BAD_REQUEST) {
+				throw new Error(`Expected 400 Bad Request when restarting transcription in ${initialStatus} status`);
+			}
+
+			expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+			expect(res.body.description).to.equal('Транскрибацию можно перезапустить только после её завершения');
+		});
+	}
 });
