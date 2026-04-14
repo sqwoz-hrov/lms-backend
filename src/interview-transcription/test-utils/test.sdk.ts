@@ -4,6 +4,7 @@ import { InterviewTranscriptionResponseDto } from '../dto/interview-transcriptio
 import { RestartInterviewTranscriptionDto } from '../dto/restart-interview-transcription.dto';
 import { StartInterviewTranscriptionDto } from '../dto/start-interview-transcription.dto';
 import { InterviewTranscriptionWebhookDto } from '../dto/interview-transcription-webhook.dto';
+import { InterviewWorkflowFailedCancelledWebhookPayload } from '../dto/interview-transcription-failed-cancelled-webhook.dto';
 
 export class InterviewTranscriptionsTestSdk implements ValidateSDK<InterviewTranscriptionsTestSdk> {
 	constructor(private readonly httpClient: TestHttpClient) {}
@@ -59,6 +60,24 @@ export class InterviewTranscriptionsTestSdk implements ValidateSDK<InterviewTran
 	}) {
 		return await this.httpClient.request<InterviewTranscriptionResponseDto>({
 			path: '/webhooks/interview-transcriptions/finish',
+			method: 'POST',
+			body: params,
+			userMeta,
+			headers,
+		});
+	}
+
+	async sendFailWebhook({
+		params,
+		userMeta,
+		headers,
+	}: {
+		params: InterviewWorkflowFailedCancelledWebhookPayload;
+		userMeta: UserMeta;
+		headers?: Record<string, string>;
+	}) {
+		return await this.httpClient.request<InterviewTranscriptionResponseDto>({
+			path: '/webhooks/interview-transcriptions/fail',
 			method: 'POST',
 			body: params,
 			userMeta,
