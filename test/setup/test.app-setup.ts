@@ -19,6 +19,7 @@ import {
 	yookassaConfig,
 	subscriptionConfig,
 	subscriptionBillingConfig,
+	aiUsageLimitsConfig,
 } from '../../src/config';
 import { FeedbackModule } from '../../src/feedback/feedback.module';
 import { HrConnectionModule } from '../../src/hr-connection/hr-connection.module';
@@ -78,6 +79,7 @@ export const mochaHooks = {
 						yookassaConfig,
 						subscriptionConfig,
 						subscriptionBillingConfig,
+						aiUsageLimitsConfig,
 					],
 					isGlobal: true,
 					envFilePath: '.env.test',

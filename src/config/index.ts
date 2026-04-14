@@ -11,3 +11,4 @@ export { yookassaConfig } from './yookassa.config';
 export { subscriptionConfig } from './subscription.config';
 export { subscriptionBillingConfig } from './subscription-billing.config';
 export { interviewTranscriptionConfig } from './interview-transcription.config';
+export { aiUsageLimitsConfig } from './ai-usage-limits.config';
