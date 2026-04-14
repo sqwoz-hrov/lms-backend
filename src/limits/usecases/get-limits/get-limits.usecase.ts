@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
-import { UserWithSubscriptionTier } from '../../../user/user.entity';
+import { UserWithNullableSubscriptionTier } from '../../../user/user.entity';
 import { LimitsResponseDto } from '../../dto/limits-response.dto';
 import { LimitsService } from '../../core/limits.service';
 import { LimitsRepository } from '../../limits.repository';
@@ -12,7 +12,7 @@ export class GetLimitsUsecase implements UsecaseInterface {
 		private readonly limitsRepository: LimitsRepository,
 	) {}
 
-	async execute({ requester }: { requester: UserWithSubscriptionTier }): Promise<LimitsResponseDto> {
+	async execute({ requester }: { requester: UserWithNullableSubscriptionTier }): Promise<LimitsResponseDto> {
 		if (requester.role !== 'subscriber') {
 			return {
 				applied: [],
@@ -20,7 +20,11 @@ export class GetLimitsUsecase implements UsecaseInterface {
 			};
 		}
 
-		const subscriptionTierPower = requester.subscription_tier?.power ?? 1;
+        if (!requester.subscription_tier) {
+            throw new Error('Subscriber user has no subscription tier');
+        }
+
+		const subscriptionTierPower = requester.subscription_tier.power;
 		if (subscriptionTierPower > 0) {
 			return {
 				applied: [],

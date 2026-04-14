@@ -5,6 +5,7 @@ import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { LimitsResponseDto } from '../../dto/limits-response.dto';
 import { GetLimitsUsecase } from './get-limits.usecase';
+import { RequestWithUserNullableSubscriptionTier } from '../../../common/interface/request-with-user-nullable.interface';
 
 @ApiTags('Limits')
 @Controller('limits')
@@ -18,7 +19,7 @@ export class GetLimitsController {
 	})
 	@Get()
 	@HttpCode(HttpStatus.OK)
-	async get(@Req() req: RequestWithUser): Promise<LimitsResponseDto> {
+	async get(@Req() req: RequestWithUserNullableSubscriptionTier): Promise<LimitsResponseDto> {
 		const requester = req['user'];
 
 		return await this.getLimitsUsecase.execute({ requester });
