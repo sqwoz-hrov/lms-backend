@@ -6,6 +6,7 @@ import { Route } from '../../../common/nest/decorators/route.decorator';
 import { InterviewTranscriptionResponseDto } from '../../dto/interview-transcription-response.dto';
 import { StartInterviewTranscriptionDto } from '../../dto/start-interview-transcription.dto';
 import { StartInterviewTranscriptionUsecase } from './start-interview-transcription.usecase';
+import { LimitByFeature } from '../../../limits/common/limits.decorator';
 
 @ApiTags('Interview Transcriptions')
 @Controller('interview-transcriptions')
@@ -13,6 +14,7 @@ import { StartInterviewTranscriptionUsecase } from './start-interview-transcript
 export class StartInterviewTranscriptionController {
 	constructor(private readonly usecase: StartInterviewTranscriptionUsecase) {}
 
+	@LimitByFeature('interview_transcription')
 	@Route({
 		summary: 'Запускает транскрибацию интервью',
 		responseType: InterviewTranscriptionResponseDto,
@@ -28,6 +30,10 @@ export class StartInterviewTranscriptionController {
 			{
 				status: HttpStatus.CONFLICT,
 				description: 'Транскрибация уже запущена для данного интервью',
+			},
+			{
+				status: HttpStatus.TOO_MANY_REQUESTS,
+				description: 'Превышен лимит использования AI для транскрибации интервью',
 			},
 		],
 	})
