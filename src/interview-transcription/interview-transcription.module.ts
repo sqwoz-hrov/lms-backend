@@ -20,13 +20,14 @@ import { RestartInterviewTranscriptionController } from './usecase/restart-trans
 import { RestartInterviewTranscriptionUsecase } from './usecase/restart-transcription/restart-interview-transcription.usecase';
 import { HandleTranscriptionFailedCancelledWebhookController } from './usecase/handle-transcription-failed-cancelled-webhook/handle-transcription-failed-cancelled-webhook.controller';
 import { HandleTranscriptionFailedCancelledWebhookUsecase } from './usecase/handle-transcription-failed-cancelled-webhook/handle-transcription-failed-cancelled-webhook.usecase';
+import { LimitsModule } from '../limits/limits.module';
 
 @Module({})
 export class InterviewTranscriptionModule {
 	static forRoot({ useFakeVmOrchestrator }: { useFakeVmOrchestrator: boolean }): DynamicModule {
 		return {
 			module: InterviewTranscriptionModule,
-			imports: [],
+			imports: [LimitsModule],
 			controllers: [
 				StartInterviewTranscriptionController,
 				RestartInterviewTranscriptionController,

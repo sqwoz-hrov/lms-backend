@@ -1,6 +1,5 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { Kysely } from 'kysely';
 import { expect } from 'chai';
 import {
 	createTestAdmin,
@@ -8,26 +7,27 @@ import {
 	createTestSubscriptionTier,
 	createTestUser,
 } from '../../../../test/fixtures/user.fixture';
+import { createLimitsFixture } from '../../../../test/fixtures/limits.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { aiUsageLimitsConfig, jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
-import { UserAiUsageTable } from '../../ai-usage.entity';
-import { LimitsResponseDto } from '../../dto/limits-response.dto';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
+import { LimitsTestSdk } from '../../test-utils/test.sdk';
 
 describe('[E2E] Get limits usecase', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
-	let limitsConnection: Kysely<{ user_ai_usage: UserAiUsageTable }>;
 	let httpClient: TestHttpClient;
+	let limitsSdk: LimitsTestSdk;
+	let limitsFixture: ReturnType<typeof createLimitsFixture>;
 	let limitsConfig: ConfigType<typeof aiUsageLimitsConfig>;
 
 	before(function (this: ISharedContext) {
 		app = this.app;
 		const db = app.get(DatabaseProvider);
 		usersRepo = new UsersTestRepository(db);
-		limitsConnection = db.getDatabase<{ user_ai_usage: UserAiUsageTable }>();
+		limitsFixture = createLimitsFixture(db);
 		limitsConfig = app.get<ConfigType<typeof aiUsageLimitsConfig>>(aiUsageLimitsConfig.KEY);
 		httpClient = new TestHttpClient(
 			{
@@ -36,40 +36,15 @@ describe('[E2E] Get limits usecase', () => {
 			},
 			app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
 		);
+		limitsSdk = new LimitsTestSdk(httpClient);
 	});
 
 	afterEach(async () => {
 		await usersRepo.clearAll();
 	});
 
-	const getLimits = async ({ userId }: { userId: string }) => {
-		return await httpClient.request<LimitsResponseDto>({
-			path: '/limits',
-			method: 'GET',
-			userMeta: {
-				isAuth: true,
-				isWrongAccessJwt: false,
-				userId,
-			},
-		});
-	};
-
-	const insertUsageRecords = async ({ userId, count }: { userId: string; count: number }) => {
-		for (let i = 0; i < count; i++) {
-			await limitsConnection
-				.insertInto('user_ai_usage')
-				.values({
-					user_id: userId,
-					feature: 'interview_transcription',
-				})
-				.execute();
-		}
-	};
-
 	it('rejects unauthenticated calls', async () => {
-		const res = await httpClient.request<LimitsResponseDto>({
-			path: '/limits',
-			method: 'GET',
+		const res = await limitsSdk.getLimits({
 			userMeta: { isAuth: false },
 		});
 
@@ -78,9 +53,15 @@ describe('[E2E] Get limits usecase', () => {
 
 	it('returns zero limits for admin regardless of usage records', async () => {
 		const admin = await createTestAdmin(usersRepo);
-		await insertUsageRecords({ userId: admin.id, count: 5 });
+		await limitsFixture.insertUsageRecords({ userId: admin.id, count: 5 });
 
-		const res = await getLimits({ userId: admin.id });
+		const res = await limitsSdk.getLimits({
+			userMeta: {
+				isAuth: true,
+				isWrongAccessJwt: false,
+				userId: admin.id,
+			},
+		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
 		if (res.status !== HttpStatus.OK) {
@@ -93,9 +74,15 @@ describe('[E2E] Get limits usecase', () => {
 
 	it('returns zero limits for non-sub user regardless of usage records', async () => {
 		const user = await createTestUser(usersRepo);
-		await insertUsageRecords({ userId: user.id, count: 5 });
+		await limitsFixture.insertUsageRecords({ userId: user.id, count: 5 });
 
-		const res = await getLimits({ userId: user.id });
+		const res = await limitsSdk.getLimits({
+			userMeta: {
+				isAuth: true,
+				isWrongAccessJwt: false,
+				userId: user.id,
+			},
+		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
 		if (res.status !== HttpStatus.OK) {
@@ -108,9 +95,15 @@ describe('[E2E] Get limits usecase', () => {
     
     it('returns zero limits for admin regardless of usage records', async () => {
 		const admin = await createTestAdmin(usersRepo);
-		await insertUsageRecords({ userId: admin.id, count: 5 });
+		await limitsFixture.insertUsageRecords({ userId: admin.id, count: 5 });
 
-		const res = await getLimits({ userId: admin.id });
+		const res = await limitsSdk.getLimits({
+			userMeta: {
+				isAuth: true,
+				isWrongAccessJwt: false,
+				userId: admin.id,
+			},
+		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
 		if (res.status !== HttpStatus.OK) {
@@ -131,9 +124,15 @@ describe('[E2E] Get limits usecase', () => {
 			subscription_tier_id: paidTier.id,
 			is_billable: true,
 		});
-		await insertUsageRecords({ userId: subscriber.id, count: 5 });
+		await limitsFixture.insertUsageRecords({ userId: subscriber.id, count: 5 });
 
-		const res = await getLimits({ userId: subscriber.id });
+		const res = await limitsSdk.getLimits({
+			userMeta: {
+				isAuth: true,
+				isWrongAccessJwt: false,
+				userId: subscriber.id,
+			},
+		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
 		if (res.status !== HttpStatus.OK) {
@@ -155,9 +154,15 @@ describe('[E2E] Get limits usecase', () => {
 			is_billable: false,
 		});
 		const threshold = Math.max(limitsConfig.interviewTranscriptionDaily, limitsConfig.interviewTranscriptionHourly);
-		await insertUsageRecords({ userId: subscriber.id, count: threshold });
+		await limitsFixture.insertUsageRecords({ userId: subscriber.id, count: threshold });
 
-		const res = await getLimits({ userId: subscriber.id });
+		const res = await limitsSdk.getLimits({
+			userMeta: {
+				isAuth: true,
+				isWrongAccessJwt: false,
+				userId: subscriber.id,
+			},
+		});
 
 		expect(res.status).to.equal(HttpStatus.OK);
 		if (res.status !== HttpStatus.OK) {
