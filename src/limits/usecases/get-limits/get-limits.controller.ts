@@ -1,6 +1,5 @@
 import { Controller, Get, HttpCode, HttpStatus, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { RequestWithUser } from '../../../common/interface/request-with-user.interface';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
 import { LimitsResponseDto } from '../../dto/limits-response.dto';

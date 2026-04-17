@@ -92,8 +92,8 @@ describe('[E2E] Get limits usecase', () => {
 		expect(res.body.applied).to.deep.equal([]);
 		expect(res.body.exceeded).to.deep.equal([]);
 	});
-    
-    it('returns zero limits for admin regardless of usage records', async () => {
+
+	it('returns zero limits for admin regardless of usage records', async () => {
 		const admin = await createTestAdmin(usersRepo);
 		await limitsFixture.insertUsageRecords({ userId: admin.id, count: 5 });
 

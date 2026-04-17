@@ -20,9 +20,9 @@ export class GetLimitsUsecase implements UsecaseInterface {
 			};
 		}
 
-        if (!requester.subscription_tier) {
-            throw new Error('Subscriber user has no subscription tier');
-        }
+		if (!requester.subscription_tier) {
+			throw new Error('Subscriber user has no subscription tier');
+		}
 
 		const subscriptionTierPower = requester.subscription_tier.power;
 		if (subscriptionTierPower > 0) {

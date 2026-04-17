@@ -2,7 +2,9 @@ import { expect } from 'chai';
 import { LimitsService } from './limits.service';
 
 describe('LimitsService', () => {
-	const createService = (overrides: Partial<{ interviewTranscriptionHourly: number; interviewTranscriptionDaily: number }> = {}) => {
+	const createService = (
+		overrides: Partial<{ interviewTranscriptionHourly: number; interviewTranscriptionDaily: number }> = {},
+	) => {
 		return new LimitsService({
 			interviewTranscriptionHourly: 2,
 			interviewTranscriptionDaily: 5,

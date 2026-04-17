@@ -4,7 +4,12 @@ import { Queue } from 'bullmq';
 import { expect } from 'chai';
 import { Redis } from 'ioredis';
 import { randomUUID } from 'node:crypto';
-import { createTestAdmin, createTestSubscriber, createTestSubscriptionTier, createTestUser } from '../../../../test/fixtures/user.fixture';
+import {
+	createTestAdmin,
+	createTestSubscriber,
+	createTestSubscriptionTier,
+	createTestUser,
+} from '../../../../test/fixtures/user.fixture';
 import { createTestVideoRecord } from '../../../../test/fixtures/video-db.fixture';
 import { createTestInterviewTranscription } from '../../../../test/fixtures/interview-transcription.fixture';
 import { createLimitsFixture } from '../../../../test/fixtures/limits.fixture';

@@ -59,17 +59,17 @@ export class LimitsInterceptor implements NestInterceptor {
 		}
 
 		await this.limitsRepository.transaction(async trx => {
-			const usageStats = await this.limitsRepository.getUsageStats(
-				{ feature, userId: user.id },
-				trx,
-			);
+			const usageStats = await this.limitsRepository.getUsageStats({ feature, userId: user.id }, trx);
 
 			const exceeded = this.limitsService.getExceededLimitsForUser(feature, usageStats);
 			if (exceeded.length > 0) {
 				const exceededNames = exceeded.map(limit => limit.getName()).join(', ');
-				throw new HttpException({
-					message: `AI usage limit exceeded: ${exceededNames}`,
-				}, 429);
+				throw new HttpException(
+					{
+						message: `AI usage limit exceeded: ${exceededNames}`,
+					},
+					429,
+				);
 			}
 
 			await this.limitsRepository.recordUsage({ feature, userId: user.id }, trx);

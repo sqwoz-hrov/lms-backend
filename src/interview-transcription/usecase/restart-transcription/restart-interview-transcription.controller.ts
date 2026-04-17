@@ -23,7 +23,7 @@ export class RestartInterviewTranscriptionController {
 				status: HttpStatus.TOO_MANY_REQUESTS,
 				description: 'Превышен лимит использования AI для транскрибации интервью',
 			},
-		]
+		],
 	})
 	@Post('restart')
 	@HttpCode(HttpStatus.OK)
