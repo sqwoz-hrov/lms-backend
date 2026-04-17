@@ -12,7 +12,17 @@ export class TelegramService implements OnModuleInit {
 		@Inject(otpBotConfig.KEY)
 		private readonly config: ConfigType<typeof otpBotConfig>,
 	) {
-		this._bot = new TelegramBot(this.config.botToken);
+		const request = this.config.httpProxyUrl
+			? ({
+					proxy: this.config.httpProxyUrl,
+				} as TelegramBot.ConstructorOptions['request'])
+			: undefined;
+
+		const botOptions: TelegramBot.ConstructorOptions = {
+			...(request && { request }),
+		};
+
+		this._bot = new TelegramBot(this.config.botToken, botOptions);
 	}
 
 	get bot() {
