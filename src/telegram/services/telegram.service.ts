@@ -37,7 +37,6 @@ export class TelegramService implements OnModuleInit {
 
 	async onModuleInit() {
 		try {
-			
 			this.logger.log(`Logged in as ${(await this._bot.getMe()).username}`);
 			await this.setWebhook();
 		} catch (error) {
