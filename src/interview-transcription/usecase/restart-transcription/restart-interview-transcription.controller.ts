@@ -6,6 +6,7 @@ import { Route } from '../../../common/nest/decorators/route.decorator';
 import { InterviewTranscriptionResponseDto } from '../../dto/interview-transcription-response.dto';
 import { RestartInterviewTranscriptionDto } from '../../dto/restart-interview-transcription.dto';
 import { RestartInterviewTranscriptionUsecase } from './restart-interview-transcription.usecase';
+import { LimitByFeature } from '../../../limits/common/limits.decorator';
 
 @ApiTags('Interview Transcriptions')
 @Controller('interview-transcriptions')
@@ -13,9 +14,16 @@ import { RestartInterviewTranscriptionUsecase } from './restart-interview-transc
 export class RestartInterviewTranscriptionController {
 	constructor(private readonly usecase: RestartInterviewTranscriptionUsecase) {}
 
+	@LimitByFeature('interview_transcription')
 	@Route({
 		summary: 'Перезапускает транскрибацию интервью',
 		responseType: InterviewTranscriptionResponseDto,
+		possibleErrors: [
+			{
+				status: HttpStatus.TOO_MANY_REQUESTS,
+				description: 'Превышен лимит использования AI для транскрибации интервью',
+			},
+		],
 	})
 	@Post('restart')
 	@HttpCode(HttpStatus.OK)

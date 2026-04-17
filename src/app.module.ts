@@ -14,6 +14,7 @@ import {
 	yookassaConfig,
 	subscriptionConfig,
 	subscriptionBillingConfig,
+	aiUsageLimitsConfig,
 } from './config';
 import { ImageModule } from './image/image.module';
 import { InfraModule } from './infra/infra.module';
@@ -37,6 +38,7 @@ import { PostModule } from './post/post.module';
 import { InterviewTranscriptionModule } from './interview-transcription/interview-transcription.module';
 import { SseModule } from './sse/sse.module';
 import { InterviewTranscriptionReportModule } from './interview-transcription-report/interview-transcription-report.module';
+import { LimitsModule } from './limits/limits.module';
 
 @Module({
 	imports: [
@@ -55,6 +57,7 @@ import { InterviewTranscriptionReportModule } from './interview-transcription-re
 				yookassaConfig,
 				subscriptionConfig,
 				subscriptionBillingConfig,
+				aiUsageLimitsConfig,
 			],
 			isGlobal: true,
 		}),
@@ -80,6 +83,7 @@ import { InterviewTranscriptionReportModule } from './interview-transcription-re
 		PostModule,
 		SseModule,
 		InterviewTranscriptionReportModule,
+		LimitsModule,
 	],
 	controllers: [],
 	providers: [],

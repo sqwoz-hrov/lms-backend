@@ -4,11 +4,17 @@ import { Queue } from 'bullmq';
 import { expect } from 'chai';
 import { Redis } from 'ioredis';
 import { randomUUID } from 'node:crypto';
-import { createTestAdmin, createTestUser } from '../../../../test/fixtures/user.fixture';
+import {
+	createTestAdmin,
+	createTestSubscriber,
+	createTestSubscriptionTier,
+	createTestUser,
+} from '../../../../test/fixtures/user.fixture';
 import { createTestVideoRecord } from '../../../../test/fixtures/video-db.fixture';
+import { createLimitsFixture } from '../../../../test/fixtures/limits.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
-import { jwtConfig } from '../../../config';
+import { aiUsageLimitsConfig, jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { REDIS_CONNECTION_KEY } from '../../../infra/redis.const';
 import { VM_ORCHESTRATOR_ADAPTER, VmOrchestratorAdapter } from '../../ports/vm-orchestrator.adapter';
@@ -26,6 +32,8 @@ describe('[E2E] Start interview transcription usecase', () => {
 	let sdk: InterviewTranscriptionsTestSdk;
 	let vmAdapter: VmOrchestratorAdapter;
 	let queue: Queue;
+	let limitsFixture: ReturnType<typeof createLimitsFixture>;
+	let limitsConfig: ConfigType<typeof aiUsageLimitsConfig>;
 
 	before(function (this: ISharedContext) {
 		app = this.app;
@@ -33,6 +41,8 @@ describe('[E2E] Start interview transcription usecase', () => {
 		usersRepo = new UsersTestRepository(db);
 		videosRepo = new VideosTestRepository(db);
 		transcriptionsRepo = new InterviewTranscriptionsTestRepository(db);
+		limitsFixture = createLimitsFixture(db);
+		limitsConfig = app.get<ConfigType<typeof aiUsageLimitsConfig>>(aiUsageLimitsConfig.KEY);
 		vmAdapter = app.get<VmOrchestratorAdapter>(VM_ORCHESTRATOR_ADAPTER);
 		sdk = new InterviewTranscriptionsTestSdk(
 			new TestHttpClient(
@@ -196,4 +206,63 @@ describe('[E2E] Start interview transcription usecase', () => {
 			expect(await transcriptionsRepo.countByStatus(status)).to.equal(1);
 		});
 	}
+
+	it('returns 429 when free-tier subscriber exceeds AI usage limit and keeps usage records capped at limit', async () => {
+		const threshold = Math.max(limitsConfig.interviewTranscriptionDaily, limitsConfig.interviewTranscriptionHourly);
+		const attempts = threshold + 1;
+
+		const freeTier = await createTestSubscriptionTier(usersRepo, {
+			power: 0,
+			price_rubles: 0,
+			tier: 'free',
+		});
+		const owner = await createTestSubscriber(usersRepo, {
+			subscription_tier_id: freeTier.id,
+			is_billable: false,
+		});
+
+		const videos = await Promise.all(
+			Array.from({ length: attempts }, () => createTestVideoRecord(videosRepo, owner.id)),
+		);
+
+		for (const video of videos.slice(0, threshold)) {
+			const res = await sdk.startTranscription({
+				params: { video_id: video.id },
+				userMeta: {
+					isAuth: true,
+					isWrongAccessJwt: false,
+					userId: owner.id,
+				},
+			});
+
+			expect(res.status).to.equal(HttpStatus.CREATED);
+		}
+
+		const exceededRes = await sdk.startTranscription({
+			params: { video_id: videos[threshold].id },
+			userMeta: {
+				isAuth: true,
+				isWrongAccessJwt: false,
+				userId: owner.id,
+			},
+		});
+
+		if (exceededRes.status !== HttpStatus.TOO_MANY_REQUESTS) {
+			throw new Error('Expected 429 Too Many Requests when AI usage limit is exceeded');
+		}
+
+		expect(exceededRes.status).to.equal(429);
+		const exceededBody = exceededRes.body as { description: string };
+		expect(exceededBody.description).to.contain('AI usage limit exceeded');
+		expect(exceededBody.description).to.contain(
+			`interview_transcription_daily_${limitsConfig.interviewTranscriptionDaily}`,
+		);
+		expect(exceededBody.description).to.contain(
+			`interview_transcription_hourly_${limitsConfig.interviewTranscriptionHourly}`,
+		);
+
+		const usageCount = await limitsFixture.countUsageRecords({ userId: owner.id });
+
+		expect(usageCount).to.equal(threshold);
+	});
 });

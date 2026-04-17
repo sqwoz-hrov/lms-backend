@@ -29,7 +29,7 @@ interface RequestOptions {
 	userMeta: UserMeta;
 }
 type SuccessStatus = 200 | 201 | 202 | 203 | 205 | 206 | 207 | 208 | 226;
-type ErrorStatus = 400 | 401 | 402 | 403 | 404 | 500;
+type ErrorStatus = 400 | 401 | 402 | 403 | 404 | 405 | 409 | 410 | 412 | 413 | 415 | 422 | 429 | 500 | 502 | 503;
 
 type RequestResultOk<TResponse> = {
 	status: SuccessStatus;
