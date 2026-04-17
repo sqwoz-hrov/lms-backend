@@ -12,7 +12,17 @@ export class TelegramService implements OnModuleInit {
 		@Inject(otpBotConfig.KEY)
 		private readonly config: ConfigType<typeof otpBotConfig>,
 	) {
-		this._bot = new TelegramBot(this.config.botToken);
+		const request = this.config.httpProxyUrl
+			? ({
+					proxy: this.config.httpProxyUrl,
+				} as TelegramBot.ConstructorOptions['request'])
+			: undefined;
+
+		const botOptions: TelegramBot.ConstructorOptions = {
+			...(request && { request }),
+		};
+
+		this._bot = new TelegramBot(this.config.botToken, botOptions);
 	}
 
 	get bot() {
@@ -26,7 +36,12 @@ export class TelegramService implements OnModuleInit {
 	}
 
 	async onModuleInit() {
-		this.logger.log(`Logged in as ${(await this._bot.getMe()).username}`);
-		await this.setWebhook();
+		try {
+			this.logger.log(`Logged in as ${(await this._bot.getMe()).username}`);
+			await this.setWebhook();
+		} catch (error) {
+			this.logger.error('Error during Telegram bot initialization', error);
+			throw error;
+		}
 	}
 }

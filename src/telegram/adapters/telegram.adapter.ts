@@ -24,9 +24,11 @@ export class TelegramAdapter implements IOTPSender<'telegram'> {
 			await this.sendMessageInternal(chatId, text, options);
 			return true;
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			const stackTrace = error instanceof Error ? error.stack : undefined;
-			this.logger.error(`Error while sending message to Telegram, ${errorMessage}`, stackTrace);
+			const errorInfo = this.getErrorInfo(error);
+			this.logger.error(
+				`Error while sending message to Telegram (chatId=${chatId}, code=${errorInfo.code ?? 'unknown'}, errorNumber=${errorInfo.errorNumber ?? 'unknown'}): ${errorInfo.message}`,
+				errorInfo.stack,
+			);
 			return false;
 		}
 	}
@@ -35,7 +37,7 @@ export class TelegramAdapter implements IOTPSender<'telegram'> {
 		const text = `Ваш код для авторизации: ${otp.asString}`;
 		const isSent = await this.sendMessage(to.telegram_id, text);
 		if (!isSent) {
-			this.logger.error('Error while sending OTP via Telegram');
+			this.logger.error(`Error while sending OTP via Telegram (telegram_id=${to.telegram_id})`);
 		}
 		return isSent;
 	}
@@ -54,13 +56,41 @@ export class TelegramAdapter implements IOTPSender<'telegram'> {
 			await this.bot.sendMessage(chatId, text, options);
 		} catch (error) {
 			if (this.isRecoverableNetworkError(error)) {
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				const stackTrace = error instanceof Error ? error.stack : undefined;
-				this.logger.warn(`Recoverable Telegram send error detected, retrying: ${errorMessage}`, stackTrace);
+				const errorInfo = this.getErrorInfo(error);
+				this.logger.warn(
+					`Recoverable Telegram send error detected, retrying (chatId=${chatId}, code=${errorInfo.code ?? 'unknown'}, errorNumber=${errorInfo.errorNumber ?? 'unknown'}): ${errorInfo.message}`,
+					errorInfo.stack,
+				);
 				throw new RetryableError('Recoverable Telegram send error', { cause: error as Error });
 			}
 			throw error;
 		}
+	}
+
+	private getErrorInfo(error: unknown): {
+		message: string;
+		stack?: string;
+		code?: string;
+		errorNumber?: string | number;
+	} {
+		if (!(error instanceof Error)) {
+			return { message: String(error) };
+		}
+
+		const typedError = error as Error & {
+			code?: string;
+			errno?: string | number;
+			response?: { body?: { description?: string } };
+		};
+		const responseDescription = typedError.response?.body?.description;
+		const message = responseDescription ? `${typedError.message} - ${responseDescription}` : typedError.message;
+
+		return {
+			message,
+			stack: typedError.stack,
+			code: typedError.code,
+			errorNumber: typedError.errno,
+		};
 	}
 
 	private isRecoverableNetworkError(error: unknown): boolean {
