@@ -83,7 +83,7 @@ export class TelegramAdapter implements IOTPSender<'telegram'> {
 			response?: { body?: { description?: string } };
 		};
 		const responseDescription = typedError.response?.body?.description;
-		const message = responseDescription ? `${typedError.message}; ${responseDescription}` : typedError.message;
+		const message = responseDescription ? `${typedError.message} - ${responseDescription}` : typedError.message;
 
 		return {
 			message,
