@@ -26,7 +26,7 @@ export class TelegramAdapter implements IOTPSender<'telegram'> {
 		} catch (error) {
 			const errorInfo = this.getErrorInfo(error);
 			this.logger.error(
-				`Error while sending message to Telegram (chatId=${chatId}, code=${errorInfo.code ?? 'unknown'}, errno=${errorInfo.errno ?? 'unknown'}): ${errorInfo.message}`,
+				`Error while sending message to Telegram (chatId=${chatId}, code=${errorInfo.code ?? 'unknown'}, errorNumber=${errorInfo.errorNumber ?? 'unknown'}): ${errorInfo.message}`,
 				errorInfo.stack,
 			);
 			return false;
@@ -58,7 +58,7 @@ export class TelegramAdapter implements IOTPSender<'telegram'> {
 			if (this.isRecoverableNetworkError(error)) {
 				const errorInfo = this.getErrorInfo(error);
 				this.logger.warn(
-					`Recoverable Telegram send error detected, retrying (chatId=${chatId}, code=${errorInfo.code ?? 'unknown'}, errno=${errorInfo.errno ?? 'unknown'}): ${errorInfo.message}`,
+					`Recoverable Telegram send error detected, retrying (chatId=${chatId}, code=${errorInfo.code ?? 'unknown'}, errorNumber=${errorInfo.errorNumber ?? 'unknown'}): ${errorInfo.message}`,
 					errorInfo.stack,
 				);
 				throw new RetryableError('Recoverable Telegram send error', { cause: error as Error });
@@ -71,7 +71,7 @@ export class TelegramAdapter implements IOTPSender<'telegram'> {
 		message: string;
 		stack?: string;
 		code?: string;
-		errno?: string | number;
+		errorNumber?: string | number;
 	} {
 		if (!(error instanceof Error)) {
 			return { message: String(error) };
@@ -89,7 +89,7 @@ export class TelegramAdapter implements IOTPSender<'telegram'> {
 			message,
 			stack: typedError.stack,
 			code: typedError.code,
-			errno: typedError.errno,
+			errorNumber: typedError.errno,
 		};
 	}
 
