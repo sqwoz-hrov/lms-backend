@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import {
+	aiUsageLimitsConfig,
 	appConfig,
 	dbConfig,
 	imageStorageConfig,
@@ -10,35 +11,35 @@ import {
 	otpConfig,
 	redisConfig,
 	s3Config,
-	tensordockConfig,
-	yookassaConfig,
-	subscriptionConfig,
 	subscriptionBillingConfig,
-	aiUsageLimitsConfig,
+	subscriptionConfig,
+	tensordockConfig,
+	videoUploadWorkflowConfig,
+	yookassaConfig,
 } from './config';
+import { FeedbackModule } from './feedback/feedback.module';
+import { HrConnectionModule } from './hr-connection/hr-connection.module';
 import { ImageModule } from './image/image.module';
 import { InfraModule } from './infra/infra.module';
+import { InterviewTranscriptionReportModule } from './interview-transcription-report/interview-transcription-report.module';
+import { InterviewTranscriptionModule } from './interview-transcription/interview-transcription.module';
+import { InterviewModule } from './interview/interview.module';
 import { JournalRecordModule } from './journal-record/journal-record.module';
+import { LimitsModule } from './limits/limits.module';
 import { MarkdownContentModule } from './markdown-content/markdown-content.module';
 import { MaterialModule } from './material/material.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { PaymentModule } from './payment/payment.module';
+import { PostModule } from './post/post.module';
+import { SseModule } from './sse/sse.module';
 import { SubjectModule } from './subject/subject.module';
+import { SubscriptionTierModule } from './subscription-tier/subscription-tier.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 import { TaskModule } from './task/task.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { UserModule } from './user/user.module';
 import { VideoModule } from './video/video.module';
-import { HrConnectionModule } from './hr-connection/hr-connection.module';
-import { InterviewModule } from './interview/interview.module';
-import { FeedbackModule } from './feedback/feedback.module';
-import { MetricsModule } from './metrics/metrics.module';
-import { SubscriptionModule } from './subscription/subscription.module';
-import { SubscriptionTierModule } from './subscription-tier/subscription-tier.module';
 import { YookassaModule } from './yookassa/yookassa.module';
-import { PaymentModule } from './payment/payment.module';
-import { PostModule } from './post/post.module';
-import { InterviewTranscriptionModule } from './interview-transcription/interview-transcription.module';
-import { SseModule } from './sse/sse.module';
-import { InterviewTranscriptionReportModule } from './interview-transcription-report/interview-transcription-report.module';
-import { LimitsModule } from './limits/limits.module';
 
 @Module({
 	imports: [
@@ -58,6 +59,7 @@ import { LimitsModule } from './limits/limits.module';
 				subscriptionConfig,
 				subscriptionBillingConfig,
 				aiUsageLimitsConfig,
+				videoUploadWorkflowConfig,
 			],
 			isGlobal: true,
 		}),

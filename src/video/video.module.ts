@@ -11,6 +11,7 @@ import { VideoRepository } from './video.repoistory';
 import { FormidableTimingProbe } from '../common/testing/formidable-timing-probe';
 import { ResumeUploadsUsecase } from './usecase/resume-uploads/resume-uploads.usecase';
 import { WorkflowRunnerService } from './services/workflow-runner.service';
+import { VideoUploadWorkflowPolicyService } from './services/video-upload-workflow-policy.service';
 
 @Module({
 	controllers: [GetVideoController, UploadVideoController],
@@ -20,6 +21,7 @@ import { WorkflowRunnerService } from './services/workflow-runner.service';
 		VideoStorageService,
 		VideoTranscoderService,
 		WorkflowRunnerService,
+		VideoUploadWorkflowPolicyService,
 		GetVideoUsecase,
 		ResumeUploadsUsecase,
 		UploadVideoUsecase,

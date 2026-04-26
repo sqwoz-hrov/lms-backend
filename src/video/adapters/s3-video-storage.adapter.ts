@@ -1,4 +1,10 @@
-import { GetObjectCommand, HeadObjectCommand, S3Client, S3ServiceException } from '@aws-sdk/client-s3';
+import {
+	DeleteObjectCommand,
+	GetObjectCommand,
+	HeadObjectCommand,
+	S3Client,
+	S3ServiceException,
+} from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
@@ -125,6 +131,21 @@ export class S3VideoStorageAdapter implements IS3VideoStorageAdapter {
 		} catch (error) {
 			this.logger.error('Error uploading transcription audio to S3:', error);
 			throw new Error('Failed to upload transcription audio to S3');
+		}
+	}
+
+	async deleteTranscriptionAudioObject(input: { key: string }): Promise<void> {
+		try {
+			await this.s3Client.send(
+				new DeleteObjectCommand({
+					Bucket: this.config.transcriptionAudioBucketName,
+					Key: input.key,
+				}),
+			);
+			this.logger.log(`Transcription audio deleted: ${input.key}`);
+		} catch (error) {
+			this.logger.error(`Error deleting transcription audio from S3: ${input.key}`, error as Error);
+			throw new Error('Failed to delete transcription audio from S3');
 		}
 	}
 

@@ -1,4 +1,4 @@
-import type { PhaseHandler, PhaseHandleResult } from '../ports/phase-handler';
+import type { PhaseCompensateContext, PhaseHandler, PhaseHandleResult } from '../ports/phase-handler';
 import type { Video } from '../video.entity';
 import * as fs from 'fs';
 import { sha256File } from '../utils/sha-256-file';
@@ -21,5 +21,9 @@ export class HashingHandler implements PhaseHandler {
 		await this.videoRepo.setChecksum(video.id, checksum);
 
 		return { kind: 'advance', nextPhase: 'uploading_s3' };
+	}
+
+	compensate(_video: Video, _error: Error, _context: PhaseCompensateContext): void {
+		// Hashing is idempotent and has no external side effects to roll back.
 	}
 }

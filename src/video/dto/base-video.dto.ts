@@ -116,6 +116,32 @@ export class BaseVideoDto {
 	})
 	@IsDateString()
 	created_at: Date;
+
+	@ApiPropertyOptional({
+		description: 'Фаза, на которой загрузка завершилась ошибкой',
+		enum: UploadPhaseEnum,
+		nullable: true,
+	})
+	@IsOptional()
+	@IsEnum(UploadPhaseEnum)
+	upload_failed_phase?: UploadPhase | null;
+
+	@ApiPropertyOptional({
+		description: 'Причина, по которой загрузка завершилась ошибкой',
+		nullable: true,
+	})
+	@IsOptional()
+	@IsString()
+	upload_failed_reason?: string | null;
+
+	@ApiPropertyOptional({
+		description: 'Когда загрузка перешла в терминальное состояние failed',
+		format: 'date-time',
+		nullable: true,
+	})
+	@IsOptional()
+	@IsDateString()
+	upload_failed_at?: Date | null;
 }
 
 export class VideoResponseDto extends BaseVideoDto {}
@@ -125,4 +151,66 @@ export class GetVideoByIdResponseDto extends BaseVideoDto {
 		description: 'Подписанная ссылка доступа с ограниченным временем доступа',
 	})
 	video_url?: string;
+}
+
+export class VideoUploadStatusResponseDto {
+	@ApiProperty({ description: 'ID upload-сессии' })
+	@IsString()
+	@IsNotEmpty()
+	sessionId: string;
+
+	@ApiProperty({ enum: UploadPhaseEnum, description: 'Текущая фаза загрузки' })
+	@IsEnum(UploadPhaseEnum)
+	phase: UploadPhase;
+
+	@ApiProperty({ description: 'Текущий offset в байтах', example: '2097152' })
+	@IsString()
+	@Matches(NUMERIC_STRING, { message: 'offset must be a non-negative integer string' })
+	offset: string;
+
+	@ApiProperty({ description: 'Общий размер файла в байтах', example: '10737418240' })
+	@IsString()
+	@Matches(NUMERIC_STRING, { message: 'total_size must be a non-negative integer string' })
+	total_size: string;
+
+	@ApiProperty({ description: 'Уже загруженные диапазоны', type: [UploadedRangeDto] })
+	@IsArray()
+	@ValidateNested({ each: true })
+	@Type(() => UploadedRangeDto)
+	ranges: UploadedRangeDto[];
+
+	@ApiPropertyOptional({
+		enum: UploadPhaseEnum,
+		nullable: true,
+		description: 'Фаза, для которой ведётся счётчик ретраев',
+	})
+	@IsOptional()
+	@IsEnum(UploadPhaseEnum)
+	retry_phase?: UploadPhase | null;
+
+	@ApiProperty({ description: 'Текущее число подряд неудачных попыток для retry_phase', example: 1 })
+	@IsInt()
+	@Min(0)
+	retry_count: number;
+
+	@ApiPropertyOptional({ description: 'Лимит дополнительных ретраев для указанной фазы', nullable: true, example: 2 })
+	@IsOptional()
+	@IsInt()
+	@Min(0)
+	retry_limit?: number | null;
+
+	@ApiPropertyOptional({ enum: UploadPhaseEnum, nullable: true, description: 'Фаза терминального падения' })
+	@IsOptional()
+	@IsEnum(UploadPhaseEnum)
+	failed_phase?: UploadPhase | null;
+
+	@ApiPropertyOptional({ description: 'Последняя причина терминального падения', nullable: true })
+	@IsOptional()
+	@IsString()
+	failed_reason?: string | null;
+
+	@ApiPropertyOptional({ description: 'Время терминального падения', format: 'date-time', nullable: true })
+	@IsOptional()
+	@IsDateString()
+	failed_at?: Date | null;
 }

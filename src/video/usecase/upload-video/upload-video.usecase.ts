@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+	BadRequestException,
+	ConflictException,
+	ForbiddenException,
+	Injectable,
+	Logger,
+	NotFoundException,
+} from '@nestjs/common';
 import type { Readable } from 'stream';
 import { ChunkUploadService } from '../../services/chunk-upload.service';
 import { VideoRepository } from '../../video.repoistory';
@@ -10,6 +17,8 @@ import { allocateTmpPath } from '../../utils/allocate-tmp-path';
 import type { UploadedRange, Video } from '../../video.entity';
 import { WorkflowRunnerService } from '../../services/workflow-runner.service';
 import type { VideoResponseDto } from '../../dto/base-video.dto';
+import type { UserRole } from '../../../user/user.entity';
+import { VideoUploadWorkflowPolicyService } from '../../services/video-upload-workflow-policy.service';
 
 export type UploadExecuteInput = {
 	userId: string;
@@ -42,6 +51,7 @@ export class UploadVideoUsecase {
 		private readonly chunks: ChunkUploadService,
 		private readonly videoRepo: VideoRepository,
 		private readonly runner: WorkflowRunnerService,
+		private readonly workflowPolicy: VideoUploadWorkflowPolicyService,
 	) {}
 
 	async execute(input: UploadExecuteInput): Promise<UploadExecuteResult> {
@@ -66,6 +76,9 @@ export class UploadVideoUsecase {
 
 		let video = await this.videoRepo.findById(videoId);
 		if (!video) throw new BadRequestException('Video upload not found');
+		if (video.phase === 'failed') {
+			throw new ConflictException('Upload session has already failed. Start a new upload session.');
+		}
 
 		if (video.total_size !== String(input.chunk.totalSize)) {
 			throw new BadRequestException('Total size mismatch');
@@ -112,15 +125,29 @@ export class UploadVideoUsecase {
 		return base;
 	}
 
-	async getStatus(sessionId: string) {
-		const s = await this.videoRepo.findById(sessionId);
+	async getStatus(input: { sessionId: string; requester: { id: string; role: UserRole } }) {
+		const s = await this.videoRepo.findById(input.sessionId);
 		if (!s) throw new NotFoundException('Upload session not found');
+
+		if (input.requester.role !== 'admin' && s.user_id !== input.requester.id) {
+			throw new ForbiddenException("You don't have rights to access this upload session");
+		}
+
+		const retryPhase = s.workflow_retry_phase ?? (s.phase === 'failed' ? s.upload_failed_phase : s.phase);
+		const retryLimit = this.workflowPolicy.retryLimitForPersistedPhase(retryPhase);
+
 		return {
 			sessionId: s.id,
 			phase: s.phase,
 			offset: s.upload_offset,
 			total_size: s.total_size,
 			ranges: s.uploaded_ranges,
+			retry_phase: s.workflow_retry_phase,
+			retry_count: s.workflow_retry_count,
+			retry_limit: retryLimit,
+			failed_phase: s.upload_failed_phase,
+			failed_reason: s.upload_failed_reason,
+			failed_at: s.upload_failed_at,
 		};
 	}
 

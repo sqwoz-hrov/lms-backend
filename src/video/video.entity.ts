@@ -21,6 +21,13 @@ export type VideoTable = {
 	checksum_sha256_base64: string | null;
 	storage_key: string | null;
 	transcription_audio_storage_key: string | null;
+	workflow_retry_phase: UploadPhase | null;
+	workflow_retry_count: Generated<number>;
+	workflow_last_error: string | null;
+	workflow_last_error_at: Timestamp | null;
+	upload_failed_phase: UploadPhase | null;
+	upload_failed_reason: string | null;
+	upload_failed_at: Timestamp | null;
 	created_at: Generated<Timestamp>;
 };
 
