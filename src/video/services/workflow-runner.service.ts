@@ -10,6 +10,8 @@ import { TerminalHandler } from '../workflow-phases/terminal.handler';
 import { VideoStorageService } from './video-storage.service';
 import { VideoTranscoderService } from './video-transcoder.service';
 import { SseService } from '../../sse/sse.service';
+import { VideoUploadWorkflowPolicyService } from './video-upload-workflow-policy.service';
+import type { PhaseCompensateContext } from '../ports/phase-handler';
 
 export type AdvanceResult = {
 	videoId: string;
@@ -28,6 +30,7 @@ export class WorkflowRunnerService {
 		private readonly videoRepo: VideoRepository,
 		private readonly storage: VideoStorageService,
 		private readonly transcoder: VideoTranscoderService,
+		private readonly workflowPolicy: VideoUploadWorkflowPolicyService,
 		@Inject(SseService)
 		private readonly sseService: SseService,
 	) {
@@ -97,7 +100,10 @@ export class WorkflowRunnerService {
 				return { toPhase: video.phase, didWork: false, terminal: false };
 			}
 
-			const updated = await this.videoRepo.setPhase(video.id, res.nextPhase);
+			const updated = await this.videoRepo.setPhase(video.id, res.nextPhase, {
+				clearWorkflowFailureState: true,
+				clearTerminalFailureState: true,
+			});
 			this.logger.log(
 				`Advanced video ${video.id} from phase=${video.phase} to phase=${updated.phase} via ${logicalPhase}`,
 			);
@@ -110,15 +116,42 @@ export class WorkflowRunnerService {
 				terminal: updated.phase === 'completed' || updated.phase === 'failed',
 			};
 		} catch (e) {
+			const error = this.ensureError(e);
+			const persistedPhase = this.toPersistedPhase(logicalPhase);
+			const failureState = await this.videoRepo.recordWorkflowFailure(video.id, persistedPhase, error.message);
+			const retryLimit = this.workflowPolicy.retryLimitForPhase(logicalPhase);
+			const exhausted = failureState.workflow_retry_count > retryLimit;
+
+			const compensateContext: PhaseCompensateContext = {
+				phase: logicalPhase,
+				retryCount: failureState.workflow_retry_count,
+				retryLimit,
+				exhausted,
+			};
+			await this.runCompensation(handler, video, error, compensateContext);
+
 			this.logger.error(
-				`Phase handler failed for video ${video.id} (phase=${video.phase}): ${(e as Error).message}`,
-				e as Error,
+				`Phase handler failed for video ${video.id} (phase=${video.phase}) retry=${failureState.workflow_retry_count}/${retryLimit}: ${error.message}`,
+				error,
 			);
-			const failed = await this.videoRepo.setPhase(video.id, 'failed');
-			if (failed.phase !== video.phase) {
-				this.emitVideoPhaseChanged(failed);
+
+			if (exhausted) {
+				const failed = await this.videoRepo.markUploadFailedTerminal(video.id, persistedPhase, error.message);
+				if (failed.phase !== video.phase) {
+					this.emitVideoPhaseChanged(failed);
+				}
+				return { toPhase: failed.phase, didWork: true, terminal: true };
 			}
-			return { toPhase: failed.phase, didWork: true, terminal: true };
+
+			const retryIndex = failureState.workflow_retry_count;
+			const backoffMs = this.workflowPolicy.computeBackoffMs(retryIndex);
+			if (backoffMs > 0) {
+				this.logger.warn(
+					`Scheduling retry for video ${video.id} phase=${video.phase} in ${backoffMs}ms (retryIndex=${retryIndex})`,
+				);
+				await this.sleep(backoffMs);
+			}
+			return { toPhase: video.phase, didWork: true, terminal: false };
 		}
 	}
 
@@ -135,5 +168,43 @@ export class WorkflowRunnerService {
 			videoId: video.id,
 			phase: video.phase,
 		});
+	}
+
+	private toPersistedPhase(phase: Phase): UploadPhase {
+		if (phase === 'receiving-gate') {
+			return 'receiving';
+		}
+		return phase;
+	}
+
+	private ensureError(error: unknown): Error {
+		if (error instanceof Error) {
+			return error;
+		}
+		return new Error(String(error));
+	}
+
+	private async runCompensation(
+		handler: PhaseHandler,
+		video: Video,
+		error: Error,
+		context: PhaseCompensateContext,
+	): Promise<void> {
+		if (!handler.compensate) {
+			return;
+		}
+
+		try {
+			await handler.compensate(video, error, context);
+		} catch (compensateError) {
+			this.logger.error(
+				`Compensation failed for video ${video.id} (phase=${context.phase}): ${this.ensureError(compensateError).message}`,
+				this.ensureError(compensateError),
+			);
+		}
+	}
+
+	private async sleep(ms: number): Promise<void> {
+		await new Promise(resolve => setTimeout(resolve, ms));
 	}
 }

@@ -1,4 +1,4 @@
-import type { PhaseHandleResult, PhaseHandler } from '../ports/phase-handler';
+import type { PhaseCompensateContext, PhaseHandleResult, PhaseHandler } from '../ports/phase-handler';
 import type { Video } from '../video.entity';
 import * as fs from 'fs';
 import { VideoRepository } from '../video.repoistory';
@@ -38,5 +38,25 @@ export class ConvertingHandler implements PhaseHandler {
 		}
 
 		return { kind: 'advance', nextPhase: 'hashing' };
+	}
+
+	compensate(video: Video, _error: Error, _context: PhaseCompensateContext): void {
+		const candidates = new Set<string>();
+		if (video.converted_tmp_path) {
+			candidates.add(video.converted_tmp_path);
+		}
+		if (video.tmp_path) {
+			candidates.add(this.transcoder.buildTranscriptionAudioOutputPath(video.tmp_path));
+		}
+
+		for (const filePath of candidates) {
+			try {
+				if (fs.existsSync(filePath)) {
+					fs.unlinkSync(filePath);
+				}
+			} catch {
+				// Best-effort cleanup only.
+			}
+		}
 	}
 }

@@ -1,4 +1,4 @@
-import type { PhaseHandler, PhaseHandleResult } from '../ports/phase-handler';
+import type { PhaseCompensateContext, PhaseHandler, PhaseHandleResult } from '../ports/phase-handler';
 import type { Video } from '../video.entity';
 import * as fs from 'fs';
 import { detectVideoMime } from '../utils/detect-video-mimetype';
@@ -87,5 +87,34 @@ export class UploadingS3Handler implements PhaseHandler {
 		}
 
 		return { kind: 'advance', nextPhase: 'completed' };
+	}
+
+	async compensate(video: Video, _error: Error, context: PhaseCompensateContext): Promise<void> {
+		if (!context.exhausted) {
+			return;
+		}
+
+		try {
+			await this.storage.deleteTranscriptionAudioByVideoId(video.id);
+		} catch {
+			// Best-effort cleanup only.
+		}
+
+		const cleanupPaths = new Set<string>();
+		if (video.tmp_path) cleanupPaths.add(video.tmp_path);
+		if (video.converted_tmp_path) cleanupPaths.add(video.converted_tmp_path);
+		if (video.tmp_path) {
+			cleanupPaths.add(this.transcoder.buildTranscriptionAudioOutputPath(video.tmp_path));
+		}
+
+		for (const filePath of cleanupPaths) {
+			try {
+				if (fs.existsSync(filePath)) {
+					fs.unlinkSync(filePath);
+				}
+			} catch {
+				// Best-effort cleanup only.
+			}
+		}
 	}
 }

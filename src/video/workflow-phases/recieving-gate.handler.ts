@@ -1,4 +1,4 @@
-import type { PhaseHandler, PhaseHandleResult } from '../ports/phase-handler';
+import type { PhaseCompensateContext, PhaseHandler, PhaseHandleResult } from '../ports/phase-handler';
 import type { Video } from '../video.entity';
 import { calcOffsetFromRanges } from '../utils/calc-offset-from-ranges';
 import * as fs from 'fs';
@@ -17,5 +17,9 @@ export class ReceivingGateHandler implements PhaseHandler {
 		}
 
 		return { kind: 'advance', nextPhase: 'converting' };
+	}
+
+	compensate(_video: Video, _error: Error, _context: PhaseCompensateContext): void {
+		// No side effects in receiving-gate phase to compensate.
 	}
 }

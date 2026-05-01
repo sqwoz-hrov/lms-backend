@@ -106,6 +106,16 @@ export class VideoStorageService {
 		}
 	}
 
+	public async deleteTranscriptionAudioByVideoId(videoId: string): Promise<void> {
+		const key = buildTranscriptionAudioStorageKey(videoId);
+		try {
+			await this.s3Storage.deleteTranscriptionAudioObject({ key });
+		} catch (err) {
+			this.logger.warn(`Failed to delete transcription audio for video ${videoId}: ${(err as Error).message}`);
+			throw err;
+		}
+	}
+
 	private closeStreamSafely(stream: Readable | Writable | null | undefined, label: string): boolean {
 		if (!stream) return false;
 		try {

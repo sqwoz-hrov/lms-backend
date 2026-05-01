@@ -1,19 +1,48 @@
-import { Controller, HttpCode, HttpStatus, Post, Req, Res, BadRequestException, Headers } from '@nestjs/common';
+import {
+	Controller,
+	Get,
+	HttpCode,
+	HttpStatus,
+	Post,
+	Req,
+	Res,
+	BadRequestException,
+	Headers,
+	Param,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
-import { VideoResponseDto } from '../../dto/base-video.dto';
+import { VideoResponseDto, VideoUploadStatusResponseDto } from '../../dto/base-video.dto';
 import { RequestWithFile } from '../../../common/interface/request-with-files.interface';
 import { UploadVideoUsecase } from './upload-video.usecase';
 import { RouteWithFileUpload } from '../../../common/nest/decorators/file-upload-route.decorator';
 import { parseContentRange } from '../../utils/parse-content-range';
 import { RequestWithUser } from '../../../common/interface/request-with-user.interface';
+import { Route } from '../../../common/nest/decorators/route.decorator';
 
 @ApiTags('Videos')
 @Controller('videos')
 @Roles('admin', 'user')
 export class UploadVideoController {
 	constructor(private readonly uploadVideoUsecase: UploadVideoUsecase) {}
+
+	@Route({
+		summary: 'Возвращает состояние upload-сессии видео',
+		responseType: VideoUploadStatusResponseDto,
+		isArray: false,
+	})
+	@Get('uploads/:id')
+	@HttpCode(HttpStatus.OK)
+	async getStatus(@Param('id') sessionId: string, @Req() req: RequestWithUser): Promise<VideoUploadStatusResponseDto> {
+		return await this.uploadVideoUsecase.getStatus({
+			sessionId,
+			requester: {
+				id: req.user.id,
+				role: req.user.role,
+			},
+		});
+	}
 
 	@RouteWithFileUpload({
 		summary: 'Загружает видео (resumable, chunked, compressed)',

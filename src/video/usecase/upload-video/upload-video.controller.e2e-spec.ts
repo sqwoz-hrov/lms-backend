@@ -14,12 +14,14 @@ import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { VideoStorageService } from '../../services/video-storage.service';
 import { VideosTestRepository } from '../../test-utils/test.repo';
 import { UploadChunkHeaders, VideosTestSdk } from '../../test-utils/test.sdk';
+import { VideoRepository } from '../../video.repoistory';
 
 describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
 	let videoTestRepo: VideosTestRepository;
 	let videoTestSdk: VideosTestSdk;
+	let httpClient: TestHttpClient;
 	let jwtConf: ConfigType<typeof jwtConfig>;
 
 	let s3: S3Client;
@@ -29,6 +31,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 
 	let storageSvc: VideoStorageService;
 	let s3UploadSpy: sinon.SinonSpy;
+	let videoRepo: VideoRepository;
 
 	const rangeHeader = (start: number, end: number, total: number) => `bytes ${start}-${end}/${total}`;
 
@@ -132,6 +135,14 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		});
 	}
 
+	async function getUploadStatus(sessionId: string, userMeta: UserMeta) {
+		return await httpClient.request({
+			path: `/videos/uploads/${sessionId}`,
+			method: 'GET',
+			userMeta,
+		});
+	}
+
 	before(function (this: ISharedContext) {
 		app = this.app;
 
@@ -140,7 +151,8 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		videoTestRepo = new VideosTestRepository(kysely);
 
 		jwtConf = app.get(jwtConfig.KEY);
-		videoTestSdk = new VideosTestSdk(new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }, jwtConf));
+		httpClient = new TestHttpClient({ port: 3000, host: 'http://127.0.0.1' }, jwtConf);
+		videoTestSdk = new VideosTestSdk(httpClient);
 
 		const s3Conf = app.get<ConfigType<typeof s3Config>>(s3Config.KEY);
 		S3_HOT_BUCKET = s3Conf.videosHotBucketName;
@@ -158,6 +170,7 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 
 		storageSvc = app.get(VideoStorageService);
 		s3UploadSpy = sinon.spy(storageSvc, 'findOrUploadByChecksum');
+		videoRepo = app.get(VideoRepository);
 	});
 
 	afterEach(() => {
@@ -227,6 +240,77 @@ describe('[E2E] Upload Video — resumable via MinIO (async S3, no compression)'
 		);
 		expect(audioObject).to.be.an('object');
 		expect(audioObject?.contentType).to.equal('audio/wav');
+	});
+
+	it('returns upload status with retry/failure fields for active uploads', async function () {
+		const admin = await createTestAdmin(usersRepo);
+		const { part1, total } = twoPartReal('mkv');
+		const res = await uploadChunkRaw({
+			filename: 'status' + extFor('mkv'),
+			file: part1,
+			start: 0,
+			end: part1.length - 1,
+			total,
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+		});
+
+		expect(res.status).to.equal(HttpStatus.NO_CONTENT);
+		const sessionId = res.headers.get('upload-session-id') as string;
+		expect(sessionId).to.be.a('string');
+
+		const statusRes = await getUploadStatus(sessionId, { userId: admin.id, isAuth: true, isWrongAccessJwt: false });
+
+		expect(statusRes.status).to.equal(HttpStatus.OK);
+		if (statusRes.status != 200) throw new Error();
+		expect(statusRes.body.sessionId).to.equal(sessionId);
+		expect(statusRes.body.phase).to.equal('receiving');
+		expect(statusRes.body.offset).to.equal(String(part1.length));
+		expect(statusRes.body.total_size).to.equal(String(total));
+		expect(statusRes.body.retry_count).to.equal(0);
+		expect(statusRes.body.retry_phase).to.equal(null);
+		expect(statusRes.body.retry_limit).to.equal(0);
+		expect(statusRes.body.failed_phase).to.equal(null);
+		expect(statusRes.body.failed_reason).to.equal(null);
+		expect(statusRes.body.failed_at).to.equal(null);
+	});
+
+	it('rejects chunk uploads for failed sessions (409) and exposes failure metadata in status', async function () {
+		const admin = await createTestAdmin(usersRepo);
+		const total = 10;
+		const chunk = Buffer.from('0123456789');
+
+		const created = await videoRepo.save({
+			user_id: admin.id,
+			filename: 'failed-session.mp4',
+			mime_type: 'video/mp4',
+			total_size: String(total),
+			chunk_size: String(total),
+			tmp_path: '/tmp/failed-upload-session.mp4',
+			phase: 'receiving',
+		});
+		await videoRepo.markUploadFailedTerminal(created.id, 'uploading_s3', 'Permanent upload failure');
+
+		const statusRes = await getUploadStatus(created.id, { userId: admin.id, isAuth: true, isWrongAccessJwt: false });
+		expect(statusRes.status).to.equal(HttpStatus.OK);
+		if (statusRes.status != 200) throw new Error();
+		expect(statusRes.body.phase).to.equal('failed');
+		expect(statusRes.body.failed_phase).to.equal('uploading_s3');
+		expect(statusRes.body.failed_reason).to.equal('Permanent upload failure');
+		expect(statusRes.body.retry_phase).to.equal('uploading_s3');
+		expect(statusRes.body.retry_limit).to.equal(4);
+		expect(statusRes.body.retry_count).to.be.greaterThan(0);
+
+		const uploadRes = await uploadChunkRaw({
+			filename: 'failed-session.mp4',
+			file: chunk,
+			start: 0,
+			end: total - 1,
+			total,
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+			sessionId: created.id,
+		});
+
+		expect(uploadRes.status).to.equal(HttpStatus.CONFLICT);
 	});
 
 	it('resumes upload after client interruption (2 raw chunks); waits for async S3 upload', async function () {

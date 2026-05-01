@@ -20,6 +20,7 @@ import {
 	subscriptionConfig,
 	subscriptionBillingConfig,
 	aiUsageLimitsConfig,
+	videoUploadWorkflowConfig,
 } from '../../src/config';
 import { FeedbackModule } from '../../src/feedback/feedback.module';
 import { HrConnectionModule } from '../../src/hr-connection/hr-connection.module';
@@ -80,6 +81,7 @@ export const mochaHooks = {
 						subscriptionConfig,
 						subscriptionBillingConfig,
 						aiUsageLimitsConfig,
+						videoUploadWorkflowConfig,
 					],
 					isGlobal: true,
 					envFilePath: '.env.test',
