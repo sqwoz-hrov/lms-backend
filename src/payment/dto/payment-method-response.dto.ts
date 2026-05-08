@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PaymentMethod } from '../../subscription/subscription.entity';
+import { PaymentMethod, Subscription } from '../../subscription/subscription.entity';
 import {
 	PAYMENT_METHOD_TYPES,
 	YookassaPaymentMethod,
@@ -25,7 +25,14 @@ export class PaymentMethodResponseDto {
 	@ApiProperty()
 	updatedAt: string;
 
-	static fromSources(entity: PaymentMethod, remote: YookassaPaymentMethod): PaymentMethodResponseDto {
+	@ApiProperty({ nullable: true })
+	nextBillingAt: string | null;
+
+	static fromSources(
+		entity: PaymentMethod,
+		remote: YookassaPaymentMethod,
+		subscription?: Subscription,
+	): PaymentMethodResponseDto {
 		const dto = new PaymentMethodResponseDto();
 		dto.userId = entity.user_id;
 		dto.paymentMethodId = entity.payment_method_id;
@@ -33,6 +40,9 @@ export class PaymentMethodResponseDto {
 		dto.last4 = remote.card?.last4 ?? null;
 		dto.createdAt = entity.created_at.toISOString();
 		dto.updatedAt = entity.updated_at.toISOString();
+		dto.nextBillingAt = subscription?.current_period_end
+			? new Date(subscription.current_period_end).toISOString()
+			: null;
 		return dto;
 	}
 }

@@ -72,6 +72,36 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.type).to.equal('bank_card');
 		expect(response.body.last4).to.equal('1234');
 		expect(response.body.userId).to.equal(subscriber.id);
+		expect(response.body.nextBillingAt).to.equal(subscriber.subscription.current_period_end?.toISOString());
+		expect(response.body.nextBillingAt).not.to.equal(null);
+	});
+
+	it('returns null nextBillingAt when billing is not scheduled', async () => {
+		const subscriber = await createTestSubscriber(usersRepo, { is_billable: false });
+		await subscriptionRepo.addActivePaymentMethod({
+			userId: subscriber.id,
+			paymentMethodId: 'pm-get-2',
+		});
+
+		fakeYookassaClient.registerPaymentMethod({
+			id: 'pm-get-2',
+			type: 'bank_card',
+			saved: true,
+			card: { last4: '5678' },
+		});
+
+		const response = await subscriptionSdk.getActivePaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+		if (response.status !== 200) throw new Error();
+		expect(response.body.paymentMethodId).to.equal('pm-get-2');
+		expect(response.body.nextBillingAt).to.equal(null);
 	});
 
 	it('returns 404 when payment method is pending activation', async () => {
