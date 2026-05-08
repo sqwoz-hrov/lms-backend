@@ -76,6 +76,104 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.nextBillingAt).not.to.equal(null);
 	});
 
+	// Нам нужно пересмотреть понятие billable. Billable - это когда есть привязанная карта, плюс когда текущий уровень платный ИЛИ используется гифт, но после гифта вернётся платный
+	it('returns null nextBillingAt when user on free sub tier if user had payment method', async () => {
+		const subscriber = await createTestSubscriber(usersRepo);
+		await subscriptionRepo.addActivePaymentMethod({
+			userId: subscriber.id,
+			paymentMethodId: 'pm-get-1',
+		});
+
+		fakeYookassaClient.registerPaymentMethod({
+			id: 'pm-get-1',
+			type: 'bank_card',
+			saved: true,
+			card: { last4: '1234' },
+		});
+
+		const response = await subscriptionSdk.getActivePaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+		if (response.status !== 200) throw new Error();
+		expect(response.body.paymentMethodId).to.equal('pm-get-1');
+		expect(response.body.type).to.equal('bank_card');
+		expect(response.body.last4).to.equal('1234');
+		expect(response.body.userId).to.equal(subscriber.id);
+		expect(response.body.nextBillingAt).to.equal(null);
+	});
+
+	it.fail('returns null nextBillingAt when user on free sub tier if user did not have payment method', async () => {});
+
+	it.fail('gift subscription does not set nextBillingAt if pre-gift was free tier and user had active payment method', async () => {});
+	it.fail('gift subscription does not set nextBillingAt if pre-gift was free tier and user did not have active payment method', async () => {});
+
+
+
+	it.fail('Returns null nextBillingAt even when gifted paid sub if pre-gift was a paid sub without payment method', async () => {});
+
+	it.fail('If user had failed payments recently, this should be shown in "problemsWithPaymentMehtod" field');
+
+	it('gift subscription increases nextBillingAt if pre-gift was a paid sub with payment method', async () => {
+		const subscriber = await createTestSubscriber(usersRepo, { subscription_tier_id: null });
+		await subscriptionRepo.addActivePaymentMethod({
+			userId: subscriber.id,
+			paymentMethodId: 'pm-get-1',
+		});
+
+		fakeYookassaClient.registerPaymentMethod({
+			id: 'pm-get-1',
+			type: 'bank_card',
+			saved: true,
+			card: { last4: '1234' },
+		});
+
+		const initialResponse = await subscriptionSdk.getActivePaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(initialResponse.status).to.equal(HttpStatus.OK);
+		if (initialResponse.status !== 200) throw new Error();
+		expect(initialResponse.body.nextBillingAt).not.to.equal(null);
+		const preGiftNextBillingAt = new Date(initialResponse.body.nextBillingAt!);
+
+		const durationDays = 30;
+		const getDurationMs = (days: number) => days * 24 * 60 * 60 * 1000;
+
+		await subscriptionSdk.giftSubscription({
+			params: {
+				userId: subscriber.id,
+				subscriptionTierId: 'tier-basic',
+				durationDays,
+			},
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+		const postGiftResponse = await subscriptionSdk.getActivePaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+		expect(postGiftResponse.status).to.equal(HttpStatus.OK);
+		if (postGiftResponse.status !== 200) throw new Error();
+		const postGiftNextBillingAt = new Date(postGiftResponse.body.nextBillingAt!);
+		expect(postGiftNextBillingAt.getTime()).to.be.greaterThanOrEqual(preGiftNextBillingAt.getTime() + getDurationMs(durationDays));
+	});
+
 	it('returns null nextBillingAt when billing is not scheduled', async () => {
 		const subscriber = await createTestSubscriber(usersRepo, { is_billable: false });
 		await subscriptionRepo.addActivePaymentMethod({
