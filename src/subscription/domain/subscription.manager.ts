@@ -65,7 +65,8 @@ export class SubscriptionManager {
 
 		const subscription: SubscriptionDraft = {
 			user_id: params.user.id,
-			subscription_tier_id: freeTier.id,
+			current_tier_id: freeTier.id,
+			next_tier_id: freeTier.id,
 			price_on_purchase_rubles: 0,
 			is_gifted: true,
 			grace_period_size: this.defaultGracePeriodSize,
@@ -88,7 +89,8 @@ export class SubscriptionManager {
 			const newPeriodEnd = this.addDays(now, periodDays);
 			const subscription: SubscriptionDraft = {
 				user_id: params.user.id,
-				subscription_tier_id: params.targetTier.id,
+				current_tier_id: params.targetTier.id,
+				next_tier_id: params.targetTier.id,
 				price_on_purchase_rubles: 0,
 				is_gifted: true,
 				grace_period_size: 0,
@@ -102,10 +104,10 @@ export class SubscriptionManager {
 			};
 		}
 
-		const existingTier = this.tierById.get(existing.subscription_tier_id);
+		const existingTier = this.tierById.get(existing.current_tier_id);
 
 		if (!existingTier) {
-			throw new Error(`Unknown subscription tier "${existing.subscription_tier_id}"`);
+			throw new Error(`Unknown subscription tier "${existing.current_tier_id}"`);
 		}
 
 		if (existingTier.power > params.targetTier.power) {
@@ -118,7 +120,7 @@ export class SubscriptionManager {
 		const nextEnd = this.addDays(base, periodDays);
 		const updated: SubscriptionState = {
 			...existing,
-			subscription_tier_id: params.targetTier.id,
+			current_tier_id: params.targetTier.id,
 			is_gifted: true,
 			price_on_purchase_rubles: 0,
 			current_period_end: nextEnd,
@@ -126,13 +128,13 @@ export class SubscriptionManager {
 		};
 
 		const doAction: SubscriptionActionType =
-			existing.is_gifted && existing.subscription_tier_id === params.targetTier.id ? 'prolong' : 'upgrade';
+			existing.is_gifted && existing.current_tier_id === params.targetTier.id ? 'prolong' : 'upgrade';
 
 		return { action: { do: doAction, subscription: updated } };
 	}
 
 	handleDowngrade(params: DowngradeSubscriptionParams): { action: SubscriptionAction } {
-		const currentTier = this.resolveTierById(params.subscription.subscription_tier_id);
+		const currentTier = this.resolveTierById(params.subscription.current_tier_id);
 		const targetTier = this.resolveTierById(params.targetTier.id);
 
 		if (targetTier.power > currentTier.power) {
@@ -143,7 +145,7 @@ export class SubscriptionManager {
 
 		const updated: SubscriptionState = {
 			...params.subscription,
-			subscription_tier_id: targetTier.id,
+			current_tier_id: targetTier.id,
 			price_on_purchase_rubles: isTargetBillable ? targetTier.price_rubles : 0,
 			is_gifted: isTargetBillable ? params.subscription.is_gifted : true,
 		};
@@ -174,14 +176,15 @@ export class SubscriptionManager {
 					last_billing_attempt: occurredAt,
 				};
 
-				const targetTierId = params.event.meta.subscription_tier_id;
-				if (targetTierId !== subscription.subscription_tier_id) {
+				const targetTierId = params.event.meta.current_tier_id;
+				if (targetTierId !== subscription.current_tier_id) {
 					const targetTier = this.resolveTierById(targetTierId);
-					const currentTier = this.resolveTierById(subscription.subscription_tier_id);
+					const currentTier = this.resolveTierById(subscription.current_tier_id);
 
 					const switched: SubscriptionState = {
 						...updated,
-						subscription_tier_id: targetTierId,
+						current_tier_id: targetTierId,
+						next_tier_id: targetTierId,
 					};
 
 					const actionType: SubscriptionActionType = targetTier.power > currentTier.power ? 'upgrade' : 'downgrade';
@@ -258,7 +261,8 @@ export class SubscriptionManager {
 		const freeTier = this.resolveFreeTier();
 		return {
 			...subscription,
-			subscription_tier_id: freeTier.id,
+			current_tier_id: freeTier.id,
+			next_tier_id: freeTier.id,
 			price_on_purchase_rubles: 0,
 			is_gifted: true,
 			grace_period_size: 0,

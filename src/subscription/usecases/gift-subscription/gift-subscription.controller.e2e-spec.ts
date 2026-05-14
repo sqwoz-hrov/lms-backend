@@ -115,7 +115,7 @@ describe('[E2E] Gift subscription usecase', () => {
 				throw new Error('Subscription not found');
 			}
 
-			expect(persistedSubscription.subscription_tier_id).to.equal(premiumTier.id);
+			expect(persistedSubscription.current_tier_id).to.equal(premiumTier.id);
 			expect(persistedSubscription.user_id).to.equal(recipient.id);
 			expect(persistedSubscription.is_gifted).to.equal(true);
 			expect(persistedSubscription.billing_period_days).to.equal(20);
@@ -145,7 +145,7 @@ describe('[E2E] Gift subscription usecase', () => {
 
 			const existingPeriodEnd = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
 			const recipient = await createTestSubscriber(usersRepo, {
-				subscription_tier_id: premiumTier.id,
+				current_tier_id: premiumTier.id,
 				active_until: existingPeriodEnd,
 			});
 			const existingSubscription = recipient.subscription;
@@ -185,7 +185,7 @@ describe('[E2E] Gift subscription usecase', () => {
 				throw new Error('Subscription not found');
 			}
 
-			expect(persisted.subscription_tier_id).to.equal(premiumTier.id);
+			expect(persisted.current_tier_id).to.equal(premiumTier.id);
 			expect(persisted.is_gifted).to.equal(true);
 			expect(persisted.billing_period_days).to.equal(30);
 			expect(persisted.price_on_purchase_rubles).to.equal(0);
@@ -211,7 +211,7 @@ describe('[E2E] Gift subscription usecase', () => {
 
 			const existingPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 			const recipient = await createTestSubscriber(usersRepo, {
-				subscription_tier_id: premiumTier.id,
+				current_tier_id: premiumTier.id,
 				active_until: existingPeriodEnd,
 			});
 			const existingSubscription = recipient.subscription;
@@ -241,7 +241,7 @@ describe('[E2E] Gift subscription usecase', () => {
 				throw new Error('Subscription not found');
 			}
 
-			expect(persisted.subscription_tier_id).to.equal(premiumTier.id);
+			expect(persisted.current_tier_id).to.equal(premiumTier.id);
 			expect(persisted.current_period_end?.getTime()).to.equal(existingPeriodEnd.getTime());
 			expect(persisted.is_gifted).to.equal(existingSubscription.is_gifted);
 		} finally {

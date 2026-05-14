@@ -6,7 +6,8 @@ import { PaymentMethodTable } from '../payment/payment.entity';
 export interface SubscriptionTable {
 	id: Generated<string>;
 	user_id: string;
-	subscription_tier_id: string;
+	current_tier_id: ColumnType<string, string>;
+	next_tier_id: ColumnType<string, string>;
 	price_on_purchase_rubles: number;
 	is_gifted: ColumnType<boolean, boolean | undefined>;
 	grace_period_size: ColumnType<number, number | undefined>;

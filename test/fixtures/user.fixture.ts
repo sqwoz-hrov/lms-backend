@@ -82,7 +82,7 @@ export const createTestAdmin = async (
 };
 
 type SubscriberFixtureOverrides = Partial<User> & {
-	subscription_tier_id?: string | null;
+	current_tier_id?: string | null;
 	active_until?: Date | null;
 	is_billable?: boolean;
 };
@@ -91,15 +91,15 @@ export const createTestSubscriber = async (
 	userRepository: UsersTestRepository,
 	overrides: SubscriberFixtureOverrides = {},
 ): Promise<UserWithNullableSubscriptionTier & { subscription: Subscription; subscription_tier: SubscriptionTier }> => {
-	const { subscription_tier_id, active_until, is_billable, is_archived, ...userOverrides } = overrides;
+	const { current_tier_id, active_until, is_billable, is_archived, ...userOverrides } = overrides;
 
 	const billable = is_billable ?? true;
 
-	const subscriptionTier = subscription_tier_id
+	const subscriptionTier = current_tier_id
 		? await userRepository.connection
 				.selectFrom('subscription_tier')
 				.selectAll()
-				.where('id', '=', subscription_tier_id)
+				.where('id', '=', current_tier_id)
 				.limit(1)
 				.executeTakeFirstOrThrow()
 		: await createTestSubscriptionTier(userRepository);
@@ -128,7 +128,8 @@ export const createTestSubscriber = async (
 		.insertInto('subscription')
 		.values({
 			user_id: user.id,
-			subscription_tier_id: resolvedTierId,
+			current_tier_id: resolvedTierId,
+			next_tier_id: resolvedTierId,
 			price_on_purchase_rubles: billable ? 1500 : 0,
 			is_gifted: !billable,
 			grace_period_size: 3,

@@ -35,12 +35,13 @@ export class UserRepository {
 		let query = this.connection
 			.selectFrom('user')
 			.leftJoin('subscription', 'subscription.user_id', 'user.id')
-			.leftJoin('subscription_tier', 'subscription_tier.id', 'subscription.subscription_tier_id')
+			.leftJoin('subscription_tier', 'subscription_tier.id', 'subscription.current_tier_id')
 			.selectAll('user')
 			.select([
 				'subscription.id as subscription__id',
 				'subscription.user_id as subscription__user_id',
-				'subscription.subscription_tier_id as subscription__subscription_tier_id',
+				'subscription.current_tier_id as subscription__current_tier_id',
+				'subscription.next_tier_id as subscription__next_tier_id',
 				'subscription.price_on_purchase_rubles as subscription__price_on_purchase_rubles',
 				'subscription.is_gifted as subscription__is_gifted',
 				'subscription.grace_period_size as subscription__grace_period_size',
@@ -75,12 +76,13 @@ export class UserRepository {
 		const row = await this.connection
 			.selectFrom('user')
 			.leftJoin('subscription', 'subscription.user_id', 'user.id')
-			.leftJoin('subscription_tier', 'subscription_tier.id', 'subscription.subscription_tier_id')
+			.leftJoin('subscription_tier', 'subscription_tier.id', 'subscription.current_tier_id')
 			.selectAll('user')
 			.select([
 				'subscription.id as subscription__id',
 				'subscription.user_id as subscription__user_id',
-				'subscription.subscription_tier_id as subscription__subscription_tier_id',
+				'subscription.current_tier_id as subscription__current_tier_id',
+				'subscription.next_tier_id as subscription__next_tier_id',
 				'subscription.price_on_purchase_rubles as subscription__price_on_purchase_rubles',
 				'subscription.is_gifted as subscription__is_gifted',
 				'subscription.grace_period_size as subscription__grace_period_size',
@@ -163,7 +165,8 @@ export class UserRepository {
 		const {
 			subscription__id,
 			subscription__user_id,
-			subscription__subscription_tier_id,
+			subscription__current_tier_id,
+			subscription__next_tier_id,
 			subscription__price_on_purchase_rubles,
 			subscription__is_gifted,
 			subscription__grace_period_size,
@@ -184,7 +187,8 @@ export class UserRepository {
 		if (
 			subscription__id !== null &&
 			subscription__user_id !== null &&
-			subscription__subscription_tier_id !== null &&
+			subscription__current_tier_id !== null &&
+			subscription__next_tier_id !== null &&
 			subscription__price_on_purchase_rubles !== null &&
 			subscription__is_gifted !== null &&
 			subscription__grace_period_size !== null &&
@@ -195,7 +199,8 @@ export class UserRepository {
 			subscription = {
 				id: subscription__id,
 				user_id: subscription__user_id,
-				subscription_tier_id: subscription__subscription_tier_id,
+				current_tier_id: subscription__current_tier_id,
+				next_tier_id: subscription__next_tier_id,
 				price_on_purchase_rubles: subscription__price_on_purchase_rubles,
 				is_gifted: subscription__is_gifted,
 				grace_period_size: subscription__grace_period_size,

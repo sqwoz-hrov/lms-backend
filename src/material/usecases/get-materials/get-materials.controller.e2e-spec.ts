@@ -261,7 +261,7 @@ describe('[E2E] Get materials usecase', () => {
 
 			const otherTier = await createTestSubscriptionTier(userUtilRepository);
 
-			expect(subscriber.subscription.subscription_tier_id).to.be.a('string');
+			expect(subscriber.subscription.current_tier_id).to.be.a('string');
 
 			accessibleMaterial = await createMaterial({});
 			materialForAnotherTier = await createMaterial({});
@@ -271,7 +271,7 @@ describe('[E2E] Get materials usecase', () => {
 
 			const allowRes = await materialTestSdk.openMaterialForTiers({
 				materialId: accessibleMaterial.id,
-				params: { tier_ids: [subscriber.subscription.subscription_tier_id] },
+				params: { tier_ids: [subscriber.subscription.current_tier_id] },
 				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
 

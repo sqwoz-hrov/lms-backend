@@ -105,7 +105,7 @@ export class SubscriptionBillingService {
 				idempotenceKey: `subscription-billing-${prepared.subscription.id}-${context.attemptId}`,
 				metadata: {
 					user_id: prepared.subscription.user_id,
-					subscription_tier_id: prepared.subscription.subscription_tier_id,
+					current_tier_id: prepared.subscription.current_tier_id,
 				},
 			});
 

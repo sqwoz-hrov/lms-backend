@@ -25,5 +25,5 @@ export interface SubjectAggregation {
 }
 
 export type SubjectWithSubscriptionTiers = Subject & {
-	subscription_tier_ids?: string[];
+	current_tier_ids?: string[];
 };

@@ -22,7 +22,7 @@ const createCandidate = (overrides: Partial<BillableSubscriptionRow> = {}): Bill
 	return {
 		id: overrides.id ?? 'sub-1',
 		user_id: overrides.user_id ?? 'user-1',
-		subscription_tier_id: overrides.subscription_tier_id ?? 'tier-1',
+		current_tier_id: overrides.current_tier_id ?? 'tier-1',
 		price_on_purchase_rubles: overrides.price_on_purchase_rubles ?? 2500,
 		is_gifted: overrides.is_gifted ?? false,
 		grace_period_size: overrides.grace_period_size ?? 3,

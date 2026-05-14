@@ -46,7 +46,7 @@ export class MaterialRepository {
 			subject_id?: string;
 			student_user_id?: string;
 			is_archived?: boolean;
-			subscription_tier_id?: string;
+			current_tier_id?: string;
 		} = {},
 	): Promise<MaterialWithContent[]> {
 		let q = this.connection
@@ -66,8 +66,8 @@ export class MaterialRepository {
 			q = q.where(eb => eb.or([eb('student_user_id', '=', studentId), eb('student_user_id', 'is', null)]));
 		}
 
-		if (filter.subscription_tier_id !== undefined) {
-			const tierId = filter.subscription_tier_id;
+		if (filter.current_tier_id !== undefined) {
+			const tierId = filter.current_tier_id;
 			q = q.where(eb =>
 				eb.exists(
 					eb
@@ -97,7 +97,7 @@ export class MaterialRepository {
 				material = {
 					...materialFields,
 					markdown_content: markdown_content ?? undefined,
-					subscription_tier_ids: [],
+					current_tier_ids: [],
 				};
 
 				materialsById.set(material.id, material);
@@ -105,7 +105,7 @@ export class MaterialRepository {
 			}
 
 			if (material_tier__tier_id !== null) {
-				const tierIds = material.subscription_tier_ids ?? (material.subscription_tier_ids = []);
+				const tierIds = material.current_tier_ids ?? (material.current_tier_ids = []);
 
 				if (!tierIds.includes(material_tier__tier_id)) {
 					tierIds.push(material_tier__tier_id);

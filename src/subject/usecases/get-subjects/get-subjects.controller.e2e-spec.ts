@@ -128,7 +128,7 @@ describe('[E2E] Get subjects usecase', () => {
 			subscriber = await createTestSubscriber(userUtilRepository);
 			const otherTier = await createTestSubscriptionTier(userUtilRepository);
 
-			expect(subscriber.subscription.subscription_tier_id).to.be.a('string');
+			expect(subscriber.subscription.current_tier_id).to.be.a('string');
 
 			accessibleSubject = await createTestSubject(subjectUtilRepository, {
 				name: 'Accessible Subject',
@@ -149,7 +149,7 @@ describe('[E2E] Get subjects usecase', () => {
 
 			const allowRes = await subjectTestSdk.openSubjectForTiers({
 				subjectId: accessibleSubject.id,
-				params: { tier_ids: [subscriber.subscription.subscription_tier_id] },
+				params: { tier_ids: [subscriber.subscription.current_tier_id] },
 				userMeta: {
 					userId: admin.id,
 					isAuth: true,
@@ -190,9 +190,7 @@ describe('[E2E] Get subjects usecase', () => {
 			expect(subjectIds).to.not.include(subjectNotMeantForSubscribers.id);
 
 			const accessibleSubjectResponse = res.body.find(s => s.id === accessibleSubject.id);
-			expect(accessibleSubjectResponse?.subscription_tier_ids).to.deep.equal([
-				subscriber.subscription.subscription_tier_id,
-			]);
+			expect(accessibleSubjectResponse?.current_tier_ids).to.deep.equal([subscriber.subscription.current_tier_id]);
 		});
 
 		it('Subscriber cannot reveal restricted subjects using id filter', async () => {

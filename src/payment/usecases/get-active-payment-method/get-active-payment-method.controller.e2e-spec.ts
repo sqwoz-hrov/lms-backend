@@ -127,7 +127,7 @@ describe('[E2E] Get active payment method usecase', () => {
 	it.fail('If user had failed payments recently, this should be shown in "problemsWithPaymentMehtod" field');
 
 	it('gift subscription increases nextBillingAt if pre-gift was a paid sub with payment method', async () => {
-		const subscriber = await createTestSubscriber(usersRepo, { subscription_tier_id: null });
+		const subscriber = await createTestSubscriber(usersRepo, { current_tier_id: null });
 		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-get-1',

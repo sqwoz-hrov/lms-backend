@@ -33,7 +33,7 @@ describe('[E2E] Get user by id usecase', () => {
 		finished_registration: user.finished_registration ?? true,
 		telegram_id: user.telegram_id ?? undefined,
 		telegram_username: user.telegram_username,
-		subscription_tier_id: user.subscription?.subscription_tier_id ?? null,
+		current_tier_id: user.subscription?.current_tier_id ?? null,
 		active_until: user.subscription?.current_period_end
 			? new Date(user.subscription.current_period_end).toISOString()
 			: null,
@@ -153,7 +153,7 @@ describe('[E2E] Get user by id usecase', () => {
 			permissions: ['view_dashboard'],
 		});
 		const user = await createTestSubscriber(utilRepository, {
-			subscription_tier_id: subscriptionTier.id,
+			current_tier_id: subscriptionTier.id,
 			active_until: new Date('2035-01-01T00:00:00.000Z'),
 			is_billable: true,
 		});

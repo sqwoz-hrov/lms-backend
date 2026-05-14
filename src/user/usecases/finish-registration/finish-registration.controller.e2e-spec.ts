@@ -115,7 +115,7 @@ describe('[E2E] Finish registration usecase', () => {
 			.limit(1)
 			.executeTakeFirst();
 
-		expect(subscription?.subscription_tier_id).to.equal(freeTierId);
+		expect(subscription?.current_tier_id).to.equal(freeTierId);
 		expect(subscription?.is_gifted).to.equal(true);
 		expect(subscription?.price_on_purchase_rubles).to.equal(0);
 		expect(subscription?.current_period_end).to.equal(null);

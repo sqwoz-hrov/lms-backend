@@ -337,7 +337,7 @@ describe('[E2E] List posts usecase', () => {
 			subscriber = await createTestSubscriber(userUtilRepository);
 			otherTier = await createTestSubscriptionTier(userUtilRepository, { tier: 'Other Tier' });
 
-			expect(subscriber.subscription.subscription_tier_id).to.be.a('string');
+			expect(subscriber.subscription.current_tier_id).to.be.a('string');
 		});
 
 		it('Subscriber sees all posts with previews for locked entries', async () => {
@@ -358,7 +358,7 @@ describe('[E2E] List posts usecase', () => {
 				.values([
 					{
 						post_id: accessiblePost.post.id,
-						tier_id: subscriber.subscription.subscription_tier_id,
+						tier_id: subscriber.subscription.current_tier_id,
 					},
 					{
 						post_id: restrictedPost.post.id,
@@ -414,7 +414,7 @@ describe('[E2E] List posts usecase', () => {
 				.values([
 					{
 						post_id: accessiblePost.post.id,
-						tier_id: subscriber.subscription.subscription_tier_id,
+						tier_id: subscriber.subscription.current_tier_id,
 					},
 					{
 						post_id: restrictedPost.post.id,
@@ -424,7 +424,7 @@ describe('[E2E] List posts usecase', () => {
 				.execute();
 
 			const res = await postTestSdk.getPosts({
-				query: { subscription_tier_id: otherTier.id },
+				query: { current_tier_id: otherTier.id },
 				userMeta: {
 					userId: subscriber.id,
 					isAuth: true,

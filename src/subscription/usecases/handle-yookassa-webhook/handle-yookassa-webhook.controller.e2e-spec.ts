@@ -58,7 +58,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await usersRepo.clearAll();
 	});
 
-	const defaultSubscriptionFields = (): Omit<NewSubscription, 'user_id' | 'subscription_tier_id'> => ({
+	const defaultSubscriptionFields = (): Omit<NewSubscription, 'user_id' | 'current_tier_id'> => ({
 		price_on_purchase_rubles: 2500,
 		is_gifted: false,
 		grace_period_size: 3,
@@ -71,14 +71,10 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const { tierOverrides, userOverrides, subscriptionOverrides, paymentMethodId } = options;
 		const tier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', ...(tierOverrides ?? {}) });
 		const user = await createTestUser(usersRepo, { role: 'subscriber', ...(userOverrides ?? {}) });
-		const {
-			subscription_tier_id: overrideTierId,
-			user_id: _ignoredUserId,
-			...restOverrides
-		} = subscriptionOverrides ?? {};
+		const { current_tier_id: overrideTierId, user_id: _ignoredUserId, ...restOverrides } = subscriptionOverrides ?? {};
 		const subscriptionToInsert: NewSubscription = {
 			user_id: user.id,
-			subscription_tier_id: overrideTierId ?? tier.id,
+			current_tier_id: overrideTierId ?? tier.id,
 			...defaultSubscriptionFields(),
 			...restOverrides,
 		};
@@ -123,7 +119,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 	it('stores unsupported webhook event without processing and responds with 200', async () => {
 		const user_id = randomUUID();
-		const subscription_tier_id = randomUUID();
+		const current_tier_id = randomUUID();
 
 		const rawPayload = {
 			event: 'payment.waiting_for_capture',
@@ -138,7 +134,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				created_at: new Date('2025-02-01T12:00:00.000Z').toISOString(),
 				metadata: {
 					user_id,
-					subscription_tier_id,
+					current_tier_id,
 				},
 			},
 		};
@@ -198,7 +194,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				},
 				metadata: {
 					user_id: user.id,
-					subscription_tier_id: subscription.subscription_tier_id,
+					current_tier_id: subscription.current_tier_id,
 				},
 				created_at: occurredAt.toISOString(),
 				payment_method: {
@@ -251,7 +247,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				},
 				metadata: {
 					user_id: user.id,
-					subscription_tier_id: subscription.subscription_tier_id,
+					current_tier_id: subscription.current_tier_id,
 				},
 				created_at: now.toISOString(),
 				payment_method: {
@@ -359,7 +355,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				},
 				metadata: {
 					user_id: user.id,
-					subscription_tier_id: standardTier.id,
+					current_tier_id: standardTier.id,
 				},
 				created_at: occurredAt.toISOString(),
 			},
@@ -372,8 +368,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const expectedEnd = addDays(currentPeriodEnd, 30);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
-		expect(updatedSubscription.subscription_tier_id).to.equal(standardTier.id);
-		expect(updatedSubscription.subscription_tier_id).to.not.equal(premiumTier.id);
+		expect(updatedSubscription.current_tier_id).to.equal(standardTier.id);
+		expect(updatedSubscription.current_tier_id).to.not.equal(premiumTier.id);
 
 		await expectStoredEvent(payload, { subscriptionId: subscription.id });
 		await expectPaymentMethodId(user.id, 'pm-234');
@@ -415,7 +411,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				},
 				metadata: {
 					user_id: user.id,
-					subscription_tier_id: vipTier.id,
+					current_tier_id: vipTier.id,
 				},
 				created_at: occurredAt.toISOString(),
 			},
@@ -428,8 +424,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const expectedEnd = addDays(currentPeriodEnd, 30);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
-		expect(updatedSubscription.subscription_tier_id).to.equal(vipTier.id);
-		expect(updatedSubscription.subscription_tier_id).to.not.equal(standardTier.id);
+		expect(updatedSubscription.current_tier_id).to.equal(vipTier.id);
+		expect(updatedSubscription.current_tier_id).to.not.equal(standardTier.id);
 
 		await expectStoredEvent(payload, { subscriptionId: subscription.id });
 		await expectPaymentMethodId(user.id, 'pm-345');
@@ -468,7 +464,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				},
 				metadata: {
 					user_id: user.id,
-					subscription_tier_id: subscription.subscription_tier_id,
+					current_tier_id: subscription.current_tier_id,
 				},
 				created_at: now.toISOString(),
 				canceled_at: now.toISOString(),
@@ -481,7 +477,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			subscription.id,
 			'Subscription missing after payment failure',
 		);
-		expect(updatedSubscription.subscription_tier_id).to.equal(premiumTier.id);
+		expect(updatedSubscription.current_tier_id).to.equal(premiumTier.id);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(currentPeriodEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
 		expect(updatedSubscription.is_gifted).to.equal(false);
@@ -525,7 +521,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				},
 				metadata: {
 					user_id: user.id,
-					subscription_tier_id: subscription.subscription_tier_id,
+					current_tier_id: subscription.current_tier_id,
 				},
 				created_at: canceledAt.toISOString(),
 				canceled_at: createdAt.toISOString(),
@@ -538,7 +534,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			subscription.id,
 			'Subscription missing after downgrade',
 		);
-		expect(downgradedSubscription.subscription_tier_id).to.equal(freeTier.id);
+		expect(downgradedSubscription.current_tier_id).to.equal(freeTier.id);
 		expect(downgradedSubscription.billing_period_days).to.equal(0);
 		expect(downgradedSubscription.current_period_end).to.equal(null);
 		expect(downgradedSubscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
@@ -585,7 +581,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				},
 				metadata: {
 					user_id: user.id,
-					subscription_tier_id: subscription.subscription_tier_id,
+					current_tier_id: subscription.current_tier_id,
 				},
 				created_at: canceledAt.toISOString(),
 				canceled_at: createdAt.toISOString(),
@@ -595,8 +591,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await sendWebhook(payload);
 
 		const updatedSubscription = await findSubscriptionOrFail(subscription.id, 'Subscription missing after webhook');
-		expect(updatedSubscription.subscription_tier_id).to.equal(premiumTier.id);
-		expect(updatedSubscription.subscription_tier_id).to.not.equal(freeTier.id);
+		expect(updatedSubscription.current_tier_id).to.equal(premiumTier.id);
+		expect(updatedSubscription.current_tier_id).to.not.equal(freeTier.id);
 		expect(updatedSubscription.billing_period_days).to.equal(subscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
 		expect(updatedSubscription.is_gifted).to.equal(false);

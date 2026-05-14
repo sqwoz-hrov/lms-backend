@@ -42,7 +42,7 @@ const createManager = () =>
 const buildSubscriptionState = (overrides: Partial<SubscriptionState> = {}): SubscriptionState => ({
 	id: overrides.id ?? 'sub-1',
 	user_id: overrides.user_id ?? 'user-1',
-	subscription_tier_id: overrides.subscription_tier_id ?? paidTier.id,
+	current_tier_id: overrides.current_tier_id ?? paidTier.id,
 	price_on_purchase_rubles: overrides.price_on_purchase_rubles ?? 1500,
 	is_gifted: overrides.is_gifted ?? false,
 	grace_period_size: overrides.grace_period_size ?? 3,
@@ -71,7 +71,7 @@ describe('SubscriptionManager', () => {
 
 			expectDraftMatches(action.subscription, {
 				user_id: 'user-42',
-				subscription_tier_id: freeTier.id,
+				current_tier_id: freeTier.id,
 				is_gifted: true,
 				grace_period_size: 3,
 				billing_period_days: 0,
@@ -97,7 +97,7 @@ describe('SubscriptionManager', () => {
 
 			expectDraftMatches(action.subscription, {
 				user_id: 'user-777',
-				subscription_tier_id: paidTier.id,
+				current_tier_id: paidTier.id,
 				is_gifted: true,
 				billing_period_days: 45,
 				grace_period_size: 0,
@@ -114,7 +114,7 @@ describe('SubscriptionManager', () => {
 			const existing = buildSubscriptionState({
 				current_period_end: currentPeriodEnd,
 				is_gifted: true,
-				subscription_tier_id: paidTier.id,
+				current_tier_id: paidTier.id,
 				grace_period_size: 4,
 				billing_period_days: 40,
 			});
@@ -132,7 +132,7 @@ describe('SubscriptionManager', () => {
 			expect(action.subscription).to.include({
 				id: existing.id,
 				user_id: existing.user_id,
-				subscription_tier_id: paidTier.id,
+				current_tier_id: paidTier.id,
 				is_gifted: true,
 				billing_period_days: 40,
 				grace_period_size: 4,
@@ -144,7 +144,7 @@ describe('SubscriptionManager', () => {
 			const manager = createManager();
 			const now = new Date('2024-03-10T00:00:00.000Z');
 			const existing = buildSubscriptionState({
-				subscription_tier_id: paidTier.id,
+				current_tier_id: paidTier.id,
 				current_period_end: addDays(now, 10),
 				is_gifted: false,
 				billing_period_days: 30,
@@ -162,7 +162,7 @@ describe('SubscriptionManager', () => {
 			expect(action.subscription).to.include({
 				id: existing.id,
 				user_id: existing.user_id,
-				subscription_tier_id: premiumTier.id,
+				current_tier_id: premiumTier.id,
 				is_gifted: true,
 				price_on_purchase_rubles: 0,
 			});
@@ -173,7 +173,7 @@ describe('SubscriptionManager', () => {
 			const manager = createManager();
 			const now = new Date('2024-04-01T00:00:00.000Z');
 			const existing = buildSubscriptionState({
-				subscription_tier_id: premiumTier.id,
+				current_tier_id: premiumTier.id,
 				current_period_end: addDays(now, 5),
 				is_gifted: false,
 			});
@@ -196,7 +196,7 @@ describe('SubscriptionManager', () => {
 			const currentPeriodEnd = addDays(BASE_DATE, 15);
 			const lastAttempt = addDays(BASE_DATE, -2);
 			const subscription = buildSubscriptionState({
-				subscription_tier_id: premiumTier.id,
+				current_tier_id: premiumTier.id,
 				price_on_purchase_rubles: 4000,
 				current_period_end: currentPeriodEnd,
 				last_billing_attempt: lastAttempt,
@@ -210,7 +210,7 @@ describe('SubscriptionManager', () => {
 			});
 
 			expect(action.do).to.equal('downgrade');
-			expect(action.subscription.subscription_tier_id).to.equal(paidTier.id);
+			expect(action.subscription.current_tier_id).to.equal(paidTier.id);
 			expect(action.subscription.price_on_purchase_rubles).to.equal(paidTier.price_rubles);
 			expect(action.subscription.billing_period_days).to.equal(subscription.billing_period_days);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(currentPeriodEnd.getTime());
@@ -221,7 +221,7 @@ describe('SubscriptionManager', () => {
 		it('resets billing data when downgrading to a non-billable tier', () => {
 			const manager = createManager();
 			const subscription = buildSubscriptionState({
-				subscription_tier_id: paidTier.id,
+				current_tier_id: paidTier.id,
 				current_period_end: addDays(BASE_DATE, 5),
 				last_billing_attempt: addDays(BASE_DATE, -1),
 				grace_period_size: 4,
@@ -233,7 +233,7 @@ describe('SubscriptionManager', () => {
 			});
 
 			expect(action.do).to.equal('downgrade');
-			expect(action.subscription.subscription_tier_id).to.equal(freeTier.id);
+			expect(action.subscription.current_tier_id).to.equal(freeTier.id);
 			expect(action.subscription.price_on_purchase_rubles).to.equal(0);
 			expect(action.subscription.billing_period_days).to.equal(0);
 			expect(action.subscription.current_period_end).to.equal(null);
@@ -245,7 +245,7 @@ describe('SubscriptionManager', () => {
 		it('throws when trying to downgrade to a higher power tier', () => {
 			const manager = createManager();
 			const subscription = buildSubscriptionState({
-				subscription_tier_id: paidTier.id,
+				current_tier_id: paidTier.id,
 			});
 
 			expect(() =>
@@ -273,7 +273,7 @@ describe('SubscriptionManager', () => {
 				subscription,
 				event: {
 					type: 'payment.succeeded',
-					meta: { subscription_tier_id: subscription.subscription_tier_id, user_id: subscription.user_id },
+					meta: { current_tier_id: subscription.current_tier_id, user_id: subscription.user_id },
 					occurredAt,
 				},
 			});
@@ -289,7 +289,7 @@ describe('SubscriptionManager', () => {
 			const occurredAt = new Date('2024-08-10T12:00:00.000Z');
 			const currentEnd = new Date('2024-08-15T00:00:00.000Z');
 			const subscription = buildSubscriptionState({
-				subscription_tier_id: premiumTier.id,
+				current_tier_id: premiumTier.id,
 				current_period_end: currentEnd,
 				last_billing_attempt: addDays(currentEnd, -5),
 			});
@@ -299,14 +299,14 @@ describe('SubscriptionManager', () => {
 				subscription,
 				event: {
 					type: 'payment.succeeded',
-					meta: { subscription_tier_id: paidTier.id, user_id: subscription.user_id },
+					meta: { current_tier_id: paidTier.id, user_id: subscription.user_id },
 					occurredAt,
 				},
 			});
 
 			expect(action.do).to.equal('downgrade');
 			const expectedEnd = addDays(currentEnd, subscription.billing_period_days);
-			expect(action.subscription.subscription_tier_id).to.equal(paidTier.id);
+			expect(action.subscription.current_tier_id).to.equal(paidTier.id);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		});
@@ -316,7 +316,7 @@ describe('SubscriptionManager', () => {
 			const occurredAt = new Date('2024-09-01T10:00:00.000Z');
 			const currentEnd = new Date('2024-09-05T00:00:00.000Z');
 			const subscription = buildSubscriptionState({
-				subscription_tier_id: paidTier.id,
+				current_tier_id: paidTier.id,
 				current_period_end: currentEnd,
 				last_billing_attempt: addDays(currentEnd, -3),
 			});
@@ -326,14 +326,14 @@ describe('SubscriptionManager', () => {
 				subscription,
 				event: {
 					type: 'payment.succeeded',
-					meta: { subscription_tier_id: premiumTier.id, user_id: subscription.user_id },
+					meta: { current_tier_id: premiumTier.id, user_id: subscription.user_id },
 					occurredAt,
 				},
 			});
 
 			expect(action.do).to.equal('upgrade');
 			const expectedEnd = addDays(currentEnd, subscription.billing_period_days);
-			expect(action.subscription.subscription_tier_id).to.equal(premiumTier.id);
+			expect(action.subscription.current_tier_id).to.equal(premiumTier.id);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		});
@@ -353,13 +353,13 @@ describe('SubscriptionManager', () => {
 				subscription,
 				event: {
 					type: 'payment.canceled',
-					meta: { subscription_tier_id: subscription.subscription_tier_id, user_id: subscription.user_id },
+					meta: { current_tier_id: subscription.current_tier_id, user_id: subscription.user_id },
 					occurredAt: canceledAt,
 				},
 			});
 
 			expect(action.do).to.equal('downgrade');
-			expect(action.subscription.subscription_tier_id).to.equal(freeTier.id);
+			expect(action.subscription.current_tier_id).to.equal(freeTier.id);
 			expect(action.subscription.current_period_end).to.equal(null);
 			expect(action.subscription.is_gifted).to.equal(true);
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
@@ -380,13 +380,13 @@ describe('SubscriptionManager', () => {
 				subscription,
 				event: {
 					type: 'payment.canceled',
-					meta: { subscription_tier_id: subscription.subscription_tier_id, user_id: subscription.user_id },
+					meta: { current_tier_id: subscription.current_tier_id, user_id: subscription.user_id },
 					occurredAt: canceledAt,
 				},
 			});
 
 			expect(action.do).to.equal('update_billing_data');
-			expect(action.subscription.subscription_tier_id).to.equal(subscription.subscription_tier_id);
+			expect(action.subscription.current_tier_id).to.equal(subscription.current_tier_id);
 			expect(action.subscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
 			expect(action.subscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
 		});

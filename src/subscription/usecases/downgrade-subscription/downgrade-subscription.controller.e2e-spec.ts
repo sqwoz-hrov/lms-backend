@@ -70,7 +70,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 
 		const activeUntil = new Date('2024-12-01T00:00:00.000Z');
 		const subscriber = await createTestSubscriber(usersRepo, {
-			subscription_tier_id: premiumTier.id,
+			current_tier_id: premiumTier.id,
 			active_until: activeUntil,
 		});
 		const existingSubscription = subscriber.subscription;
@@ -112,7 +112,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 			throw new Error('Subscription not found');
 		}
 
-		expect(persisted.subscription_tier_id).to.equal(standardTier.id);
+		expect(persisted.current_tier_id).to.equal(standardTier.id);
 		expect(persisted.price_on_purchase_rubles).to.equal(standardTier.price_rubles);
 		expect(persisted.billing_period_days).to.equal(existingSubscription.billing_period_days);
 		expect(persisted.current_period_end?.getTime()).to.equal(activeUntil.getTime());
@@ -125,7 +125,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free', power: 0, price_rubles: 0 });
 
 		const subscriber = await createTestSubscriber(usersRepo, {
-			subscription_tier_id: premiumTier.id,
+			current_tier_id: premiumTier.id,
 			active_until: new Date('2024-12-15T00:00:00.000Z'),
 		});
 		const subscription = subscriber.subscription;
@@ -167,7 +167,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 			throw new Error('Subscription not found');
 		}
 
-		expect(persisted.subscription_tier_id).to.equal(freeTier.id);
+		expect(persisted.current_tier_id).to.equal(freeTier.id);
 		expect(persisted.price_on_purchase_rubles).to.equal(0);
 		expect(persisted.billing_period_days).to.equal(0);
 		expect(persisted.current_period_end).to.equal(null);
@@ -185,7 +185,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 6, price_rubles: 3600 });
 
 		const subscriber = await createTestSubscriber(usersRepo, {
-			subscription_tier_id: standardTier.id,
+			current_tier_id: standardTier.id,
 			active_until: new Date('2024-11-25T00:00:00.000Z'),
 		});
 

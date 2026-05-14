@@ -9,7 +9,7 @@ const createSubscription = (overrides: Partial<Subscription> = {}): Subscription
 	return {
 		id: 'sub-1',
 		user_id: 'user-1',
-		subscription_tier_id: 'tier-1',
+		current_tier_id: 'tier-1',
 		price_on_purchase_rubles: 2500,
 		is_gifted: false,
 		grace_period_size: 3,

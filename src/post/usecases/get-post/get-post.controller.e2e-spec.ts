@@ -142,7 +142,7 @@ describe('[E2E] Get post by id usecase', () => {
 				.insertInto('post_tier')
 				.values({
 					post_id: created.post.id,
-					tier_id: subscriber.subscription.subscription_tier_id,
+					tier_id: subscriber.subscription.current_tier_id,
 				})
 				.execute();
 

@@ -35,7 +35,7 @@ export class GetMaterialsUsecase implements UsecaseInterface {
 		let subscriptionTierId: string | undefined;
 
 		if (isSubscriber) {
-			subscriptionTierId = user.subscription?.subscription_tier_id ?? undefined;
+			subscriptionTierId = user.subscription?.current_tier_id ?? undefined;
 			filters.is_archived = false;
 			delete filters.student_user_id;
 
@@ -44,6 +44,6 @@ export class GetMaterialsUsecase implements UsecaseInterface {
 			}
 		}
 
-		return this.materialRepository.find({ ...filters, subscription_tier_id: subscriptionTierId });
+		return this.materialRepository.find({ ...filters, current_tier_id: subscriptionTierId });
 	}
 }

@@ -53,7 +53,7 @@ export class BaseUserDto {
 	@ApiPropertyOptional({ description: 'Subscription tier identifier', nullable: true })
 	@IsUUID()
 	@IsOptional()
-	subscription_tier_id?: string | null;
+	current_tier_id?: string | null;
 
 	@ApiPropertyOptional({ description: 'Indicates whether user completed registration' })
 	@IsBoolean()
@@ -112,7 +112,7 @@ export const toUserResponseDto = (user: UserWithNullableSubscriptionTier): UserR
 	const subscription = user.subscription ?? null;
 	const subscriptionTier = user.subscription_tier ?? null;
 
-	const subscriptionTierId = subscription?.subscription_tier_id ?? null;
+	const subscriptionTierId = subscription?.current_tier_id ?? null;
 	const activeUntil = subscription?.current_period_end ? new Date(subscription.current_period_end).toISOString() : null;
 	const isBillable = subscription ? !subscription.is_gifted : false;
 
@@ -124,7 +124,7 @@ export const toUserResponseDto = (user: UserWithNullableSubscriptionTier): UserR
 		telegram_id: user.telegram_id ?? undefined,
 		telegram_username: user.telegram_username,
 		finished_registration: user.finished_registration,
-		subscription_tier_id: subscriptionTierId,
+		current_tier_id: subscriptionTierId,
 		active_until: activeUntil,
 		is_billable: isBillable,
 		is_archived: user.is_archived,

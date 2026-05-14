@@ -47,7 +47,7 @@ export const paymentMethodMetadataSchema = z
 
 export const eventMetadataSchema = paymentMethodMetadataSchema
 	.extend({
-		subscription_tier_id: z.string(),
+		current_tier_id: z.string(),
 	})
 	.passthrough();
 

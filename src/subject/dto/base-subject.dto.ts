@@ -22,5 +22,5 @@ export class SubjectResponseDto extends BaseSubjectDto {
 	@ApiProperty({ required: false, type: [String] })
 	@IsString({ each: true })
 	@IsOptional()
-	subscription_tier_ids?: string[];
+	current_tier_ids?: string[];
 }

@@ -39,10 +39,8 @@ export class SubjectRepository {
 		return await this.connection.selectFrom('subject').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
-	async find(
-		filter: Partial<Subject> & { subscription_tier_id?: string } = {},
-	): Promise<SubjectWithSubscriptionTiers[]> {
-		const { subscription_tier_id, ...subjectFilters } = filter;
+	async find(filter: Partial<Subject> & { current_tier_id?: string } = {}): Promise<SubjectWithSubscriptionTiers[]> {
+		const { current_tier_id, ...subjectFilters } = filter;
 
 		let query = this.connection
 			.selectFrom('subject')
@@ -57,8 +55,8 @@ export class SubjectRepository {
 			}
 		}
 
-		if (subscription_tier_id) {
-			const tierId = subscription_tier_id;
+		if (current_tier_id) {
+			const tierId = current_tier_id;
 			query = query.where(eb =>
 				eb.exists(
 					eb
@@ -83,14 +81,14 @@ export class SubjectRepository {
 			if (!subject) {
 				subject = {
 					...subjectFields,
-					subscription_tier_ids: [],
+					current_tier_ids: [],
 				};
 				subjectsById.set(subject.id, subject);
 				subjectOrder.push(subject.id);
 			}
 
 			if (subject_tier__tier_id !== null) {
-				const tierIds = subject.subscription_tier_ids ?? (subject.subscription_tier_ids = []);
+				const tierIds = subject.current_tier_ids ?? (subject.current_tier_ids = []);
 				if (!tierIds.includes(subject_tier__tier_id)) {
 					tierIds.push(subject_tier__tier_id);
 				}

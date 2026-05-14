@@ -18,7 +18,7 @@ export class ListPostsUsecase implements UsecaseInterface {
 		user: UserWithSubscriptionTier;
 		params: GetPostsDto;
 	}): Promise<PostListResponseDto> {
-		const { after, before, limit, subscription_tier_id: requestedSubscriptionTierId } = params;
+		const { after, before, limit, current_tier_id: requestedSubscriptionTierId } = params;
 
 		const pagination = {
 			after: after ? decodePostCursor(after) : undefined,
@@ -34,7 +34,7 @@ export class ListPostsUsecase implements UsecaseInterface {
 		const postTierMap = await this.postRepository.findTierIdsForPosts(posts.map(post => post.id));
 
 		const isSubscriber = user.role === 'subscriber';
-		const subscriberTierId = user.subscription?.subscription_tier_id;
+		const subscriberTierId = user.subscription?.current_tier_id;
 
 		const items = posts.map(post => {
 			const allowedTierIds = postTierMap[post.id] ?? [];
@@ -43,7 +43,7 @@ export class ListPostsUsecase implements UsecaseInterface {
 				...post,
 				video_id: post.video_id ?? undefined,
 				locked_preview: undefined,
-				subscription_tier_ids: allowedTierIds,
+				current_tier_ids: allowedTierIds,
 			};
 
 			if (!isSubscriber) {

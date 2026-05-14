@@ -24,14 +24,14 @@ export class GetPostUsecase implements UsecaseInterface {
 			video_id: post.video_id ?? undefined,
 			markdown_content: post.markdown_content,
 			locked_preview: undefined,
-			subscription_tier_ids: allowedTierIds,
+			current_tier_ids: allowedTierIds,
 		};
 
 		if (user.role !== 'subscriber') {
 			return base;
 		}
 
-		const subscriberTierId = user.subscription?.subscription_tier_id;
+		const subscriberTierId = user.subscription?.current_tier_id;
 
 		return {
 			...base,
