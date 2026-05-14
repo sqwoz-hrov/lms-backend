@@ -1,4 +1,5 @@
-import { SubscriptionTier, User } from '../../user/user.entity';
+import { SubscriptionTier } from '../../subscription-tier/subscription-tier.entity';
+import { User } from '../../user/user.entity';
 import { MS_IN_DAY } from '../constants';
 import { SubscriptionDraft, SubscriptionState } from '../subscription.entity';
 import { PaymentWebhookEvent } from '../types/yookassa-webhook';

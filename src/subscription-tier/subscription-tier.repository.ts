@@ -1,12 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Kysely } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
-import {
-	NewSubscriptionTier,
-	SubscriptionTier,
-	SubscriptionTierTable,
-	SubscriptionTierUpdate,
-} from '../user/user.entity';
+import { SubscriptionTierTable, SubscriptionTier, NewSubscriptionTier, SubscriptionTierUpdate } from './subscription-tier.entity';
 
 type SubscriptionTierDb = {
 	subscription_tier: SubscriptionTierTable;

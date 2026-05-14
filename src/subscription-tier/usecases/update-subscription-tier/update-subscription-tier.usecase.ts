@@ -3,7 +3,7 @@ import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { SubscriptionTierResponseDto } from '../../dto/base-subscription-tier.dto';
 import { UpdateSubscriptionTierDto } from '../../dto/update-subscription-tier.dto';
 import { SubscriptionTierRepository } from '../../subscription-tier.repository';
-import { SubscriptionTierUpdate } from '../../../user/user.entity';
+import { SubscriptionTierUpdate } from '../../subscription-tier.entity';
 
 @Injectable()
 export class UpdateSubscriptionTierUsecase implements UsecaseInterface {

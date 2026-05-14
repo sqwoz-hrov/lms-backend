@@ -1,6 +1,7 @@
 import { ColumnType, Insertable, Selectable, Updateable } from 'kysely';
 import { Subscription, SubscriptionTable } from '../subscription/subscription.entity';
 import { Generated } from '../common/kysely-types/generated';
+import { SubscriptionTier, SubscriptionTierTable } from '../subscription-tier/subscription-tier.entity';
 
 export type UserRole = 'admin' | 'user' | 'subscriber';
 
@@ -19,18 +20,6 @@ export interface UserSettings {
 	theme: ColorTheme;
 	homepage: HomepagePreference;
 }
-
-export interface SubscriptionTierTable {
-	id: Generated<string>;
-	tier: string;
-	power: ColumnType<number, number | undefined, number | undefined>;
-	permissions: ColumnType<string[], string[] | undefined, string[] | undefined>;
-	price_rubles: number;
-}
-
-export type SubscriptionTier = Selectable<SubscriptionTierTable>;
-export type NewSubscriptionTier = Insertable<SubscriptionTierTable>;
-export type SubscriptionTierUpdate = Updateable<SubscriptionTierTable>;
 
 export interface UserTable {
 	id: Generated<string>;

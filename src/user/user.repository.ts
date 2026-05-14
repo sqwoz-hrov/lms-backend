@@ -3,7 +3,6 @@ import { DatabaseProvider } from '../infra/db/db.provider';
 import { Subscription } from '../subscription/subscription.entity';
 import {
 	NewUser,
-	SubscriptionTier,
 	User,
 	UserAggregation,
 	UserRole,
@@ -11,6 +10,7 @@ import {
 	UserWithNullableSubscriptionTier,
 } from './user.entity';
 import { Inject, NotFoundException } from '@nestjs/common';
+import { SubscriptionTier } from '../subscription-tier/subscription-tier.entity';
 
 type PrefixedValues<T, Prefix extends string> = {
 	[K in keyof T as `${Prefix}${K & string}`]: T[K] | null;
