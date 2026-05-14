@@ -1,14 +1,7 @@
 import { Kysely, sql } from 'kysely';
 import { DatabaseProvider } from '../../infra/db/db.provider';
-import {
-	NewSubscription,
-	PaymentEvent,
-	PaymentEventTable,
-	Subscription,
-	PaymentMethod,
-	PaymentMethodTable,
-	SubscriptionTable,
-} from '../subscription.entity';
+import { NewSubscription, Subscription, SubscriptionTable } from '../subscription.entity';
+import { PaymentEventTable, PaymentMethodTable, PaymentEvent, PaymentMethod } from '../../payment/payment.entity';
 
 type SubscriptionTestDb = {
 	subscription: SubscriptionTable;

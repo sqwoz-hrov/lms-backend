@@ -1,11 +1,12 @@
 import { BillingEventType } from '../constants';
-import { NewPaymentEvent, Subscription, SubscriptionUpdate } from '../subscription.entity';
+import { Subscription, SubscriptionUpdate } from '../subscription.entity';
 import type { BillableSubscriptionRow } from '../subscription.repository';
 import {
 	BillableSubscriptionCursor,
 	SubscriptionRepositoryPort,
 	SubscriptionRepositoryPortTransaction,
 } from '../ports/subscription-repository.port';
+import { NewPaymentEvent } from '../../payment/payment.entity';
 
 type RecordedEvent =
 	| { type: BillingEventType.ATTEMPT_PREPARED; event: Record<string, unknown> }

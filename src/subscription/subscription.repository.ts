@@ -3,19 +3,16 @@ import { Kysely, Transaction, sql } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { UserAggregation } from '../user/user.entity';
 import type { BillableSubscriptionCursor, SubscriptionRepositoryPort } from './ports/subscription-repository.port';
-import {
-	NewPaymentEvent,
-	NewPaymentMethod,
-	NewSubscription,
-	PaymentEventTable,
-	PaymentMethod,
-	PaymentMethodStatus,
-	Subscription,
-	SubscriptionAggregation,
-	SubscriptionUpdate,
-} from './subscription.entity';
+import { NewSubscription, Subscription, SubscriptionAggregation, SubscriptionUpdate } from './subscription.entity';
 import { getStartOfDayUtc } from './utils/get-start-of-day-utc';
 import { MS_IN_DAY } from './constants';
+import {
+	PaymentEventTable,
+	PaymentMethod,
+	NewPaymentEvent,
+	NewPaymentMethod,
+	PaymentMethodStatus,
+} from '../payment/payment.entity';
 
 export type SubscriptionDatabase = SubscriptionAggregation &
 	UserAggregation & {

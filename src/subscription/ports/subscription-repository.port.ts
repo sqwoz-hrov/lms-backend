@@ -1,4 +1,5 @@
-import type { NewPaymentEvent, Subscription, SubscriptionUpdate } from '../subscription.entity';
+import { NewPaymentEvent } from '../../payment/payment.entity';
+import type { Subscription, SubscriptionUpdate } from '../subscription.entity';
 import type { BillableSubscriptionRow } from '../subscription.repository';
 
 export type SubscriptionRepositoryPortTransaction = unknown;

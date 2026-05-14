@@ -110,12 +110,19 @@ describe('[E2E] Get active payment method usecase', () => {
 
 	it.fail('returns null nextBillingAt when user on free sub tier if user did not have payment method', async () => {});
 
-	it.fail('gift subscription does not set nextBillingAt if pre-gift was free tier and user had active payment method', async () => {});
-	it.fail('gift subscription does not set nextBillingAt if pre-gift was free tier and user did not have active payment method', async () => {});
+	it.fail(
+		'gift subscription does not set nextBillingAt if pre-gift was free tier and user had active payment method',
+		async () => {},
+	);
+	it.fail(
+		'gift subscription does not set nextBillingAt if pre-gift was free tier and user did not have active payment method',
+		async () => {},
+	);
 
-
-
-	it.fail('Returns null nextBillingAt even when gifted paid sub if pre-gift was a paid sub without payment method', async () => {});
+	it.fail(
+		'Returns null nextBillingAt even when gifted paid sub if pre-gift was a paid sub without payment method',
+		async () => {},
+	);
 
 	it.fail('If user had failed payments recently, this should be shown in "problemsWithPaymentMehtod" field');
 
@@ -171,7 +178,9 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(postGiftResponse.status).to.equal(HttpStatus.OK);
 		if (postGiftResponse.status !== 200) throw new Error();
 		const postGiftNextBillingAt = new Date(postGiftResponse.body.nextBillingAt!);
-		expect(postGiftNextBillingAt.getTime()).to.be.greaterThanOrEqual(preGiftNextBillingAt.getTime() + getDurationMs(durationDays));
+		expect(postGiftNextBillingAt.getTime()).to.be.greaterThanOrEqual(
+			preGiftNextBillingAt.getTime() + getDurationMs(durationDays),
+		);
 	});
 
 	it('returns null nextBillingAt when billing is not scheduled', async () => {
