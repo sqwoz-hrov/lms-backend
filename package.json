@@ -23,7 +23,8 @@
     "infra:dev:up": "docker compose -f dev.docker-compose.yml up -d",
     "infra:dev:down": "docker compose -f dev.docker-compose.yml down",
     "migrations:dev:up": "npx kysely migrate up",
-    "migrations:dev:down": "npx kysely migrate down"
+    "migrations:dev:down": "npx kysely migrate down",
+    "migrations:make": "npx kysely migrate make"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.804.0",
