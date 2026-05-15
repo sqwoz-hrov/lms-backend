@@ -18,9 +18,9 @@ import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { PostsTestRepository } from '../../test-utils/test.repo';
 import { PostsTestSdk } from '../../test-utils/test.sdk';
 import { PostResponseDto } from '../../dto/base-post.dto';
-import { SubscriptionTier } from '../../../user/user.entity';
 import { createTestVideoRecord } from '../../../../test/fixtures/video-db.fixture';
 import { VideosTestRepository } from '../../../video/test-utils/test.repo';
+import { SubscriptionTier } from '../../../subscription-tier/subscription-tier.entity';
 
 describe('[E2E] List posts usecase', () => {
 	let app: INestApplication;

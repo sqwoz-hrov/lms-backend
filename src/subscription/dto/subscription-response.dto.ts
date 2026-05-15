@@ -9,7 +9,10 @@ export class SubscriptionResponseDto {
 	userId: string;
 
 	@ApiProperty()
-	subscriptionTierId: string;
+	currentTierId: string;
+
+	@ApiProperty()
+	nextTierId: string;
 
 	@ApiProperty()
 	priceOnPurchaseRubles: number;
@@ -42,7 +45,8 @@ export class SubscriptionResponseDto {
 		const dto = new SubscriptionResponseDto();
 		dto.id = entity.id;
 		dto.userId = entity.user_id;
-		dto.subscriptionTierId = entity.current_tier_id;
+		dto.currentTierId = entity.current_tier_id;
+		dto.nextTierId = entity.next_tier_id;
 		dto.priceOnPurchaseRubles = entity.price_on_purchase_rubles;
 		dto.isGifted = entity.is_gifted;
 		dto.gracePeriodSize = entity.grace_period_size;

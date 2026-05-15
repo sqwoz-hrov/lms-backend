@@ -7,6 +7,7 @@ import {
 	SubscriptionRepositoryPortTransaction,
 } from '../ports/subscription-repository.port';
 import { NewPaymentEvent } from '../../payment/payment.entity';
+import { SubscriptionTier } from '../../subscription-tier/subscription-tier.entity';
 
 type RecordedEvent =
 	| { type: BillingEventType.ATTEMPT_PREPARED; event: Record<string, unknown> }
@@ -15,7 +16,12 @@ type RecordedEvent =
 
 export class InMemorySubscriptionRepository implements SubscriptionRepositoryPort {
 	private readonly subscriptions = new Map<string, Subscription>();
+	private readonly tiers = new Map<string, Pick<SubscriptionTier, 'tier' | 'power'>>();
 	private queue: BillableSubscriptionRow[] = [];
+
+	constructor({ 'tier-1': { tier, power } }: { 'tier-1': { tier: 'tier-1'; power: 1 } }) {
+		this.tiers.set('tier-1', { tier, power });
+	}
 
 	public readonly recordedEvents: RecordedEvent[] = [];
 	public fetchCalls = 0;
@@ -50,9 +56,25 @@ export class InMemorySubscriptionRepository implements SubscriptionRepositoryPor
 		return handler({} as SubscriptionRepositoryPortTransaction);
 	}
 
-	async lockByUserId(userId: string, _trx: SubscriptionRepositoryPortTransaction): Promise<Subscription | undefined> {
+	async lockByUserId(
+		userId: string,
+		_trx: SubscriptionRepositoryPortTransaction,
+	): Promise<(Subscription & { tier: SubscriptionTier['tier']; tier_power: SubscriptionTier['power'] }) | undefined> {
 		const subscription = this.subscriptions.get(userId);
-		return Promise.resolve(subscription ? structuredCloneSubscription(subscription) : undefined);
+		if (!subscription) {
+			return Promise.resolve(undefined);
+		}
+
+		const tier = this.tiers.get(subscription.current_tier_id);
+		if (!tier) {
+			return Promise.resolve(undefined);
+		}
+
+		return Promise.resolve({
+			...structuredCloneSubscription(subscription),
+			tier: tier.tier,
+			tier_power: tier.power,
+		});
 	}
 
 	update(

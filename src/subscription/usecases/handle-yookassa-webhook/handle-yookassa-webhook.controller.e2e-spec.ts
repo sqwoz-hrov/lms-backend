@@ -77,6 +77,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			current_tier_id: overrideTierId ?? tier.id,
 			...defaultSubscriptionFields(),
 			...restOverrides,
+			next_tier_id: overrideTierId ?? tier.id,
 		};
 		const subscription = await subscriptionRepo.insert(subscriptionToInsert);
 		if (paymentMethodId) {

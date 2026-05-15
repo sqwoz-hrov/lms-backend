@@ -1,6 +1,7 @@
+import { SubscriptionTier } from '../../src/subscription-tier/subscription-tier.entity';
 import { Subscription } from '../../src/subscription/subscription.entity';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { SubscriptionTier, User, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
+import { User, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
 
 export const createName = () => {

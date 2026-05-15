@@ -13,6 +13,7 @@ import {
 	NewPaymentMethod,
 	PaymentMethodStatus,
 } from '../payment/payment.entity';
+import { SubscriptionTier } from '../subscription-tier/subscription-tier.entity';
 
 export type SubscriptionDatabase = SubscriptionAggregation &
 	UserAggregation & {
@@ -105,14 +106,38 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 			.executeTakeFirst();
 	}
 
-	async lockByUserId(userId: Subscription['user_id'], trx: SubscriptionTransaction): Promise<Subscription | undefined> {
-		return await trx
+	async lockByUserId(
+		userId: Subscription['user_id'],
+		trx: SubscriptionTransaction,
+	): Promise<(Subscription & { tier: SubscriptionTier['tier']; tier_power: SubscriptionTier['power'] }) | undefined> {
+		const sub = await trx
 			.selectFrom('subscription')
-			.selectAll()
+			.selectAll('subscription')
 			.where('user_id', '=', userId)
 			.forUpdate()
 			.limit(1)
 			.executeTakeFirst();
+
+		if (!sub) {
+			return undefined;
+		}
+
+		const tier = await trx
+			.selectFrom('subscription_tier')
+			.selectAll()
+			.where('id', '=', sub.current_tier_id)
+			.limit(1)
+			.executeTakeFirst();
+
+		if ( !tier) {
+			return undefined;
+		}
+
+		return {
+			...sub,
+			tier: tier.tier,
+			tier_power: tier.power,
+		};
 	}
 
 	async findBillableSubscriptions(params: FindBillableSubscriptionsParams): Promise<BillableSubscriptionRow[]> {

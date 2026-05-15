@@ -98,7 +98,10 @@ describe('[E2E] Downgrade subscription usecase', () => {
 			throw new Error('Unexpected response status');
 		}
 
-		expect(response.body.subscriptionTierId).to.equal(standardTier.id);
+		// current tier did not change
+		expect(response.body.currentTierId).to.equal(existingSubscription.current_tier_id);
+		// next tier is set to the downgraded one
+		expect(response.body.nextTierId).to.equal(standardTier.id);
 		expect(response.body.priceOnPurchaseRubles).to.equal(standardTier.price_rubles);
 		expect(response.body.billingPeriodDays).to.equal(existingSubscription.billing_period_days);
 		expect(response.body.currentPeriodEnd).to.equal(existingSubscription.current_period_end?.toISOString());
@@ -112,7 +115,8 @@ describe('[E2E] Downgrade subscription usecase', () => {
 			throw new Error('Subscription not found');
 		}
 
-		expect(persisted.current_tier_id).to.equal(standardTier.id);
+		expect(persisted.current_tier_id).to.equal(existingSubscription.current_tier_id);
+		expect(persisted.next_tier_id).to.equal(standardTier.id);
 		expect(persisted.price_on_purchase_rubles).to.equal(standardTier.price_rubles);
 		expect(persisted.billing_period_days).to.equal(existingSubscription.billing_period_days);
 		expect(persisted.current_period_end?.getTime()).to.equal(activeUntil.getTime());
@@ -120,7 +124,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 		expect(persisted.is_gifted).to.equal(existingSubscription.is_gifted);
 	});
 
-	it('downgrades subscription to a free tier and resets billing information', async () => {
+	it('downgrades subscription to a free tier', async () => {
 		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 4, price_rubles: 3200 });
 		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free', power: 0, price_rubles: 0 });
 
@@ -128,13 +132,13 @@ describe('[E2E] Downgrade subscription usecase', () => {
 			current_tier_id: premiumTier.id,
 			active_until: new Date('2024-12-15T00:00:00.000Z'),
 		});
-		const subscription = subscriber.subscription;
+		const existingSubscription = subscriber.subscription;
 		const lastAttempt = new Date('2024-11-10T08:00:00.000Z');
 
 		await usersRepo.connection
 			.updateTable('subscription')
 			.set({ last_billing_attempt: lastAttempt, updated_at: new Date() })
-			.where('id', '=', subscription.id)
+			.where('id', '=', existingSubscription.id)
 			.execute();
 
 		const response = await subscriptionSdk.downgradeSubscription({
@@ -153,27 +157,19 @@ describe('[E2E] Downgrade subscription usecase', () => {
 			throw new Error('Unexpected response status');
 		}
 
-		expect(response.body.subscriptionTierId).to.equal(freeTier.id);
-		expect(response.body.priceOnPurchaseRubles).to.equal(0);
-		expect(response.body.billingPeriodDays).to.equal(0);
-		expect(response.body.currentPeriodEnd).to.equal(null);
-		expect(response.body.lastBillingAttempt).to.equal(null);
-		expect(response.body.gracePeriodSize).to.equal(0);
-		expect(response.body.isGifted).to.equal(true);
+		// current tier did not change
+		expect(response.body.currentTierId).to.equal(existingSubscription.current_tier_id);
+		// next tier is set to the downgraded one
+		expect(response.body.nextTierId).to.equal(freeTier.id);
 
-		const persisted = await subscriptionRepo.findById(subscription.id);
+		const persisted = await subscriptionRepo.findById(existingSubscription.id);
 		expect(persisted).to.not.be.a('undefined');
 		if (!persisted) {
 			throw new Error('Subscription not found');
 		}
 
-		expect(persisted.current_tier_id).to.equal(freeTier.id);
-		expect(persisted.price_on_purchase_rubles).to.equal(0);
-		expect(persisted.billing_period_days).to.equal(0);
-		expect(persisted.current_period_end).to.equal(null);
-		expect(persisted.last_billing_attempt).to.equal(null);
-		expect(persisted.grace_period_size).to.equal(0);
-		expect(persisted.is_gifted).to.equal(true);
+		expect(persisted.current_tier_id).to.equal(existingSubscription.current_tier_id);
+		expect(persisted.next_tier_id).to.equal(freeTier.id);
 	});
 
 	it('rejects attempts to upgrade subscription via downgrade endpoint', async () => {
@@ -200,8 +196,8 @@ describe('[E2E] Downgrade subscription usecase', () => {
 			},
 		});
 
-		expect(response.status).to.equal(HttpStatus.INTERNAL_SERVER_ERROR);
-		if (response.status !== HttpStatus.INTERNAL_SERVER_ERROR) {
+		expect(response.status).to.equal(HttpStatus.CONFLICT);
+		if (response.status !== HttpStatus.CONFLICT) {
 			throw new Error('Unexpected response status');
 		}
 		expect(response.body.description).to.equal(

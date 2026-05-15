@@ -1,5 +1,5 @@
-import { ColumnType, Insertable, Selectable, Updateable } from "kysely";
-import { Generated } from "../common/kysely-types/generated";
+import { ColumnType, Insertable, Selectable, Updateable } from 'kysely';
+import { Generated } from '../common/kysely-types/generated';
 
 export interface SubscriptionTierTable {
 	id: Generated<string>;

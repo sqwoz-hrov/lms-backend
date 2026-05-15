@@ -1,4 +1,5 @@
 import { NewPaymentEvent } from '../../payment/payment.entity';
+import { SubscriptionTier } from '../../subscription-tier/subscription-tier.entity';
 import type { Subscription, SubscriptionUpdate } from '../subscription.entity';
 import type { BillableSubscriptionRow } from '../subscription.repository';
 
@@ -17,7 +18,10 @@ export interface SubscriptionRepositoryPort<Transaction = SubscriptionRepository
 		cursor?: BillableSubscriptionCursor;
 	}): Promise<BillableSubscriptionRow[]>;
 	transaction<T>(handler: (trx: Transaction) => Promise<T>): Promise<T>;
-	lockByUserId(userId: Subscription['user_id'], trx: Transaction): Promise<Subscription | undefined>;
+	lockByUserId(
+		userId: Subscription['user_id'],
+		trx: Transaction,
+	): Promise<(Subscription & { tier: SubscriptionTier['tier']; tier_power: SubscriptionTier['power'] }) | undefined>;
 	update(id: Subscription['id'], data: SubscriptionUpdate, trx?: Transaction): Promise<Subscription | undefined>;
 	insertPaymentEvent(data: NewPaymentEvent, trx?: Transaction): Promise<void>;
 }

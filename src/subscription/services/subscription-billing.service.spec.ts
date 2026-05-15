@@ -23,6 +23,7 @@ const createCandidate = (overrides: Partial<BillableSubscriptionRow> = {}): Bill
 		id: overrides.id ?? 'sub-1',
 		user_id: overrides.user_id ?? 'user-1',
 		current_tier_id: overrides.current_tier_id ?? 'tier-1',
+		next_tier_id: overrides.next_tier_id ?? 'tier-1',
 		price_on_purchase_rubles: overrides.price_on_purchase_rubles ?? 2500,
 		is_gifted: overrides.is_gifted ?? false,
 		grace_period_size: overrides.grace_period_size ?? 3,
@@ -35,9 +36,13 @@ const createCandidate = (overrides: Partial<BillableSubscriptionRow> = {}): Bill
 	};
 };
 
+const levelsMap = {
+	'tier-1': { tier: 'tier-1', power: 1 },
+} as const;
+
 describe('SubscriptionBillingService', () => {
 	it('skips execution when billing disabled', async () => {
-		const repository = new InMemorySubscriptionRepository();
+		const repository = new InMemorySubscriptionRepository(levelsMap);
 		const service = new SubscriptionBillingService(repository, new FakeYookassaClient(), {
 			...baseConfig,
 			enabled: false,
@@ -50,7 +55,7 @@ describe('SubscriptionBillingService', () => {
 	});
 
 	it('skips billing when persistence cannot load the subscription', async () => {
-		const repository = new InMemorySubscriptionRepository();
+		const repository = new InMemorySubscriptionRepository(levelsMap);
 		const service = new SubscriptionBillingService(repository, new FakeYookassaClient(), baseConfig);
 
 		const candidate = createCandidate({ user_id: 'user-missing' });
@@ -64,7 +69,7 @@ describe('SubscriptionBillingService', () => {
 	});
 
 	it('skips billing when subscription is not due yet', async () => {
-		const repository = new InMemorySubscriptionRepository();
+		const repository = new InMemorySubscriptionRepository(levelsMap);
 		const service = new SubscriptionBillingService(repository, new FakeYookassaClient(), baseConfig);
 
 		const runDate = new Date('2024-05-10T06:00:00Z');
@@ -82,7 +87,7 @@ describe('SubscriptionBillingService', () => {
 	});
 
 	it('charges due subscriptions and records success', async () => {
-		const repository = new InMemorySubscriptionRepository();
+		const repository = new InMemorySubscriptionRepository(levelsMap);
 		const yookassa = new FakeYookassaClient({
 			nextPayment: createPaymentResponse({ id: 'payment-1' }),
 		});
@@ -111,7 +116,7 @@ describe('SubscriptionBillingService', () => {
 	});
 
 	it('processes all due subscriptions even when total exceeds batch size', async () => {
-		const repository = new InMemorySubscriptionRepository();
+		const repository = new InMemorySubscriptionRepository(levelsMap);
 		const service = new SubscriptionBillingService(repository, new FakeYookassaClient(), {
 			...baseConfig,
 			batchSize: 2,
@@ -135,7 +140,7 @@ describe('SubscriptionBillingService', () => {
 	});
 
 	it('does not charge the same subscription twice when queue mutates mid-run', async () => {
-		const repository = new InMemorySubscriptionRepository();
+		const repository = new InMemorySubscriptionRepository(levelsMap);
 		let duplicateScheduled = false;
 
 		const yookassa = new HookedYookassaClient({
@@ -198,7 +203,7 @@ describe('SubscriptionBillingService', () => {
 	});
 
 	it('stops processing when application shutdown interrupts a billing run', async () => {
-		const repository = new InMemorySubscriptionRepository();
+		const repository = new InMemorySubscriptionRepository(levelsMap);
 		const yookassa = new DelayedYookassaClient(25, {
 			nextPayment: createPaymentResponse({ id: 'payment-delayed' }),
 		});

@@ -1,7 +1,7 @@
 import { expect } from 'chai';
-import { SubscriptionTier } from '../../user/user.entity';
 import { SubscriptionManager } from './subscription.manager';
 import { SubscriptionDraft, SubscriptionState } from '../subscription.entity';
+import { SubscriptionTier } from '../../subscription-tier/subscription-tier.entity';
 
 const freeTier: SubscriptionTier = {
 	id: 'tier-free',
@@ -43,6 +43,7 @@ const buildSubscriptionState = (overrides: Partial<SubscriptionState> = {}): Sub
 	id: overrides.id ?? 'sub-1',
 	user_id: overrides.user_id ?? 'user-1',
 	current_tier_id: overrides.current_tier_id ?? paidTier.id,
+	next_tier_id: overrides.next_tier_id ?? paidTier.id,
 	price_on_purchase_rubles: overrides.price_on_purchase_rubles ?? 1500,
 	is_gifted: overrides.is_gifted ?? false,
 	grace_period_size: overrides.grace_period_size ?? 3,
