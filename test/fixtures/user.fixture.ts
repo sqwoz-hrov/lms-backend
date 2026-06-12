@@ -85,16 +85,14 @@ export const createTestAdmin = async (
 type SubscriberFixtureOverrides = Partial<User> & {
 	current_tier_id?: string | null;
 	active_until?: Date | null;
-	is_billable?: boolean;
 };
 
 export const createTestSubscriber = async (
 	userRepository: UsersTestRepository,
 	overrides: SubscriberFixtureOverrides = {},
 ): Promise<UserWithNullableSubscriptionTier & { subscription: Subscription; subscription_tier: SubscriptionTier }> => {
-	const { current_tier_id, active_until, is_billable, is_archived, ...userOverrides } = overrides;
+	const { current_tier_id, active_until, is_archived, ...userOverrides } = overrides;
 
-	const billable = is_billable ?? true;
 
 	const subscriptionTier = current_tier_id
 		? await userRepository.connection
@@ -131,11 +129,10 @@ export const createTestSubscriber = async (
 			user_id: user.id,
 			current_tier_id: resolvedTierId,
 			next_tier_id: resolvedTierId,
-			price_on_purchase_rubles: billable ? 1500 : 0,
-			is_gifted: !billable,
+			price_on_purchase_rubles: 1500,
 			grace_period_size: 3,
-			billing_period_days: billable ? 30 : 0,
-			current_period_end: billable ? currentPeriodEnd : null,
+			billing_period_days: 30,
+			current_period_end: currentPeriodEnd,
 			last_billing_attempt: null,
 		})
 		.returningAll()
@@ -143,7 +140,7 @@ export const createTestSubscriber = async (
 
 	return {
 		...user,
-		subscription,
+		subscription: { ...subscription, is_gifted: false },
 		subscription_tier: subscriptionTier,
 	};
 };

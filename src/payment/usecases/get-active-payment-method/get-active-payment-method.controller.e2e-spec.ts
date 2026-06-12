@@ -108,23 +108,23 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.nextBillingAt).to.equal(null);
 	});
 
-	it.fail('returns null nextBillingAt when user on free sub tier if user did not have payment method', async () => {});
+	it.skip('returns null nextBillingAt when user on free sub tier if user did not have payment method', async () => {});
 
-	it.fail(
+	it.skip(
 		'gift subscription does not set nextBillingAt if pre-gift was free tier and user had active payment method',
 		async () => {},
 	);
-	it.fail(
+	it.skip(
 		'gift subscription does not set nextBillingAt if pre-gift was free tier and user did not have active payment method',
 		async () => {},
 	);
 
-	it.fail(
+	it.skip(
 		'Returns null nextBillingAt even when gifted paid sub if pre-gift was a paid sub without payment method',
 		async () => {},
 	);
 
-	it.fail('If user had failed payments recently, this should be shown in "problemsWithPaymentMehtod" field');
+	it.skip('If user had failed payments recently, this should be shown in "problemsWithPaymentMehtod" field', async () => {});
 
 	it('gift subscription increases nextBillingAt if pre-gift was a paid sub with payment method', async () => {
 		const subscriber = await createTestSubscriber(usersRepo, { current_tier_id: null });

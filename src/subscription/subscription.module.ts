@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { GiftSubscriptionController } from './usecases/gift-subscription/gift-subscription.controller';
-import { GiftSubscriptionUsecase } from './usecases/gift-subscription/gift-subscription.usecase';
 import { SubscriptionRepository } from './subscription.repository';
 import { SubscriptionManagerFactory } from './domain/subscription-manager.factory';
 import { SubscriptionActionExecutor } from './services/subscription-action.executor';
@@ -19,9 +17,8 @@ import { YookassaWebhookRouter } from './services/webhook-router';
 
 @Module({
 	imports: [YookassaModule, SubscriptionTierModule],
-	controllers: [GiftSubscriptionController, DowngradeSubscriptionController, HandleYookassaWebhookController],
+	controllers: [DowngradeSubscriptionController, HandleYookassaWebhookController],
 	providers: [
-		GiftSubscriptionUsecase,
 		DowngradeSubscriptionUsecase,
 		HandleYookassaWebhookUsecase,
 		PaymentWebhookHandler,

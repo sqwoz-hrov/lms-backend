@@ -2,6 +2,7 @@ import { ColumnType, Insertable, Selectable, Updateable } from 'kysely';
 import { Subscription, SubscriptionTable } from '../subscription/subscription.entity';
 import { Generated } from '../common/kysely-types/generated';
 import { SubscriptionTier, SubscriptionTierTable } from '../subscription-tier/subscription-tier.entity';
+import { GiftTable } from '../gift/gift.entity';
 
 export type UserRole = 'admin' | 'user' | 'subscriber';
 
@@ -40,15 +41,25 @@ export type UserUpdate = Updateable<UserTable>;
 export interface UserAggregation {
 	user: UserTable;
 	subscription: SubscriptionTable;
+	gift: GiftTable;
 	subscription_tier: SubscriptionTierTable;
 }
 
-export type UserWithNullableSubscriptionTier = User & {
-	subscription?: Subscription | null;
+export type SubscriptionGift = {
+	is_gifted: boolean;
+}
+
+export type UserWithNullableSubscriptionTier = (User & { role: 'admin' | 'user' } & {
+	subscription?: (Subscription & SubscriptionGift) | null;
 	subscription_tier?: SubscriptionTier | null;
-};
+}) | (User & { role: 'subscriber' } & {
+	subscription: Subscription & SubscriptionGift;
+	subscription_tier: SubscriptionTier;
+});
 
 export type UserWithSubscriptionTier = User & {
-	subscription: Subscription;
+	subscription: Subscription & SubscriptionGift;
 	subscription_tier: SubscriptionTier;
 };
+
+export const DELETED_USER_FIELD_FALLBACK = 'USER_DELETED' as const;
