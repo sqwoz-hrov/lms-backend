@@ -18,11 +18,13 @@ import { GiftTestRepository } from '../../test-utils/test.repo';
 import { GiftTestSdk } from '../../test-utils/test.sdk';
 import { GiftAggregation } from '../../gift.entity';
 import { Kysely, sql } from 'kysely';
+import { UserRepository } from '../../../user/user.repository';
 
 describe('[E2E] Gift subscription usecase', () => {
 	let app: INestApplication;
 
 	let usersRepo: UsersTestRepository;
+	let roUsersRepo: Pick<UserRepository, 'findByIdWithSubscriptionTier' | 'findAll' | 'findById'>;
 	let subscriptionRepo: SubscriptionTestRepository;
 	let giftRepo: GiftTestRepository;
 	let giftSdk: GiftTestSdk;
@@ -36,6 +38,7 @@ describe('[E2E] Gift subscription usecase', () => {
 		const dbProvider = app.get(DatabaseProvider);
 		db = dbProvider.getDatabase<GiftAggregation>();
 		usersRepo = new UsersTestRepository(dbProvider);
+		roUsersRepo = new UserRepository(dbProvider);
 		subscriptionRepo = new SubscriptionTestRepository(dbProvider);
 		giftRepo = new GiftTestRepository(dbProvider);
 		giftSdk = new GiftTestSdk(
@@ -148,7 +151,18 @@ describe('[E2E] Gift subscription usecase', () => {
 		if (!sub) {
 			throw new Error('Subscription not found');
 		}
-		return sub;
+
+		const extendedSubMeta = await roUsersRepo.findByIdWithSubscriptionTier(sub?.user_id);
+
+		expect(extendedSubMeta?.subscription).to.not.equal(undefined);
+		if (!extendedSubMeta?.subscription) {
+			throw new Error('Subscription not found');
+		}
+
+		return {
+			...extendedSubMeta.subscription,
+			tierMeta: extendedSubMeta.subscription_tier,
+		};
 	};
 
 	const assertPeriodMovedByDays = (before: Date | null, after: Date | null, days: number) => {
@@ -284,7 +298,7 @@ describe('[E2E] Gift subscription usecase', () => {
 	// TODO: cannot activate an already expired gift
 	// TODO: cannot activate gift twice (idempotency)
 
-	it.only('allows accepting a new gift when previous gift is already expired', async () => {
+	it('allows accepting a new gift when previous gift is already expired', async () => {
 		const now = new Date();
 		const clock = sinon.useFakeTimers({
 			now: now.getTime(),
@@ -313,8 +327,12 @@ describe('[E2E] Gift subscription usecase', () => {
 			});
 			expect(firstAccept.status).to.equal(HttpStatus.ACCEPTED);
 
+			const afterAcceptingFirst = await getSubscriptionOrThrow(recipient.subscription.id);
+			expect(afterAcceptingFirst.is_gifted).to.equal(true);
+
 			// skip 4 days so gift is expired
 			// expiration is based on DB time, so we'l have to be a bit dirty
+			// the 'clock' bit is unnecessary
 			clock.tick(4 * DAY_MS);
 			await db.updateTable('gift').set({ activated_at: sql`activated_at - interval '8 day'` }).where('id', '=', firstGift.id).execute();
 
@@ -326,24 +344,26 @@ describe('[E2E] Gift subscription usecase', () => {
 				durationDays: secondGiftDuration,
 			});
 
-			const before = await getSubscriptionOrThrow(recipient.subscription.id);
+			// gift not yet activated, it is merely waiting
+			const beforeSecondGift = await getSubscriptionOrThrow(recipient.subscription.id);
+			expect(beforeSecondGift.is_gifted).to.equal(false);
 
-			// should be good but the sub is no gifted wtf?
 			const secondAccept = await giftSdk.acceptGiftSubscription({
 				params: { giftId: secondGift.id },
 				userMeta: buildUserMeta(recipient.id),
 			});
+
+			const after = await getSubscriptionOrThrow(recipient.subscription.id);
 
 			expect(secondAccept.status).to.equal(HttpStatus.ACCEPTED);
 			if (secondAccept.status !== HttpStatus.ACCEPTED) {
 				throw new Error('Unexpected response status');
 			}
 
-			const after = await getSubscriptionOrThrow(recipient.subscription.id);
-			assertPeriodMovedByDays(before.current_period_end, after.current_period_end, secondGiftDuration);
+			assertPeriodMovedByDays(beforeSecondGift.current_period_end, after.current_period_end, secondGiftDuration);
 
 			await assertGiftActivated(secondGift.id);
-			expect(recipient.subscription.is_gifted).to.equal(true);
+			expect(after.is_gifted).to.equal(true);
 		});
 	});
 
@@ -381,12 +401,12 @@ describe('[E2E] Gift subscription usecase', () => {
 	});
 
 	it('accepts same-tier gift, moves billing date, keeps current and next tiers unchanged, and activates gift', async () => {
-		await withFakeClock('2026-02-07T00:00:00.000Z', async () => {
+		const now = new Date();
+		await withFakeClock(now.toISOString(), async () => {
 			const admin = await createTestAdmin(usersRepo);
 			const sameTier = await createTestSubscriptionTier(usersRepo, { tier: 'tier-same', power: 20 });
 			const recipient = await createTestSubscriber(usersRepo, {
 				current_tier_id: sameTier.id,
-				active_until: new Date('2026-03-01T00:00:00.000Z'),
 			});
 
 			const giftDurationDays = 20;
@@ -398,6 +418,7 @@ describe('[E2E] Gift subscription usecase', () => {
 			});
 
 			const before = await getSubscriptionOrThrow(recipient.subscription.id);
+			expect(before.is_gifted).to.equal(false);
 
 			const response = await giftSdk.acceptGiftSubscription({
 				params: { giftId: gift.id },
@@ -416,16 +437,27 @@ describe('[E2E] Gift subscription usecase', () => {
 
 			const after = await getSubscriptionOrThrow(recipient.subscription.id);
 			assertPeriodMovedByDays(before.current_period_end, after.current_period_end, giftDurationDays);
-			expect(after.current_tier_id).to.equal(before.current_tier_id);
+
+			// assert that we haven't actually changed the database value of current_tier_id
+			const { current_tier_id: afterTierIdFromDb } = await subscriptionRepo.findById(recipient.subscription.id) ?? {};
+			expect(afterTierIdFromDb).to.equal(before.current_tier_id);
+			expect(afterTierIdFromDb).to.equal(sameTier.id);
+
+			// assert that a user's sub view shows gifted tier
+			expect(after.current_tier_id).to.equal(sameTier.id);
+
+			// assert we haven't changed the following period's sub tier
 			expect(after.next_tier_id).to.equal(before.next_tier_id);
+			expect(after.next_tier_id).to.equal(sameTier.id);
 
 			await assertGiftActivated(gift.id);
-			expect(recipient.subscription.is_gifted).to.equal(true);
+			expect(after.is_gifted).to.equal(true);
 		});
 	});
 
 	it('accepts higher-tier gift, moves billing date, keeps current and next tiers unchanged, and activates gift', async () => {
-		await withFakeClock('2026-02-08T00:00:00.000Z', async () => {
+		const now = new Date();
+		await withFakeClock(now.toISOString(), async () => {
 			const admin = await createTestAdmin(usersRepo);
 
 			const currentTier = await createTestSubscriptionTier(usersRepo, { tier: 'tier-current', power: 5 });
@@ -433,7 +465,6 @@ describe('[E2E] Gift subscription usecase', () => {
 
 			const recipient = await createTestSubscriber(usersRepo, {
 				current_tier_id: currentTier.id,
-				active_until: new Date('2026-03-10T00:00:00.000Z'),
 			});
 
 			const giftDurationDays = 12;
@@ -445,11 +476,13 @@ describe('[E2E] Gift subscription usecase', () => {
 			});
 
 			const before = await getSubscriptionOrThrow(recipient.subscription.id);
+			expect(before.is_gifted).to.equal(false);
 
 			const response = await giftSdk.acceptGiftSubscription({
 				params: { giftId: gift.id },
 				userMeta: buildUserMeta(recipient.id),
 			});
+
 
 			expect(response.status).to.equal(HttpStatus.ACCEPTED);
 			if (response.status !== HttpStatus.ACCEPTED) {
@@ -460,13 +493,21 @@ describe('[E2E] Gift subscription usecase', () => {
 			const after = await getSubscriptionOrThrow(recipient.subscription.id);
 			assertPeriodMovedByDays(before.current_period_end, after.current_period_end, giftDurationDays);
 
-			expect(after.current_tier_id).to.equal(before.current_tier_id);
+			// assert that we haven't actually changed the database value of current_tier_id
+			const { current_tier_id: afterTierIdFromDb } = await subscriptionRepo.findById(recipient.subscription.id) ?? {};
+			expect(afterTierIdFromDb).to.equal(before.current_tier_id);
+			expect(afterTierIdFromDb).to.equal(currentTier.id);
+
+			// assert that a user's sub view shows gifted tier
+			expect(after.current_tier_id).to.equal(higherTier.id);
+
+			// assert we haven't changed the following period's sub tier
 			expect(after.next_tier_id).to.equal(before.next_tier_id);
-			expect(after.current_tier_id).to.equal(currentTier.id);
 			expect(after.next_tier_id).to.equal(currentTier.id);
 
+			// assert that the new user sub is a gift
 			await assertGiftActivated(gift.id);
-			expect(recipient.subscription.is_gifted).to.equal(true);
+			expect(after.is_gifted).to.equal(true);
 		});
 	});
 });
