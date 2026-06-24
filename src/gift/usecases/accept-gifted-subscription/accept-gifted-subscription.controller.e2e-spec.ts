@@ -295,8 +295,119 @@ describe('[E2E] Gift subscription usecase', () => {
 		});
 	});
 
-	// TODO: cannot activate an already expired gift
-	// TODO: cannot activate gift twice (idempotency)
+	it('cannot activate an already expired gift', async () => {
+		const now = new Date();
+		const clock = sinon.useFakeTimers({
+			now: now.getTime(),
+			shouldClearNativeTimers: true,
+			toFake: ['Date'],
+		});
+
+		await withFakeClock(clock, async () => {
+			const admin = await createTestAdmin(usersRepo);
+			const recipient = await createTestSubscriber(usersRepo);
+			const tier = await createTestSubscriptionTier(usersRepo, { tier: 'gift-tier-expired-reactivation', power: 14 });
+
+			const giftDurationDays = 3;
+			const gift = await createGiftViaApi({
+				giftedBy: admin.id,
+				giftedTo: recipient.id,
+				tierId: tier.id,
+				durationDays: giftDurationDays,
+			});
+
+			const firstAccept = await giftSdk.acceptGiftSubscription({
+				params: { giftId: gift.id },
+				userMeta: buildUserMeta(recipient.id),
+			});
+			expect(firstAccept.status).to.equal(HttpStatus.ACCEPTED);
+
+			const afterFirstAcceptSub = await getSubscriptionOrThrow(recipient.subscription.id);
+			expect(afterFirstAcceptSub.is_gifted).to.equal(true);
+
+			clock.tick((giftDurationDays + 1) * DAY_MS);
+			await db.updateTable('gift').set({ activated_at: sql`activated_at - interval '8 day'` }).where('id', '=', gift.id).execute();
+
+			const expiredGift = await getGiftById(gift.id);
+			const beforeSecondAcceptSub = await getSubscriptionOrThrow(recipient.subscription.id);
+			expect(beforeSecondAcceptSub.is_gifted).to.equal(false);
+
+			const secondAccept = await giftSdk.acceptGiftSubscription({
+				params: { giftId: gift.id },
+				userMeta: buildUserMeta(recipient.id),
+			});
+
+			expect(secondAccept.status).to.equal(HttpStatus.CONFLICT);
+			if (secondAccept.status !== HttpStatus.CONFLICT) {
+				throw new Error('Unexpected response status');
+			}
+			expect(secondAccept.body.description).to.equal('Gift already activated');
+
+			const afterSecondAcceptSub = await getSubscriptionOrThrow(recipient.subscription.id);
+			const afterSecondAcceptGift = await getGiftById(gift.id);
+
+			// assert times are same and current sub isn't gifted since the gifted expired
+			expect(afterSecondAcceptSub.current_period_end?.getTime()).to.equal(beforeSecondAcceptSub.current_period_end?.getTime());
+			expect(afterSecondAcceptGift?.activated_at?.getTime()).to.equal(expiredGift?.activated_at?.getTime());
+			expect(afterSecondAcceptSub.is_gifted).to.equal(false);
+		});
+	});
+
+	it('does not activate the same gift twice', async () => {
+		const now = new Date();
+		await withFakeClock(now.toISOString(), async () => {
+			const admin = await createTestAdmin(usersRepo);
+			const recipient = await createTestSubscriber(usersRepo);
+			const tier = await createTestSubscriptionTier(usersRepo, { tier: 'gift-tier-idempotency', power: 16 });
+
+			const giftDurationDays = 6;
+			const gift = await createGiftViaApi({
+				giftedBy: admin.id,
+				giftedTo: recipient.id,
+				tierId: tier.id,
+				durationDays: giftDurationDays,
+			});
+
+			const before = await getSubscriptionOrThrow(recipient.subscription.id);
+			expect(before.is_gifted).to.equal(false);
+
+			const firstAccept = await giftSdk.acceptGiftSubscription({
+				params: { giftId: gift.id },
+				userMeta: buildUserMeta(recipient.id),
+			});
+
+			expect(firstAccept.status).to.equal(HttpStatus.ACCEPTED);
+			if (firstAccept.status !== HttpStatus.ACCEPTED) {
+				throw new Error('Unexpected response status');
+			}
+
+			const afterFirstAcceptSub = await getSubscriptionOrThrow(recipient.subscription.id);
+			const afterFirstGift = await getGiftById(gift.id);
+			assertPeriodMovedByDays(before.current_period_end, afterFirstAcceptSub.current_period_end, giftDurationDays);
+			await assertGiftActivated(gift.id);
+			expect(afterFirstAcceptSub.is_gifted).to.equal(true);
+
+			const secondAccept = await giftSdk.acceptGiftSubscription({
+				params: { giftId: gift.id },
+				userMeta: buildUserMeta(recipient.id),
+			});
+
+			expect(secondAccept.status).to.equal(HttpStatus.BAD_REQUEST);
+			if (secondAccept.status !== HttpStatus.BAD_REQUEST) {
+				throw new Error('Unexpected response status');
+			}
+			expect(secondAccept.body.description).to.equal('Already have an active gifted subscription');
+
+			const afterSecondAcceptSub = await getSubscriptionOrThrow(recipient.subscription.id);
+			const afterSecondGift = await getGiftById(gift.id);
+			
+			// assert the times haven't move also
+			expect(afterSecondAcceptSub.current_period_end?.getTime()).to.equal(afterFirstAcceptSub.current_period_end?.getTime());
+			expect(afterSecondGift?.activated_at?.getTime()).to.equal(afterFirstGift?.activated_at?.getTime());
+
+			expect(afterSecondAcceptSub.is_gifted).to.equal(true);
+		});
+	});
 
 	it('allows accepting a new gift when previous gift is already expired', async () => {
 		const now = new Date();
@@ -511,4 +622,3 @@ describe('[E2E] Gift subscription usecase', () => {
 		});
 	});
 });
-
