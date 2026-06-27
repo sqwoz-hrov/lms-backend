@@ -45,6 +45,8 @@ export interface UserAggregation {
 	subscription_tier: SubscriptionTierTable;
 }
 
+export type UserAndSubscriptionEntity = Pick<UserAggregation, 'subscription' | 'subscription_tier' | 'user'>;
+
 export type SubscriptionGift = {
 	is_gifted: boolean;
 }

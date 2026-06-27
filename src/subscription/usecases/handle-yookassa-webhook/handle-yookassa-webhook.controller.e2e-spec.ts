@@ -58,9 +58,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await usersRepo.clearAll();
 	});
 
-	const defaultSubscriptionFields = (): Omit<NewSubscription, 'user_id' | 'current_tier_id'> => ({
+	const defaultSubscriptionFields = (): Omit<NewSubscription, 'user_id' | 'current_tier_id' | 'next_tier_id'> => ({
 		price_on_purchase_rubles: 2500,
-		is_gifted: false,
 		grace_period_size: 3,
 		billing_period_days: 30,
 		current_period_end: new Date('2025-01-01T00:00:00.000Z'),
@@ -71,13 +70,13 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const { tierOverrides, userOverrides, subscriptionOverrides, paymentMethodId } = options;
 		const tier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', ...(tierOverrides ?? {}) });
 		const user = await createTestUser(usersRepo, { role: 'subscriber', ...(userOverrides ?? {}) });
-		const { current_tier_id: overrideTierId, user_id: _ignoredUserId, ...restOverrides } = subscriptionOverrides ?? {};
+		const { current_tier_id: overrideTierId, next_tier_id: overrideNextTierId, user_id: _ignoredUserId, ...restOverrides } = subscriptionOverrides ?? {};
 		const subscriptionToInsert: NewSubscription = {
 			user_id: user.id,
 			current_tier_id: overrideTierId ?? tier.id,
+			next_tier_id: overrideNextTierId ?? overrideTierId ?? tier.id,
 			...defaultSubscriptionFields(),
 			...restOverrides,
-			next_tier_id: overrideTierId ?? tier.id,
 		};
 		const subscription = await subscriptionRepo.insert(subscriptionToInsert);
 		if (paymentMethodId) {
@@ -173,7 +172,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			tierOverrides: { tier: 'premium' },
 			subscriptionOverrides: {
 				price_on_purchase_rubles: 2500,
-				is_gifted: false,
 				grace_period_size: 3,
 				billing_period_days: billingPeriodDays,
 				current_period_end: currentPeriodEnd,
@@ -227,7 +225,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			tierOverrides: { tier: 'premium' },
 			subscriptionOverrides: {
 				price_on_purchase_rubles: 2500,
-				is_gifted: false,
 				grace_period_size: 5,
 				billing_period_days: 30,
 				current_period_end: originalEnd,
@@ -275,7 +272,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			tierOverrides: { tier: 'premium' },
 			subscriptionOverrides: {
 				price_on_purchase_rubles: 2500,
-				is_gifted: false,
 				grace_period_size: 3,
 				billing_period_days: 30,
 				current_period_end: new Date('2025-02-01T00:00:00.000Z'),
@@ -332,7 +328,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			tierOverrides: { tier: 'premium', power: 2 },
 			subscriptionOverrides: {
 				price_on_purchase_rubles: 3500,
-				is_gifted: false,
 				grace_period_size: 3,
 				billing_period_days: 30,
 				current_period_end: currentPeriodEnd,
@@ -388,7 +383,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			tierOverrides: { tier: 'standard', power: 1 },
 			subscriptionOverrides: {
 				price_on_purchase_rubles: 1200,
-				is_gifted: false,
 				grace_period_size: 3,
 				billing_period_days: 30,
 				current_period_end: currentPeriodEnd,
@@ -444,7 +438,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			tierOverrides: { tier: 'premium' },
 			subscriptionOverrides: {
 				price_on_purchase_rubles: 2500,
-				is_gifted: false,
 				grace_period_size: 2,
 				billing_period_days: 30,
 				current_period_end: currentPeriodEnd,
@@ -481,7 +474,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		expect(updatedSubscription.current_tier_id).to.equal(premiumTier.id);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(currentPeriodEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
-		expect(updatedSubscription.is_gifted).to.equal(false);
 
 		await expectStoredEvent(payload, { subscriptionId: subscription.id });
 	});
@@ -499,7 +491,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			tierOverrides: { tier: 'premium' },
 			subscriptionOverrides: {
 				price_on_purchase_rubles: 2500,
-				is_gifted: false,
 				grace_period_size: 2,
 				billing_period_days: 30,
 				current_period_end: new Date('2025-01-15T00:00:00.000Z'),
@@ -539,7 +530,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		expect(downgradedSubscription.billing_period_days).to.equal(0);
 		expect(downgradedSubscription.current_period_end).to.equal(null);
 		expect(downgradedSubscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
-		expect(downgradedSubscription.is_gifted).to.equal(true);
 
 		const event = await expectStoredEvent(payload);
 		expect(event.subscription_id).to.equal(subscription.id);
@@ -559,7 +549,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			tierOverrides: { tier: 'premium', power: 1 },
 			subscriptionOverrides: {
 				price_on_purchase_rubles: 2500,
-				is_gifted: false,
 				grace_period_size: 5,
 				billing_period_days: 30,
 				current_period_end: new Date('2025-03-10T00:00:00.000Z'),
@@ -596,7 +585,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		expect(updatedSubscription.current_tier_id).to.not.equal(freeTier.id);
 		expect(updatedSubscription.billing_period_days).to.equal(subscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(subscription.current_period_end?.getTime());
-		expect(updatedSubscription.is_gifted).to.equal(false);
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
 
 		const event = await expectStoredEvent(payload, { subscriptionId: subscription.id });

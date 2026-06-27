@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { SubscriptionManager } from './subscription.manager';
+import { SubscriptionService } from './subscription.state';
 import { SubscriptionDraft, SubscriptionState } from '../subscription.entity';
 import { SubscriptionTier } from '../../subscription-tier/subscription-tier.entity';
 
@@ -34,7 +34,7 @@ const BASE_DATE = new Date('2024-01-01T00:00:00.000Z');
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
 const createManager = () =>
-	new SubscriptionManager(defaultTiers, {
+	new SubscriptionService(defaultTiers, {
 		defaultBillingPeriodDays: 30,
 		defaultGracePeriodSize: 3,
 	});

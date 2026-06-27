@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { Switch } from '../../common/utils/safe-guard';
-import { SubscriptionTransaction } from '../subscription.repository';
+import { Switch } from '../../../../common/utils/safe-guard';
+import { SubscriptionTransaction } from '../../../subscription.repository';
 import {
 	YookassaPaymentCanceledWebhook,
 	YookassaPaymentSucceededWebhook,
@@ -9,9 +9,9 @@ import {
 	yookassaPaymentCanceledWebhookSchema,
 	yookassaPaymentMethodActiveWebhookSchema,
 	yookassaPaymentSucceededWebhookSchema,
-} from '../types/yookassa-webhook';
-import { PaymentMethodWebhookHandler } from './payment-method-webhook.handler';
-import { PaymentWebhookHandler } from './payment-webhook.handler';
+} from '../../../types/yookassa-webhook';
+import { PaymentMethodWebhookHandlerStrategy } from './payment-method-webhook.strategy';
+import { PaymentWebhookHandlerStrategy } from './payment-webhook.strategy';
 
 export type PaymentWebhookPayload = YookassaPaymentSucceededWebhook | YookassaPaymentCanceledWebhook;
 
@@ -49,8 +49,8 @@ const webhookPayloadEventSchema = z.discriminatedUnion('event', [
 @Injectable()
 export class YookassaWebhookRouter {
 	constructor(
-		private readonly paymentWebhookHandler: PaymentWebhookHandler,
-		private readonly paymentMethodWebhookHandler: PaymentMethodWebhookHandler,
+		private readonly paymentWebhookHandlerStrategy: PaymentWebhookHandlerStrategy,
+		private readonly paymentMethodWebhookHandlerStrategy: PaymentMethodWebhookHandlerStrategy,
 	) {}
 
 	async route({ payload: rawPayload, trx, context }: RawWebhookRouteParams): Promise<void> {
@@ -73,7 +73,7 @@ export class YookassaWebhookRouter {
 					trx,
 					context,
 				};
-				await this.paymentWebhookHandler.handle(params);
+				await this.paymentWebhookHandlerStrategy.handle(params);
 				return;
 			}
 			case 'payment.canceled': {
@@ -83,7 +83,7 @@ export class YookassaWebhookRouter {
 					trx,
 					context,
 				};
-				await this.paymentWebhookHandler.handle(params);
+				await this.paymentWebhookHandlerStrategy.handle(params);
 				return;
 			}
 			case 'payment_method.active': {
@@ -93,7 +93,7 @@ export class YookassaWebhookRouter {
 					trx,
 					context,
 				};
-				await this.paymentMethodWebhookHandler.handle(params);
+				await this.paymentMethodWebhookHandlerStrategy.handle(params);
 				return;
 			}
 			default:

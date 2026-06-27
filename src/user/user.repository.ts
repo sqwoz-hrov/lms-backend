@@ -1,4 +1,4 @@
-import { Kysely, NotNull, sql } from 'kysely';
+import { Kysely, NotNull, sql, Transaction } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { Subscription } from '../subscription/subscription.entity';
 import {
@@ -6,6 +6,7 @@ import {
 	SubscriptionGift,
 	User,
 	UserAggregation,
+	UserAndSubscriptionEntity,
 	UserRole,
 	UserSettings,
 	UserWithNullableSubscriptionTier,
@@ -24,11 +25,19 @@ type FindUsersFilters = {
 	roles?: UserRole[];
 };
 
+export type UserSubscriptionTransaction = Transaction<UserAndSubscriptionEntity>;
+
 export class UserRepository {
 	private readonly connection: Kysely<UserAggregation>;
 
 	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
 		this.connection = dbProvider.getDatabase<UserAggregation>();
+	}
+
+	async transaction<T>(handler: (trx: UserSubscriptionTransaction) => Promise<T>): Promise<T> {
+		// TODO: singluar database type so that transactions will make sense. And then like a
+		// connection getter that narrows types down for a given repo. Or go with aggregates
+		return await (this.connection as unknown as Kysely<UserAndSubscriptionEntity>).transaction().execute(handler);
 	}
 
 	public async findAll(filters: FindUsersFilters = {}): Promise<UserWithNullableSubscriptionTier[]> {
@@ -288,11 +297,12 @@ export class UserRepository {
 
 		const baseUser: User = user;
 
-		const result: UserWithNullableSubscriptionTier = {
+		// TODO: somehow move the db constraint into the typings as well
+		const result = {
 			...baseUser,
 			subscription,
 			subscription_tier: subscriptionTier,
-		};
+		} as unknown as UserWithNullableSubscriptionTier;
 
 		return result;
 	}

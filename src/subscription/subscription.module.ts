@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
 import { SubscriptionRepository } from './subscription.repository';
-import { SubscriptionManagerFactory } from './domain/subscription-manager.factory';
-import { SubscriptionActionExecutor } from './services/subscription-action.executor';
 import { SubscriptionBillingService } from './services/subscription-billing.service';
 import { SubscriptionBillingScheduler } from './services/subscription-billing.scheduler';
 import { HandleYookassaWebhookController } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.controller';
 import { HandleYookassaWebhookUsecase } from './usecases/handle-yookassa-webhook/handle-yookassa-webhook.usecase';
-import { PaymentWebhookHandler } from './services/payment-webhook.handler';
-import { PaymentMethodWebhookHandler } from './services/payment-method-webhook.handler';
+import { PaymentWebhookHandlerStrategy } from './usecases/handle-yookassa-webhook/strategies/payment-webhook.strategy';
+import { PaymentMethodWebhookHandlerStrategy } from './usecases/handle-yookassa-webhook/strategies/payment-method-webhook.strategy';
 import { YookassaModule } from '../yookassa/yookassa.module';
 import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.module';
 import { SUBSCRIPTION_REPOSITORY_PORT } from './constants';
 import { DowngradeSubscriptionController } from './usecases/downgrade-subscription/downgrade-subscription.controller';
 import { DowngradeSubscriptionUsecase } from './usecases/downgrade-subscription/downgrade-subscription.usecase';
-import { YookassaWebhookRouter } from './services/webhook-router';
+import { YookassaWebhookRouter } from './usecases/handle-yookassa-webhook/strategies/webhook-router';
+import { SubscriptionStateService } from './domain/subscription.state';
+import { SubscriptionService } from './services/subscription.service';
 
 @Module({
 	imports: [YookassaModule, SubscriptionTierModule],
@@ -21,19 +21,19 @@ import { YookassaWebhookRouter } from './services/webhook-router';
 	providers: [
 		DowngradeSubscriptionUsecase,
 		HandleYookassaWebhookUsecase,
-		PaymentWebhookHandler,
-		PaymentMethodWebhookHandler,
+		PaymentWebhookHandlerStrategy,
+		PaymentMethodWebhookHandlerStrategy,
 		YookassaWebhookRouter,
 		SubscriptionRepository,
 		{
 			provide: SUBSCRIPTION_REPOSITORY_PORT,
 			useExisting: SubscriptionRepository,
 		},
-		SubscriptionManagerFactory,
-		SubscriptionActionExecutor,
+		SubscriptionStateService,
+		SubscriptionService,
 		SubscriptionBillingService,
 		SubscriptionBillingScheduler,
 	],
-	exports: [SubscriptionRepository, SubscriptionManagerFactory, SubscriptionActionExecutor],
+	exports: [SubscriptionRepository, SubscriptionService, SubscriptionStateService],
 })
 export class SubscriptionModule {}

@@ -37,20 +37,22 @@ export class DowngradeSubscriptionUsecase implements UsecaseInterface {
 				throw new NotFoundException('User not found');
 			}
 
-			const lockedSubscription = await this.subscriptionRepository.lockByUserId(lockedUser.id, trx);
+			const lockedSubscription = await this.subscriptionRepository.lockSubscriptionByUserId(lockedUser.id, trx);
 			if (!lockedSubscription) {
 				throw new NotFoundException('Subscription not found');
 			}
 
-			if (targetTier.power >= lockedSubscription.tier_power) {
+			const { currentPaidSubscription } = lockedSubscription;
+
+			if (targetTier.power >= currentPaidSubscription.currentTier.power) {
 				throw new HttpException(
-					`Cannot downgrade subscription tier from "${lockedSubscription.tier}" to "${targetTier.tier}"`,
+					`Cannot downgrade subscription tier from "${currentPaidSubscription.currentTier.tier}" to "${targetTier.tier}"`,
 					HttpStatus.CONFLICT,
 				);
 			}
 
 			const persisted = await this.subscriptionRepository.update(
-				lockedSubscription.id,
+				currentPaidSubscription.currentTier.id,
 				{ next_tier_id: targetTier.id },
 				trx,
 			);

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { SubscriptionRepository } from '../../subscription.repository';
-import { WebhookRouteContext, YookassaWebhookRouter } from '../../services/webhook-router';
+import { WebhookRouteContext, YookassaWebhookRouter } from './strategies/webhook-router';
 
 @Injectable()
 export class HandleYookassaWebhookUsecase implements UsecaseInterface {
@@ -28,12 +28,11 @@ export class HandleYookassaWebhookUsecase implements UsecaseInterface {
 					error instanceof Error ? error.stack : undefined,
 				);
 			} finally {
-				// TODO: Insert within external trx (defined at line 16)
 				await this.subscriptionRepository.insertPaymentEvent({
 					user_id: context.userId,
 					subscription_id: context.subscriptionId,
 					event: payload,
-				});
+				}, trx);
 			}
 		});
 	}

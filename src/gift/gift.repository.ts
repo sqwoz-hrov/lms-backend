@@ -1,9 +1,10 @@
 import { Injectable, Inject, NotFoundException, HttpException, HttpStatus } from "@nestjs/common";
 import { Kysely, sql } from "kysely";
 import { DatabaseProvider } from "../infra/db/db.provider";
-import { NewGift, Gift, GiftAggregation, GiftWithUser, GiftWithSubscriptionTier, GiftWithSubscriptionTierAggregated } from "./gift.entity";
+import { NewGift, Gift, GiftAggregation, GiftWithUser, GiftWithSubscriptionTier, GiftWithSubscriptionTierAggregated, GiftState } from "./gift.entity";
 import { DELETED_USER_FIELD_FALLBACK, User } from "../user/user.entity";
 import { Paginated } from "../common/kysely-types/paginated";
+import { SubscriptionTransaction } from "../subscription/subscription.repository";
 
 @Injectable()
 export class GiftRepository {
@@ -37,6 +38,14 @@ export class GiftRepository {
             .values({ ...data })
             .returningAll()
             .executeTakeFirstOrThrow();
+    }
+
+    async resetGift(giftId: Gift['id'], updatedFields: GiftState, trx?: SubscriptionTransaction) {
+        if (trx) {
+            return await trx.updateTable('gift').where('id', '=', giftId).set(updatedFields).executeTakeFirstOrThrow();
+        }
+
+        return await this.connection.updateTable('gift').where('id', '=', giftId).set(updatedFields).executeTakeFirstOrThrow();
     }
 
 

@@ -1,6 +1,6 @@
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
-import { GiftSubscriptionDto } from '../dto/gift-subscription.dto';
+import { GiftSubscriptionDto } from '../../gift/dto/gift-subscription.dto';
 import { SubscriptionResponseDto } from '../dto/subscription-response.dto';
 import { YookassaWebhookPayload } from '../types/yookassa-webhook';
 import { DowngradeSubscriptionDto } from '../dto/downgrade-subscription.dto';

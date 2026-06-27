@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Kysely, Transaction, sql } from 'kysely';
+import { Kysely, NotNull, Transaction, sql } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { UserAggregation } from '../user/user.entity';
-import type { BillableSubscriptionCursor, SubscriptionRepositoryPort } from './ports/subscription-repository.port';
+import type { BillableSubscriptionCursor } from './ports/subscription-repository.port';
 import { NewSubscription, Subscription, SubscriptionAggregation, SubscriptionUpdate } from './subscription.entity';
 import { getStartOfDayUtc } from './utils/get-start-of-day-utc';
 import { MS_IN_DAY } from './constants';
@@ -14,6 +14,7 @@ import {
 	PaymentMethodStatus,
 } from '../payment/payment.entity';
 import { SubscriptionTier } from '../subscription-tier/subscription-tier.entity';
+import { UserSubscriptionTransaction } from '../user/user.repository';
 
 export type SubscriptionDatabase = SubscriptionAggregation &
 	UserAggregation & {
@@ -36,8 +37,26 @@ export type BillableSubscriptionRow = Subscription & {
 	billing_payment_method_id: PaymentMethod['payment_method_id'];
 };
 
+export type PaidAndGiftedSubPerUserView = {
+	currentPaidSubscription: {
+		subscription: Subscription,
+		currentTier: SubscriptionTier,
+	};
+	currentActiveGiftSubscription: {
+		gift: {
+			giftId: string;
+			giftedDays: number;
+		};
+		currentTier: {
+			giftedTierId: string;
+			giftedTierPower: number;
+		};
+	} | undefined;
+};
+
+
 @Injectable()
-export class SubscriptionRepository implements SubscriptionRepositoryPort<SubscriptionTransaction> {
+export class SubscriptionRepository {
 	private readonly db: Kysely<SubscriptionDatabase>;
 
 	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
@@ -52,9 +71,16 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 		return trx ?? this.db;
 	}
 
-	async create(data: NewSubscription, trx?: SubscriptionTransaction): Promise<Subscription> {
-		const executor = this.getExecutor(trx);
-		return await executor
+	async getFreeTier(trx?: SubscriptionTransaction): Promise<SubscriptionTier> {
+		return await this.getExecutor(trx).selectFrom('subscription_tier').selectAll().where('power', '=', 0).orderBy('id', 'desc').limit(1).executeTakeFirstOrThrow();
+	}
+
+	async getTierById(id: SubscriptionTier['id'], trx?: SubscriptionTransaction): Promise<SubscriptionTier> {
+		return await this.getExecutor(trx).selectFrom('subscription_tier').selectAll().where('id', '=', id).orderBy('id', 'desc').limit(1).executeTakeFirstOrThrow();
+	}
+
+	async create(data: NewSubscription, trx: UserSubscriptionTransaction): Promise<Subscription> {
+		return await trx
 			.insertInto('subscription')
 			.values({
 				...data,
@@ -83,6 +109,25 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 		return result ?? undefined;
 	}
 
+	async updateBatch(
+		ids: Subscription['id'][],
+		data: SubscriptionUpdate,
+		trx?: SubscriptionTransaction,
+	) {
+		const executor = this.getExecutor(trx);
+
+		const res = await executor.updateTable('subscription').set({
+			...data,
+			updated_at: sql`now()`
+		})
+		.where('id', 'in', ids)
+		.execute();
+
+		return {
+			updated: res?.at(0)?.numUpdatedRows.toString() ?? '0',
+		}
+	}
+
 	async deleteById(id: Subscription['id'], trx?: SubscriptionTransaction): Promise<void> {
 		const executor = this.getExecutor(trx);
 		await executor.deleteFrom('subscription').where('id', '=', id).execute();
@@ -106,15 +151,48 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 			.executeTakeFirst();
 	}
 
-	async lockByUserId(
+	async lockSubscriptionByUserId(
 		userId: Subscription['user_id'],
 		trx: SubscriptionTransaction,
-	): Promise<(Subscription & { tier: SubscriptionTier['tier']; tier_power: SubscriptionTier['power'] }) | undefined> {
+	): Promise<PaidAndGiftedSubPerUserView | undefined> {
 		const sub = await trx
-			.selectFrom('subscription')
-			.selectAll('subscription')
-			.where('user_id', '=', userId)
-			.forUpdate()
+			.selectFrom('subscription as s')
+			.innerJoin('subscription_tier as st', 'st.id', 's.current_tier_id')
+            .leftJoinLateral(
+				(eb) => eb.selectFrom('gift')
+					.innerJoin('subscription_tier as st', 'st.id', 'gift.tier_id')
+					.select(['gift.id', 'gift.tier_id as gifted_tier_id', 'st.power as gifted_tier_power'])
+					.select(({}) => [
+						sql<number>`FLOOR(EXTRACT(EPOCH FROM(now()::timestamptz - gift.activated_at::timestamptz)) / 86400)`.as('gifted_days')
+					])
+            		.where('gift.activated_at', 'is not', null)
+            		.$narrowType<{'activated_at': NotNull}>()
+					// this abomination checks if gift is active or not. Btw, we could use virtual computed columns from pg 18
+					.whereRef('gifted_to', '=', 's.user_id')
+            		.where(
+                		sql`(now()::timestamptz - gift.activated_at::timestamptz)`,
+                		'<=',
+                		sql`(gift.duration_days || ' days')::interval`,
+            		).limit(1).as('g'),
+					(join) => join.onTrue()
+
+			)
+			.selectAll('s')
+			.select([
+				'st.id as paid_tier_id',
+				'st.power as paid_tier_power',
+				'st.permissions as paid_tier_permissions',
+				'st.tier as paid_tier_name',
+				'st.price_rubles as paid_tier_price'
+			])
+            .select([
+				'g.id as gift_id',
+				'g.gifted_tier_id',
+				'g.gifted_days',
+				'g.gifted_tier_power',
+			])
+			.where('s.user_id', '=', userId)
+			.forUpdate('s')
 			.limit(1)
 			.executeTakeFirst();
 
@@ -122,28 +200,53 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 			return undefined;
 		}
 
-		const tier = await trx
-			.selectFrom('subscription_tier')
-			.selectAll()
-			.where('id', '=', sub.current_tier_id)
-			.limit(1)
-			.executeTakeFirst();
+		const {
+			gift_id,
+			gifted_tier_id,
+			gifted_days,
+			gifted_tier_power,
+			paid_tier_id,
+			paid_tier_name,
+			paid_tier_permissions,
+			paid_tier_power,
+			paid_tier_price,
+			...paidSubscriptionData } = sub;
 
-		if ( !tier) {
-			return undefined;
-		}
+
+		const currentlyActiveGift = gift_id !== null ? {
+				gift: {
+					giftId: gift_id,
+					giftedDays: gifted_days && gifted_days > 0 ? gifted_days : 0,
+				},
+				currentTier: {
+					giftedTierId: gifted_tier_id!,
+					giftedTierPower: gifted_tier_power!,
+				},
+		} : undefined;
+
+
+
 
 		return {
-			...sub,
-			tier: tier.tier,
-			tier_power: tier.power,
+			currentActiveGiftSubscription: currentlyActiveGift,
+			currentPaidSubscription: {
+				subscription: { ...paidSubscriptionData },
+				currentTier: {
+					id: paid_tier_id,
+					tier: paid_tier_name,
+					power: paid_tier_power,
+					permissions: paid_tier_permissions,
+					price_rubles: paid_tier_price,
+				}
+			}
 		};
 	}
 
+	// TODO: use left join since user can be on paid tier but removed his payment method
 	async findBillableSubscriptions(params: FindBillableSubscriptionsParams): Promise<BillableSubscriptionRow[]> {
 		const executor = this.getExecutor(params.trx);
 		const retryAfter = new Date(params.runDate.getTime() - params.retryWindowDays * MS_IN_DAY);
-		const billingThreshold = getStartOfDayUtc(params.runDate);
+		const doNotChargeAfter = getStartOfDayUtc(params.runDate);
 
 		let query = executor
 			.selectFrom('subscription')
@@ -151,13 +254,14 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 			.selectAll('subscription')
 			.select(eb => [eb.ref('payment_method.payment_method_id').as('billing_payment_method_id')])
 			.where('payment_method.status', '=', 'active')
-			.where('subscription.is_gifted', '=', false)
 			.where('subscription.billing_period_days', '>', 0)
 			.where(
-				sql<boolean>`(subscription.current_period_end IS NULL OR subscription.current_period_end < ${billingThreshold})`,
+				eb => eb('subscription.current_period_end', 'is not', null)
+					.and('subscription.current_period_end', '<', doNotChargeAfter)
 			)
 			.where(
-				sql<boolean>`(subscription.last_billing_attempt IS NULL OR subscription.last_billing_attempt <= ${retryAfter})`,
+				eb => eb('subscription.last_billing_attempt', 'is', null)
+					.or('subscription.last_billing_attempt', '<=', retryAfter)
 			);
 
 		if (params.cursor) {
@@ -175,6 +279,7 @@ export class SubscriptionRepository implements SubscriptionRepositoryPort<Subscr
 		return await query.execute();
 	}
 
+	// TODO: type this bad boy up. event.event is a yookassa thing, event.type is our thing
 	async insertPaymentEvent(data: NewPaymentEvent, trx?: SubscriptionTransaction): Promise<void> {
 		const executor = this.getExecutor(trx);
 		await executor.insertInto('payment_event').values(data).returningAll().executeTakeFirstOrThrow();

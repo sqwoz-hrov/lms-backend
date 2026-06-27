@@ -5,7 +5,6 @@ import {
 	YookassaPaymentResponse,
 } from '../../yookassa/services/yookassa-client.interface';
 import { BillableSubscriptionRow } from '../subscription.repository';
-import { InMemorySubscriptionRepository } from '../test-utils/in-memory-subscription-repository';
 import { SubscriptionBillingService } from './subscription-billing.service';
 import { BillingEventType } from '../constants';
 

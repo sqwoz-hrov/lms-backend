@@ -1,19 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Switch } from '../../common/utils/safe-guard';
-import { SubscriptionRepository } from '../subscription.repository';
-import { SubscriptionManagerFactory } from '../domain/subscription-manager.factory';
-import { SubscriptionActionExecutor } from './subscription-action.executor';
-import { EventMetadata, PaymentWebhookEvent } from '../types/yookassa-webhook';
+import { Switch } from '../../../../common/utils/safe-guard';
+import { SubscriptionRepository } from '../../../subscription.repository';
+import { EventMetadata, PaymentWebhookEvent } from '../../../types/yookassa-webhook';
 import { PaymentWebhookPayload, WebhookRouteParams } from './webhook-router';
+import { SubscriptionStateService } from '../../../domain/subscription.state';
+import { GiftRepository } from '../../../../gift/gift.repository';
 
 @Injectable()
-export class PaymentWebhookHandler {
-	private readonly logger = new Logger(PaymentWebhookHandler.name);
+export class PaymentWebhookHandlerStrategy {
+	private readonly logger = new Logger(PaymentWebhookHandlerStrategy.name);
 
 	constructor(
 		private readonly subscriptionRepository: SubscriptionRepository,
-		private readonly subscriptionManagerFactory: SubscriptionManagerFactory,
-		private readonly subscriptionActionExecutor: SubscriptionActionExecutor,
+		private readonly subscriptionStateService: SubscriptionStateService,
+		private readonly giftRepository: GiftRepository,
 	) {}
 
 	async handle({ payload, trx, context }: WebhookRouteParams<PaymentWebhookPayload>): Promise<void> {
@@ -26,7 +26,6 @@ export class PaymentWebhookHandler {
 
 		context.userId = metadata.user_id;
 
-		const manager = await this.subscriptionManagerFactory.create();
 		const user = await trx
 			.selectFrom('user')
 			.selectAll()
@@ -40,18 +39,20 @@ export class PaymentWebhookHandler {
 			throw new Error('User not found');
 		}
 
-		const subscription = await this.subscriptionRepository.lockByUserId(metadata.user_id, trx);
+		const paidAndGiftedSubObject = await this.subscriptionRepository.lockSubscriptionByUserId(metadata.user_id, trx);
 
-		if (!subscription) {
+		if (!paidAndGiftedSubObject) {
 			this.logger.warn(`Subscription for user_id ${metadata.user_id} not found for webhook ${payload.event}`);
 			throw new Error('Subscription not found');
 		}
 
-		context.subscriptionId = subscription.id;
+		const { currentPaidSubscription, currentActiveGiftSubscription } = paidAndGiftedSubObject;
 
-		if (metadata.user_id !== subscription.user_id) {
+		context.subscriptionId = currentPaidSubscription.subscription.id;
+
+		if (metadata.user_id !== currentPaidSubscription.subscription.user_id) {
 			this.logger.warn(
-				`Webhook metadata user ${metadata.user_id} does not match subscription owner ${subscription.user_id}`,
+				`Webhook metadata user ${metadata.user_id} does not match subscription owner ${currentPaidSubscription.subscription.user_id}`
 			);
 		}
 
@@ -61,12 +62,33 @@ export class PaymentWebhookHandler {
 			return;
 		}
 
-		const { action } = manager.handlePaymentEvent({ user, subscription, event });
+		// TODO: obtain from webhook
+		const targetTier = await this.subscriptionRepository.getTierById(event.meta.current_tier_id, trx);
 
-		await this.subscriptionActionExecutor.execute({
-			action,
-			trx,
+		const freeTier = await this.subscriptionRepository.getFreeTier(trx);
+
+		const { newSub, newGift } = this.subscriptionStateService.handlePaymentEvent({
+			user,
+			subscription: paidAndGiftedSubObject,
+			event: {
+				...event,
+				meta: {
+					...event.meta,
+					targetTierPower: targetTier.power,
+				},
+			},
+			freeTier
 		});
+
+		await this.subscriptionRepository.update(currentPaidSubscription.subscription.id, {
+			...newSub,
+		}, trx);
+
+		if (newGift && currentActiveGiftSubscription && newGift.duration_days > 0) {
+			await this.giftRepository.resetGift(currentActiveGiftSubscription.gift.giftId, {
+				...newGift,
+			}, trx);
+		}
 	}
 
 	private buildEvent(payload: PaymentWebhookPayload, metadata: EventMetadata): PaymentWebhookEvent {

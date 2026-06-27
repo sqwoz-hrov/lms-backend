@@ -16,6 +16,7 @@ export interface GiftTable {
 }
 
 export type Gift = Selectable<GiftTable>;
+export type GiftState = Omit<Gift, 'id' | 'gifted_to' | 'gifted_by' | 'tier_id'>;
 export type NewGift = Insertable<GiftTable>;
 export type GiftUpdate = Updateable<GiftTable>;
 

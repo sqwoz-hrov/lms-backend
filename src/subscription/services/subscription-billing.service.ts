@@ -4,15 +4,13 @@ import { randomUUID } from 'crypto';
 import { subscriptionBillingConfig } from '../../config/subscription-billing.config';
 import { YOOKASSA_CLIENT } from '../../yookassa/constants';
 import { YookassaClientPort } from '../../yookassa/services/yookassa-client.interface';
-import { BillableSubscriptionRow } from '../subscription.repository';
+import { BillableSubscriptionRow, SubscriptionRepository, SubscriptionTransaction } from '../subscription.repository';
 import { Switch } from '../../common/utils/safe-guard';
-import { SUBSCRIPTION_REPOSITORY_PORT, BillingEventType } from '../constants';
+import { BillingEventType } from '../constants';
 import { Subscription } from '../subscription.entity';
 import { isDueNow } from '../utils/is-due-now';
 import {
 	BillableSubscriptionCursor,
-	SubscriptionRepositoryPort,
-	SubscriptionRepositoryPortTransaction,
 } from '../ports/subscription-repository.port';
 
 type BillingOutcome = 'charged' | 'skipped' | 'failed';
@@ -29,8 +27,7 @@ export class SubscriptionBillingService {
 	private readonly logger = new Logger(SubscriptionBillingService.name);
 
 	constructor(
-		@Inject(SUBSCRIPTION_REPOSITORY_PORT)
-		private readonly subscriptionRepository: SubscriptionRepositoryPort,
+		private readonly subscriptionRepository: SubscriptionRepository,
 		@Inject(YOOKASSA_CLIENT) private readonly yookassaClient: YookassaClientPort,
 		@Inject(subscriptionBillingConfig.KEY) private readonly config: ConfigType<typeof subscriptionBillingConfig>,
 	) {}
@@ -62,7 +59,7 @@ export class SubscriptionBillingService {
 			}
 
 			summary.processed += 1;
-			const outcome = await this.handleCandidate(candidate, runDate);
+			const outcome = await this.chargeSubscriberPaymentMethod(candidate, runDate);
 			switch (outcome) {
 				case 'charged':
 					summary.charged += 1;
@@ -82,7 +79,7 @@ export class SubscriptionBillingService {
 		return summary;
 	}
 
-	private async handleCandidate(candidate: BillableSubscriptionRow, runDate: Date): Promise<BillingOutcome> {
+	private async chargeSubscriberPaymentMethod(candidate: BillableSubscriptionRow, runDate: Date): Promise<BillingOutcome> {
 		const context: BillingAttemptContext = {
 			attemptId: randomUUID(),
 			attemptTime: new Date(),
@@ -105,7 +102,7 @@ export class SubscriptionBillingService {
 				idempotenceKey: `subscription-billing-${prepared.subscription.id}-${context.attemptId}`,
 				metadata: {
 					user_id: prepared.subscription.user_id,
-					current_tier_id: prepared.subscription.current_tier_id,
+					current_tier_id: prepared.subscription.next_tier_id,
 				},
 			});
 
@@ -176,16 +173,21 @@ export class SubscriptionBillingService {
 		candidate: BillableSubscriptionRow,
 		context: BillingAttemptContext,
 	): Promise<PreparedBillingAttempt> {
-		return await this.subscriptionRepository.transaction(async (trx: SubscriptionRepositoryPortTransaction) => {
-			const locked = await this.subscriptionRepository.lockByUserId(candidate.user_id, trx);
-			if (!locked) {
+		return await this.subscriptionRepository.transaction(async (trx: SubscriptionTransaction) => {
+			const subscriptionAggregation = await this.subscriptionRepository.lockSubscriptionByUserId(candidate.user_id, trx);
+
+			if (!subscriptionAggregation) {
 				return { status: 'skip', reason: 'subscription-missing' } as const;
 			}
 
-			if (!isDueNow(locked, context.runDate, this.config.retryWindowDays)) {
+
+			if (!isDueNow(subscriptionAggregation, context.runDate, this.config.retryWindowDays)) {
 				return { status: 'skip', reason: 'not-due' } as const;
 			}
 
+			const { subscription: locked } = subscriptionAggregation.currentPaidSubscription;
+
+			// only increase this if we don't skip
 			await this.subscriptionRepository.update(
 				locked.id,
 				{
@@ -222,6 +224,7 @@ export class SubscriptionBillingService {
 		await this.subscriptionRepository.insertPaymentEvent({
 			user_id: subscription.user_id,
 			subscription_id: subscription.id,
+			// it has the event.type column whereas in normal yookassa events it has event.event column :/
 			event: {
 				type: BillingEventType.CHARGE_REQUESTED,
 				attemptId: context.attemptId,
@@ -231,6 +234,7 @@ export class SubscriptionBillingService {
 			},
 		});
 	}
+
 
 	private async recordFailure(
 		subscription: Subscription,
