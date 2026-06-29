@@ -17,8 +17,6 @@ import {
 import { GiftTestSdk } from '../../test-utils/test.sdk';
 import { GiftTestRepository } from '../../test-utils/test.repo';
 
-// TODO: case: cannot have 2 active gifts at the same time for the same user (gifted_to)
-// TODO: case: after time passes on a gift and it's no longer active, should be able to get the second gift
 
 describe('[E2E] Gift subscription usecase', () => {
 	let app: INestApplication;
@@ -134,7 +132,7 @@ describe('[E2E] Gift subscription usecase', () => {
 		}
 	});
 
-	it('', async () => {
+	it('current subscription level does not change after new sub is gifted but not yet activated', async () => {
 		const now = new Date('2024-11-05T00:00:00.000Z');
 		const clock = sinon.useFakeTimers({
 			now: now.getTime(),

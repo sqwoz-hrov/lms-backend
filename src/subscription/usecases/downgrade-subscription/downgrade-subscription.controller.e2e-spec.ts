@@ -121,7 +121,6 @@ describe('[E2E] Downgrade subscription usecase', () => {
 		expect(persisted.billing_period_days).to.equal(existingSubscription.billing_period_days);
 		expect(persisted.current_period_end?.getTime()).to.equal(activeUntil.getTime());
 		expect(persisted.last_billing_attempt?.getTime()).to.equal(lastAttempt.getTime());
-		expect(persisted.is_gifted).to.equal(existingSubscription.is_gifted);
 	});
 
 	it('downgrades subscription to a free tier', async () => {

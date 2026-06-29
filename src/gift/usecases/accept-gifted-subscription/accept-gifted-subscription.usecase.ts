@@ -4,7 +4,6 @@ import { UserWithNullableSubscriptionTier } from '../../../user/user.entity';
 import { GiftRepository } from '../../gift.repository';
 import { GiftAcceptedResponseType } from '../../dto/gift-accept-response.dto';
 
-// PATCH /subscription/gift/:id
 @Injectable()
 export class AcceptGiftedSubscriptionUsecase implements UsecaseInterface {
 	private logger = new Logger(AcceptGiftedSubscriptionUsecase.name);
