@@ -65,6 +65,7 @@ export class PaymentWebhookHandlerStrategy {
 		// TODO: obtain from webhook
 		const targetTier = await this.subscriptionRepository.getTierById(event.meta.current_tier_id, trx);
 
+		// TODO: cache
 		const freeTier = await this.subscriptionRepository.getFreeTier(trx);
 
 		const { newSub, newGift } = this.subscriptionStateService.handlePaymentEvent({

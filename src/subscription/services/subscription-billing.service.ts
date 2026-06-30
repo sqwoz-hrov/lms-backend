@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { subscriptionBillingConfig } from '../../config/subscription-billing.config';
 import { YOOKASSA_CLIENT } from '../../yookassa/constants';
 import { YookassaClientPort } from '../../yookassa/services/yookassa-client.interface';
-import { BillableSubscriptionRow, SubscriptionRepository, SubscriptionTransaction } from '../subscription.repository';
+import { BillableSubscriptionRow, DowngradeCandidateSubscriptionRow, SubscriptionRepository, SubscriptionTransaction } from '../subscription.repository';
 import { Switch } from '../../common/utils/safe-guard';
 import { BillingEventType } from '../constants';
 import { Subscription } from '../subscription.entity';
@@ -12,6 +12,7 @@ import { isDueNow } from '../utils/is-due-now';
 import {
 	BillableSubscriptionCursor,
 } from '../ports/subscription-repository.port';
+import { SubscriptionService } from './subscription.service';
 
 type BillingOutcome = 'charged' | 'skipped' | 'failed';
 
@@ -20,6 +21,7 @@ export interface BillingRunSummary {
 	charged: number;
 	skipped: number;
 	failed: number;
+	downgradedToFreeTier: number;
 }
 
 @Injectable()
@@ -30,6 +32,7 @@ export class SubscriptionBillingService {
 		private readonly subscriptionRepository: SubscriptionRepository,
 		@Inject(YOOKASSA_CLIENT) private readonly yookassaClient: YookassaClientPort,
 		@Inject(subscriptionBillingConfig.KEY) private readonly config: ConfigType<typeof subscriptionBillingConfig>,
+		private readonly subscriptionService: SubscriptionService,
 	) {}
 
 	async runBillingCycle(params?: { now?: Date; signal?: AbortSignal }): Promise<BillingRunSummary> {
@@ -40,6 +43,7 @@ export class SubscriptionBillingService {
 			charged: 0,
 			skipped: 0,
 			failed: 0,
+			downgradedToFreeTier: 0,
 		};
 
 		if (!this.config.enabled) {
@@ -74,6 +78,26 @@ export class SubscriptionBillingService {
 					Switch.safeGuard(outcome);
 					break;
 			}
+		}
+
+		const freeTier = await this.subscriptionRepository.getFreeTier();
+
+		// this data set should not cross with the billableSubscriptions, otherwise it'll double up the 'processed' numbers
+		for await (const downgradeCandidatesBatch of this.fetchDowngradeCandidateSubscriptions({ runDate, signal })) {
+			if (signal.aborted) {
+				this.logger.warn('Subscription billing run aborted, stopping processing loop');
+				break;
+			}
+
+			// downgrade and 
+			// mark 
+			const { downgradedCount } = await this.subscriptionService.batchDowngradeToFreeTier({
+				freeTier,
+				existingSubs: downgradeCandidatesBatch,
+			});
+
+			summary.downgradedToFreeTier += downgradedCount;
+			summary.processed += downgradeCandidatesBatch.length;
 		}
 
 		return summary;
@@ -119,6 +143,60 @@ export class SubscriptionBillingService {
 			await this.recordFailure(prepared.subscription, context, err.message);
 
 			return 'failed';
+		}
+	}
+
+	// non-billables are:
+	// - next_tier_id is free tier
+	// - no active payment methods
+	// the billables that have failed will be processed in webhook processing code
+	private async *fetchDowngradeCandidateSubscriptions(params: {
+		runDate: Date;
+		signal: AbortSignal;
+	}): AsyncGenerator<DowngradeCandidateSubscriptionRow[]> {
+		const { runDate, signal } = params;
+		let cursor: BillableSubscriptionCursor | undefined;
+		const seenSubscriptions = new Set<string>();
+
+		while (!signal.aborted) {
+			const batch = await this.subscriptionRepository.findDowngradeCandidateSubscriptions({
+				runDate,
+				retryWindowDays: this.config.retryWindowDays,
+				limit: this.config.batchSize,
+				cursor,
+			});
+
+			if (signal.aborted || batch.length === 0) {
+				return;
+			}
+			const filteredBatch: DowngradeCandidateSubscriptionRow[] = [];
+
+			for (const candidate of batch) {
+				if (signal.aborted) {
+					return;
+				}
+
+				if (seenSubscriptions.has(candidate.id)) {
+					continue;
+				}
+
+				seenSubscriptions.add(candidate.id);
+				filteredBatch.push(candidate);
+			}
+
+			yield filteredBatch;
+
+			const lastCandidate = batch[batch.length - 1];
+			if (lastCandidate) {
+				cursor = {
+					id: lastCandidate.id,
+					currentPeriodEnd: lastCandidate.current_period_end,
+				};
+			}
+
+			if (batch.length < this.config.batchSize) {
+				return;
+			}
 		}
 	}
 
@@ -174,6 +252,7 @@ export class SubscriptionBillingService {
 		context: BillingAttemptContext,
 	): Promise<PreparedBillingAttempt> {
 		return await this.subscriptionRepository.transaction(async (trx: SubscriptionTransaction) => {
+			// TODO: batch-up this part
 			const subscriptionAggregation = await this.subscriptionRepository.lockSubscriptionByUserId(candidate.user_id, trx);
 
 			if (!subscriptionAggregation) {

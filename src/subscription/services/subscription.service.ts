@@ -9,8 +9,8 @@ import { UserSubscriptionTransaction } from '../../user/user.repository';
 type DowngradeSubscriptionParams = {
 	freeTier: SubscriptionTier;
 	existingSubs: Subscription[];
-	meta: {
-		trx?: SubscriptionTransaction;
+	meta?: {
+		trx: SubscriptionTransaction;
 	}
 }
 
@@ -44,7 +44,7 @@ export class SubscriptionService {
 		return sub;
 	}
 
-	public async handleDowngradeToFreeTier({ freeTier, existingSubs, meta }: DowngradeSubscriptionParams): Promise<{downgradedCount: number}> {
+	public async batchDowngradeToFreeTier({ freeTier, existingSubs, meta }: DowngradeSubscriptionParams): Promise<{downgradedCount: number}> {
 		if (freeTier.power > 0) {
 			throw new Error('Free tier power too high');
 		}
@@ -56,7 +56,7 @@ export class SubscriptionService {
 		const { updated } = await this.subscriptionRepository.updateBatch(
 			existingSubs.map(sub => sub.id),
 			subUpdateData,
-			meta.trx,
+			meta?.trx,
 		);
 
 		const downgradedCount = parseInt(updated);

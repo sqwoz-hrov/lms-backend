@@ -33,9 +33,16 @@ type FindBillableSubscriptionsParams = {
 	trx?: SubscriptionTransaction;
 };
 
+type FindDowngradeCandidateSubscriptionsParams = FindBillableSubscriptionsParams;
+
 export type BillableSubscriptionRow = Subscription & {
 	billing_payment_method_id: PaymentMethod['payment_method_id'];
 };
+
+export type DowngradeCandidateSubscriptionRow = Subscription & {
+	billingPaymentMethodId: PaymentMethod['payment_method_id'] | null;
+	nextTierIsFree: boolean;
+}
 
 export type PaidAndGiftedSubPerUserView = {
 	currentPaidSubscription: {
@@ -250,10 +257,56 @@ export class SubscriptionRepository {
 
 		let query = executor
 			.selectFrom('subscription')
+			.innerJoin('subscription_tier as st_next', 'st_next.id', 'subscription.next_tier_id')
 			.innerJoin('payment_method', 'payment_method.user_id', 'subscription.user_id')
 			.selectAll('subscription')
 			.select(eb => [eb.ref('payment_method.payment_method_id').as('billing_payment_method_id')])
 			.where('payment_method.status', '=', 'active')
+			.where('st_next.power', '<>', 0)
+			.where('subscription.billing_period_days', '>', 0)
+			.where(
+				eb => eb('subscription.current_period_end', 'is not', null)
+					.and('subscription.current_period_end', '<', doNotChargeAfter)
+			)
+			.where(
+				eb => eb('subscription.last_billing_attempt', 'is', null)
+					.or('subscription.last_billing_attempt', '<=', retryAfter)
+			);
+
+		if (params.cursor) {
+			const cursorDate = params.cursor.currentPeriodEnd ?? new Date(0);
+			query = query.where(
+				sql<boolean>`(COALESCE(subscription.current_period_end, to_timestamp(0)), subscription.id) > (${cursorDate}, ${params.cursor.id})`,
+			);
+		}
+
+		query = query
+			.orderBy('subscription.current_period_end', 'asc')
+			.orderBy('subscription.id', 'asc')
+			.limit(params.limit);
+
+		return await query.execute();
+	}
+
+	async findDowngradeCandidateSubscriptions(params: FindDowngradeCandidateSubscriptionsParams): Promise<DowngradeCandidateSubscriptionRow[]> {
+		const executor = this.getExecutor(params.trx);
+		const retryAfter = new Date(params.runDate.getTime() - params.retryWindowDays * MS_IN_DAY);
+		const doNotChargeAfter = getStartOfDayUtc(params.runDate);
+
+		/*
+			next_tier is not free AND no active payment_method (null || !active)
+			or next_tier is free
+		 */
+		let query = executor
+			.selectFrom('subscription')
+			.innerJoin('subscription_tier as st_next', 'st_next.id', 'subscription.next_tier_id')
+			.leftJoin('payment_method as pm', 'pm.user_id', 'subscription.user_id')
+			.selectAll('subscription')
+			.select(eb => eb('st_next.power', '=', 0).as('nextTierIsFree')).$narrowType<{
+				nextTierIsFree: boolean
+			}>()
+			.select(eb => [eb.ref('pm.payment_method_id').as('billingPaymentMethodId')])
+			.where(eb => eb.or([eb('pm.status', '<>', 'active').and('st_next.power', '<>', 0), eb('st_next.power', '=', 0)]))
 			.where('subscription.billing_period_days', '>', 0)
 			.where(
 				eb => eb('subscription.current_period_end', 'is not', null)
