@@ -110,9 +110,12 @@ $$;
 
 
 - [x] Починить билдачок
-- [ ] SubscriptionService.handleDowngradeToFreeTier should be used in payment processing also when cancellation happens outside of grace
-- [ ] BillingService: Doesn't charge on a user if there's no payment method, user gets downgraded to free tier if he's due to pay but no payment method
-- [ ] BillingService: we should filter out the subs with next_tier pointing to free tier, meaning the prepareAttempt or some other method should say that they need to be excluded from billing and we should process them with downgrading to free tier
+
+- [x] SubscriptionService.handleDowngradeToFreeTier should be used in payment processing also when cancellation happens outside of grace
+
+This is done but with different code
+- [x] BillingService: Doesn't charge on a user if there's no payment method, user gets downgraded to free tier if he's due to pay but no payment method
+- [x] BillingService: we should filter out the subs with next_tier pointing to free tier, meaning the prepareAttempt or some other method should say that they need to be excluded from billing and we should process them with downgrading to free tier
 - [ ] GET /payments/history (фильтр по платёжным эвентам - самый простой вариант)
 
 - [x] Удалить SubscriptionManager, ведь по сути теперь повышение и понижение уровней - это просто круды, а биллинг - ваще отдельная история. Единственный флоу где биллинг связан с понижением это после неудачных списаний принудительно перевести чела на гифт если есть или на бесплатный левел. Логику принудительного юза гифтов я бы выключил даже, так что по сути всё что может произойти - это перевод на бесплатку в случае неудачных списаний

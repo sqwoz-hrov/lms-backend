@@ -49,6 +49,7 @@ in the meta is the next_tier_id from current subscription
 - [ ] doesn't charge a user who has next_tier_id pointing to a free tier yet his current_tier_id is a paid tier. This user gets downgraded to free tier
 - [ ] doesn't charge on a user if there's no payment method, user gets downgraded to free tier if he's due to pay but no payment method
 - [ ] charge is being made for the next_tier_id tier, not the current_tier_id
+- [ ] first cycle skips paid subscribers who have been on active gift sub but when the gift expires before second cycle run they will be charged
 
 
 ## subscription.manager.spec.ts
