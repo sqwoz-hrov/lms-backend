@@ -71,7 +71,32 @@ describe('[E2E] Gift subscription usecase', () => {
 		expect(response.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('creates gifted subscription and stores gifted subscription data even if recipient already has a paid sub tier', async () => {
+	it('cannot send gift for a non-subscriber user without existing subscription', async () => {
+		const admin = await createTestAdmin(usersRepo);
+		const recipient = await createTestUser(usersRepo, { role: 'user' });
+		const tier = await createTestSubscriptionTier(usersRepo, { tier: 'gift-for-subscriber-only', power: 2 });
+
+		const response = await giftSdk.giftSubscription({
+			params: {
+				giftToUserId: recipient.id,
+				subscriptionTierId: tier.id,
+				durationDays: 30,
+			},
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.BAD_REQUEST);
+		if (response.status !== HttpStatus.BAD_REQUEST) {
+			throw new Error('Unexpected response status');
+		}
+		expect(response.body.description).to.equal(`Can't gift subscription to a non-subscriber user`);
+	});
+
+	it('creates an inactive gift and leaves recipient subscription unchanged when recipient already has a paid sub tier', async () => {
 		const now = new Date('2024-11-01T00:00:00.000Z');
 		const clock = sinon.useFakeTimers({
 			now: now.getTime(),
@@ -81,10 +106,21 @@ describe('[E2E] Gift subscription usecase', () => {
 
 		try {
 			const admin = await createTestAdmin(usersRepo);
+			// TODO: refactor: use "createTestSubscriber"
 			const recipient = await createTestUser(usersRepo, { role: 'subscriber' });
 
 			const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'expensivier-than-free', power: 1 });
 			const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 5 });
+			const existingSubscription = await subscriptionRepo.insert({
+				user_id: recipient.id,
+				current_tier_id: freeTier.id,
+				next_tier_id: freeTier.id,
+				price_on_purchase_rubles: freeTier.price_rubles,
+				grace_period_size: 3,
+				billing_period_days: 30,
+				current_period_end: new Date('2024-12-01T00:00:00.000Z'),
+				last_billing_attempt: new Date('2024-10-01T00:00:00.000Z'),
+			});
 
 			expect(freeTier.id).to.not.equal(premiumTier.id);
 
@@ -127,12 +163,22 @@ describe('[E2E] Gift subscription usecase', () => {
 			expect(persistedSubscription.tier_id).to.equal(premiumTier.id);
 			expect(persistedSubscription.duration_days).to.equal(20);
 			expect(persistedSubscription.activated_at).to.equal(null);
+
+			const persistedOriginalSubscription = await subscriptionRepo.findById(existingSubscription.id);
+			expect(persistedOriginalSubscription?.current_tier_id).to.equal(existingSubscription.current_tier_id);
+			expect(persistedOriginalSubscription?.next_tier_id).to.equal(existingSubscription.next_tier_id);
+			expect(persistedOriginalSubscription?.current_period_end?.getTime()).to.equal(
+				existingSubscription.current_period_end?.getTime(),
+			);
+			expect(persistedOriginalSubscription?.last_billing_attempt?.getTime()).to.equal(
+				existingSubscription.last_billing_attempt?.getTime(),
+			);
 		} finally {
 			clock.restore();
 		}
 	});
 
-	it('current subscription level does not change after new sub is gifted but not yet activated', async () => {
+	it('creates an inactive gift and leaves recipient subscription unchanged when recipient already has a free sub tier', async () => {
 		const now = new Date('2024-11-05T00:00:00.000Z');
 		const clock = sinon.useFakeTimers({
 			now: now.getTime(),
@@ -142,18 +188,18 @@ describe('[E2E] Gift subscription usecase', () => {
 
 		try {
 			const admin = await createTestAdmin(usersRepo);
-			const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 5 });
+			const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free', power: 0 });
+			const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 5 })
 
-			const existingPeriodEnd = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
 			const recipient = await createTestSubscriber(usersRepo, {
-				current_tier_id: premiumTier.id,
-				active_until: existingPeriodEnd,
+				current_tier_id: freeTier.id,
+				active_until: null,
 			});
 			const existingSubscription = recipient.subscription;
 
 			const response = await giftSdk.giftSubscription({
 				params: {
-					userId: recipient.id,
+					giftToUserId: recipient.id,
 					subscriptionTierId: premiumTier.id,
 					durationDays: 20,
 				},
@@ -169,35 +215,32 @@ describe('[E2E] Gift subscription usecase', () => {
 				throw new Error('Unexpected response status');
 			}
 
-			const expectedPeriodEnd = new Date(existingPeriodEnd.getTime() + 20 * 24 * 60 * 60 * 1000);
-
-			// expect(response.body.id).to.equal(existingSubscription.id);
-			// expect(response.body.subscriptionTierId).to.equal(premiumTier.id);
-			// expect(response.body.isGifted).to.equal(true);
-			// expect(response.body.billingPeriodDays).to.equal(30); // billing period does not change
-			// expect(response.body.priceOnPurchaseRubles).to.equal(0);
-			// expect(response.body.gracePeriodSize).to.equal(existingSubscription.grace_period_size);
-			// expect(response.body.currentPeriodEnd).to.not.equal(null);
-			// expect(new Date(response.body.currentPeriodEnd as string).getTime()).to.equal(expectedPeriodEnd.getTime());
-
 			const persisted = await subscriptionRepo.findById(existingSubscription.id);
 			expect(persisted).to.not.be.a('undefined');
 			if (!persisted) {
 				throw new Error('Subscription not found');
 			}
 
-			expect(persisted.current_tier_id).to.equal(premiumTier.id);
-			// expect(persisted.is_gifted).to.equal(true);
+			expect(persisted.current_tier_id).to.equal(freeTier.id);
+			expect(persisted.next_tier_id).to.equal(existingSubscription.next_tier_id);
 			expect(persisted.billing_period_days).to.equal(30);
-			expect(persisted.price_on_purchase_rubles).to.equal(0);
+			expect(persisted.price_on_purchase_rubles).to.equal(existingSubscription.price_on_purchase_rubles);
 			expect(persisted.grace_period_size).to.equal(existingSubscription.grace_period_size);
-			expect(persisted.current_period_end?.getTime()).to.equal(expectedPeriodEnd.getTime());
+
+			const gift = await giftRepo.getByFields({
+				giftedBy: admin.id,
+				giftedTo: recipient.id,
+				tierId: premiumTier.id,
+			});
+			expect(gift).to.not.be.a('undefined');
+			expect(gift?.activated_at).to.equal(null);
+			expect(gift?.duration_days).to.equal(20);
 		} finally {
 			clock.restore();
 		}
 	});
 
-	it('rejects when trying to gift a free tier', async () => {
+	it('creates a lower-tier inactive gift without changing current subscription', async () => {
 		const now = new Date('2024-11-06T00:00:00.000Z');
 		const clock = sinon.useFakeTimers({
 			now: now.getTime(),
@@ -219,7 +262,7 @@ describe('[E2E] Gift subscription usecase', () => {
 
 			const response = await giftSdk.giftSubscription({
 				params: {
-					userId: recipient.id,
+					giftToUserId: recipient.id,
 					subscriptionTierId: paidTier.id,
 					durationDays: 10,
 				},
@@ -230,11 +273,10 @@ describe('[E2E] Gift subscription usecase', () => {
 				},
 			});
 
-			expect(response.status).to.equal(HttpStatus.INTERNAL_SERVER_ERROR);
-			if (response.status != 500) throw new Error();
-			expect(response.body.description).to.equal(
-				`Cannot downgrade subscription tier from "${premiumTier.tier}" to "${paidTier.tier}"`,
-			);
+			expect(response.status).to.equal(HttpStatus.CREATED);
+			if (response.status !== HttpStatus.CREATED) {
+				throw new Error('Unexpected response status');
+			}
 
 			const persisted = await subscriptionRepo.findById(existingSubscription.id);
 			expect(persisted).to.not.be.a('undefined');
@@ -243,8 +285,67 @@ describe('[E2E] Gift subscription usecase', () => {
 			}
 
 			expect(persisted.current_tier_id).to.equal(premiumTier.id);
+			expect(persisted.next_tier_id).to.equal(existingSubscription.next_tier_id);
 			expect(persisted.current_period_end?.getTime()).to.equal(existingPeriodEnd.getTime());
-			expect(persisted.is_gifted).to.equal(existingSubscription.is_gifted);
+
+			// TODO: refactor w/ gift assertions from accept-gift
+			const gift = await giftRepo.getByFields({
+				giftedBy: admin.id,
+				giftedTo: recipient.id,
+				tierId: paidTier.id,
+			});
+			expect(gift).to.not.be.a('undefined');
+			expect(gift?.activated_at).to.equal(null);
+			expect(gift?.duration_days).to.equal(10);
+		} finally {
+			clock.restore();
+		}
+	});
+
+	it('cannot send free tier sub as a gift', async () => {
+		const now = new Date('2024-11-06T00:00:00.000Z');
+		const clock = sinon.useFakeTimers({
+			now: now.getTime(),
+			shouldClearNativeTimers: true,
+			toFake: ['Date'],
+		});
+		try {
+			const admin = await createTestAdmin(usersRepo);
+			const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free', power: 0 });
+			const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 5 })
+			const existingPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+			const recipient = await createTestSubscriber(usersRepo, {
+				current_tier_id: premiumTier.id,
+				active_until: existingPeriodEnd,
+			});
+			const existingSubscription = recipient.subscription;
+
+			const response = await giftSdk.giftSubscription({
+				params: {
+					giftToUserId: recipient.id,
+					subscriptionTierId: freeTier.id,
+					durationDays: 20,
+				},
+				userMeta: {
+					userId: admin.id,
+					isAuth: true,
+					isWrongAccessJwt: false,
+				},
+			});
+
+			expect(response.status).to.equal(HttpStatus.BAD_REQUEST);
+
+			const persisted = await subscriptionRepo.findById(existingSubscription.id);
+			expect(persisted).to.not.be.a('undefined');
+			if (!persisted) {
+				throw new Error('Subscription not found');
+			}
+
+			expect(persisted.current_tier_id).to.equal(premiumTier.id);
+			expect(persisted.next_tier_id).to.equal(existingSubscription.next_tier_id);
+			expect(persisted.current_period_end?.getTime()).to.equal(existingPeriodEnd.getTime());
+
 		} finally {
 			clock.restore();
 		}

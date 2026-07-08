@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { forwardRef, Global, Module } from '@nestjs/common';
 import { AskForLoginController } from './usecases/ask-login/ask-login.controller';
 import { FinishLoginController } from './usecases/finish-login/finish-login.controller';
 import { OTPRedisStorage } from './adapters/otp-storage.adapter';
@@ -33,7 +33,7 @@ import { UpdateUserSettingsUsecase } from './usecases/update-settings/update-set
 
 @Global()
 @Module({
-	imports: [SubscriptionModule],
+	imports: [forwardRef(() => SubscriptionModule)],
 	controllers: [
 		AskForLoginController,
 		FinishLoginController,

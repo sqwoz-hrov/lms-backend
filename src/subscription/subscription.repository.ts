@@ -52,7 +52,7 @@ export type PaidAndGiftedSubPerUserView = {
 	currentActiveGiftSubscription: {
 		gift: {
 			giftId: string;
-			giftedDays: number;
+			giftedDaysLeft: number;
 		};
 		currentTier: {
 			giftedTierId: string;
@@ -170,7 +170,7 @@ export class SubscriptionRepository {
 					.innerJoin('subscription_tier as st', 'st.id', 'gift.tier_id')
 					.select(['gift.id', 'gift.tier_id as gifted_tier_id', 'st.power as gifted_tier_power'])
 					.select(({}) => [
-						sql<number>`FLOOR(EXTRACT(EPOCH FROM(now()::timestamptz - gift.activated_at::timestamptz)) / 86400)`.as('gifted_days')
+						sql<number>`CEIL(EXTRACT(EPOCH FROM((gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval) - now()::timestamptz)) / 86400)`.as('gifted_days_left')
 					])
             		.where('gift.activated_at', 'is not', null)
             		.$narrowType<{'activated_at': NotNull}>()
@@ -192,12 +192,12 @@ export class SubscriptionRepository {
 				'st.tier as paid_tier_name',
 				'st.price_rubles as paid_tier_price'
 			])
-            .select([
-				'g.id as gift_id',
-				'g.gifted_tier_id',
-				'g.gifted_days',
-				'g.gifted_tier_power',
-			])
+				.select([
+					'g.id as gift_id',
+					'g.gifted_tier_id',
+					'g.gifted_days_left',
+					'g.gifted_tier_power',
+				])
 			.where('s.user_id', '=', userId)
 			.forUpdate('s')
 			.limit(1)
@@ -208,10 +208,10 @@ export class SubscriptionRepository {
 		}
 
 		const {
-			gift_id,
-			gifted_tier_id,
-			gifted_days,
-			gifted_tier_power,
+				gift_id,
+				gifted_tier_id,
+				gifted_days_left,
+				gifted_tier_power,
 			paid_tier_id,
 			paid_tier_name,
 			paid_tier_permissions,
@@ -220,11 +220,11 @@ export class SubscriptionRepository {
 			...paidSubscriptionData } = sub;
 
 
-		const currentlyActiveGift = gift_id !== null ? {
-				gift: {
-					giftId: gift_id,
-					giftedDays: gifted_days && gifted_days > 0 ? gifted_days : 0,
-				},
+			const currentlyActiveGift = gift_id !== null ? {
+					gift: {
+						giftId: gift_id,
+						giftedDaysLeft: gifted_days_left && gifted_days_left > 0 ? gifted_days_left : 0,
+					},
 				currentTier: {
 					giftedTierId: gifted_tier_id!,
 					giftedTierPower: gifted_tier_power!,
@@ -306,7 +306,12 @@ export class SubscriptionRepository {
 				nextTierIsFree: boolean
 			}>()
 			.select(eb => [eb.ref('pm.payment_method_id').as('billingPaymentMethodId')])
-			.where(eb => eb.or([eb('pm.status', '<>', 'active').and('st_next.power', '<>', 0), eb('st_next.power', '=', 0)]))
+			.where(eb =>
+				eb.or([
+					eb.or([eb('pm.id', 'is', null), eb('pm.status', '<>', 'active')]).and('st_next.power', '<>', 0),
+					eb('st_next.power', '=', 0),
+				]),
+			)
 			.where('subscription.billing_period_days', '>', 0)
 			.where(
 				eb => eb('subscription.current_period_end', 'is not', null)

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { UserModule } from '../user/user.module';
@@ -11,8 +11,8 @@ import { GiftRepository } from './gift.repository';
 @Module({
     imports: [
         SubscriptionTierModule,
-        SubscriptionModule,
-        UserModule,
+        forwardRef(() => SubscriptionModule),
+        forwardRef(() => UserModule),
     ],
     providers: [
         GiftSubscriptionUsecase,
@@ -23,5 +23,6 @@ import { GiftRepository } from './gift.repository';
         GiftSubscriptionController,
         AcceptGiftedSubscriptionController,
     ],
+    exports: [GiftRepository],
 })
 export class GiftModule {}

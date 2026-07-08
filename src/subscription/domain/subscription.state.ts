@@ -41,7 +41,7 @@ export class SubscriptionStateService {
 				const base = this.maxDate(currentPaidSubscription.subscription.current_period_end, occurredAt);
 				const periodDays = this.normalizePeriodDays(currentPaidSubscription.subscription.billing_period_days || this.defaultBillingPeriodDays);
 
-				const giftedSubDays = this.normalizeGiftDays(currentActiveGiftSubscription?.gift.giftedDays);
+				const giftedSubDays = this.normalizeGiftDays(currentActiveGiftSubscription?.gift.giftedDaysLeft);
 				const giftedSubPower = currentActiveGiftSubscription?.currentTier.giftedTierPower ?? 0;
 
 

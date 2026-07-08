@@ -140,7 +140,6 @@ export class UserRepository {
 		.selectFrom('current_subscription as cs')
 		// this will inaccurate details about price that person will be paying if gift is active but it's not important since we'll not bill that amount
 		// TODO: test cases
-		      // this join fails for some reason, idk what is up with that. My guess is that filters in CTE are incorrect
         .innerJoin('subscription_tier as st', 'cs.tier_id', 'st.id')
 		.rightJoin('user', 'user.id', 'cs.user_id')
 			.selectAll('user')

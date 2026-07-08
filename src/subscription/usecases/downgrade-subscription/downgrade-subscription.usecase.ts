@@ -52,7 +52,7 @@ export class DowngradeSubscriptionUsecase implements UsecaseInterface {
 			}
 
 			const persisted = await this.subscriptionRepository.update(
-				currentPaidSubscription.currentTier.id,
+				currentPaidSubscription.subscription.id,
 				{ next_tier_id: targetTier.id },
 				trx,
 			);

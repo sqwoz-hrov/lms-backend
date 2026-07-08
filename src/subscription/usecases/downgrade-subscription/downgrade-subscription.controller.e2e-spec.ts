@@ -9,22 +9,29 @@ import { SubscriptionTestRepository } from '../../test-utils/test.repo';
 import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import {
+	createTestAdmin,
 	createTestSubscriber,
 	createTestSubscriptionTier,
 	createTestUser,
 } from '../../../../test/fixtures/user.fixture';
+import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
+import { UserRepository } from '../../../user/user.repository';
 
 describe('[E2E] Downgrade subscription usecase', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
+	let userRepository: UserRepository;
 	let subscriptionRepo: SubscriptionTestRepository;
+	let giftRepo: GiftTestRepository;
 	let subscriptionSdk: SubscriptionTestSdk;
 
 	before(function (this: ISharedContext) {
 		app = this.app;
 		const dbProvider = app.get(DatabaseProvider);
 		usersRepo = new UsersTestRepository(dbProvider);
+		userRepository = new UserRepository(dbProvider);
 		subscriptionRepo = new SubscriptionTestRepository(dbProvider);
+		giftRepo = new GiftTestRepository(dbProvider);
 		subscriptionSdk = new SubscriptionTestSdk(
 			new TestHttpClient(
 				{ port: 3000, host: 'http://127.0.0.1' },
@@ -34,6 +41,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 	});
 
 	afterEach(async () => {
+		await giftRepo.clearAll();
 		await subscriptionRepo.clearAll();
 		await usersRepo.clearAll();
 	});
@@ -169,6 +177,54 @@ describe('[E2E] Downgrade subscription usecase', () => {
 
 		expect(persisted.current_tier_id).to.equal(existingSubscription.current_tier_id);
 		expect(persisted.next_tier_id).to.equal(freeTier.id);
+	});
+
+	it('lets user downgrade despite having active higher-power gift and only lowers next tier', async () => {
+		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 4, price_rubles: 3200 });
+		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free', power: 0, price_rubles: 0 });
+		const giftedTier = await createTestSubscriptionTier(usersRepo, { tier: 'gifted-vip', power: 10, price_rubles: 8000 });
+
+		// TODO: refactor - use other helpers
+		const activeUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+		const subscriber = await createTestSubscriber(usersRepo, {
+			current_tier_id: premiumTier.id,
+			active_until: activeUntil,
+		});
+		const admin = await createTestAdmin(usersRepo);
+		const existingSubscription = subscriber.subscription;
+
+		// TODO: refactor: prefer SDK calls over repo stuff
+		await giftRepo.insertGift({
+			gifted_by: admin.id,
+			gifted_to: subscriber.id,
+			tier_id: giftedTier.id,
+			duration_days: 10,
+			activated_at: new Date(),
+		});
+
+		const response = await subscriptionSdk.downgradeSubscription({
+			params: {
+				subscriptionTierId: freeTier.id,
+			},
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+		if (response.status !== HttpStatus.OK) {
+			throw new Error('Unexpected response status');
+		}
+
+		expect(response.body.currentTierId).to.equal(existingSubscription.current_tier_id);
+		expect(response.body.nextTierId).to.equal(freeTier.id);
+
+		const userWithSubscription = await userRepository.findByIdWithSubscriptionTier(subscriber.id);
+		expect(userWithSubscription?.subscription?.current_tier_id).to.equal(giftedTier.id);
+		expect(userWithSubscription?.subscription_tier?.id).to.equal(giftedTier.id);
+		expect(userWithSubscription?.subscription?.next_tier_id).to.equal(freeTier.id);
 	});
 
 	it('rejects attempts to upgrade subscription via downgrade endpoint', async () => {

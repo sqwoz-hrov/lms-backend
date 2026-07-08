@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { SubscriptionRepository } from './subscription.repository';
 import { SubscriptionBillingService } from './services/subscription-billing.service';
 import { SubscriptionBillingScheduler } from './services/subscription-billing.scheduler';
@@ -14,9 +14,10 @@ import { DowngradeSubscriptionUsecase } from './usecases/downgrade-subscription/
 import { YookassaWebhookRouter } from './usecases/handle-yookassa-webhook/strategies/webhook-router';
 import { SubscriptionStateService } from './domain/subscription.state';
 import { SubscriptionService } from './services/subscription.service';
+import { GiftModule } from '../gift/gift.module';
 
 @Module({
-	imports: [YookassaModule, SubscriptionTierModule],
+	imports: [YookassaModule, SubscriptionTierModule, forwardRef(() => GiftModule)],
 	controllers: [DowngradeSubscriptionController, HandleYookassaWebhookController],
 	providers: [
 		DowngradeSubscriptionUsecase,
