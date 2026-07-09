@@ -37,7 +37,6 @@ describe('[E2E] Get user by id usecase', () => {
 		active_until: user.subscription?.current_period_end
 			? new Date(user.subscription.current_period_end).toISOString()
 			: null,
-		is_billable: user.subscription ? !user.subscription.is_gifted : false,
 		is_archived: user.is_archived ?? false,
 		settings: {
 			theme: user.settings.theme,
@@ -155,7 +154,6 @@ describe('[E2E] Get user by id usecase', () => {
 		const user = await createTestSubscriber(utilRepository, {
 			current_tier_id: subscriptionTier.id,
 			active_until: new Date('2035-01-01T00:00:00.000Z'),
-			is_billable: true,
 		});
 
 		const res = await userTestSdk.getUserById({
@@ -184,9 +182,7 @@ describe('[E2E] Get user by id usecase', () => {
 
 	it('Admin can access non-billable subscriber', async () => {
 		const admin = await createTestAdmin(utilRepository);
-		const subscriber = await createTestSubscriber(utilRepository, {
-			is_billable: true,
-		});
+		const subscriber = await createTestSubscriber(utilRepository);
 
 		const res = await userTestSdk.getUserById({
 			params: { id: subscriber.id },

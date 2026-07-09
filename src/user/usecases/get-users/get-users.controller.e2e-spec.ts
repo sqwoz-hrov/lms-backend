@@ -97,7 +97,6 @@ describe('[E2E] Get users usecase', () => {
 			? subscriber.subscription.current_period_end.toISOString()
 			: null;
 		expect(returnedSubscriber?.active_until).to.equal(expectedActiveUntil);
-		expect(returnedSubscriber?.is_billable).to.equal(!subscriber.subscription.is_gifted);
 		expect(returnedSubscriber?.subscription_tier).to.deep.equal({
 			id: subscriptionTier.id,
 			tier: subscriptionTier.tier,
@@ -242,7 +241,6 @@ describe('[E2E] Get users usecase', () => {
 		expect(res.body[0].role).to.equal('subscriber');
 		expect(res.body[0].current_tier_id).to.equal(subscriber.subscription.current_tier_id);
 		expect(res.body[0].subscription_tier?.id).to.equal(subscriptionTier.id);
-		expect(res.body[0].is_billable).to.equal(!subscriber.subscription.is_gifted);
 		const ownActiveUntil = subscriber.subscription.current_period_end
 			? subscriber.subscription.current_period_end.toISOString()
 			: null;

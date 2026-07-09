@@ -71,11 +71,6 @@ export class BaseUserDto {
 	@IsOptional()
 	active_until?: string | null;
 
-	@ApiPropertyOptional({ description: 'Indicates whether user is billable' })
-	@IsBoolean()
-	@IsOptional()
-	is_billable?: boolean;
-
 	@ApiPropertyOptional({ description: 'Indicates whether user is archived' })
 	@IsBoolean()
 	@IsOptional()
@@ -114,7 +109,6 @@ export const toUserResponseDto = (user: UserWithNullableSubscriptionTier): UserR
 
 	const subscriptionTierId = subscription?.current_tier_id ?? null;
 	const activeUntil = subscription?.current_period_end ? new Date(subscription.current_period_end).toISOString() : null;
-	const isBillable = subscription ? !subscription.is_gifted : false;
 
 	return {
 		id: user.id,
@@ -126,7 +120,6 @@ export const toUserResponseDto = (user: UserWithNullableSubscriptionTier): UserR
 		finished_registration: user.finished_registration,
 		current_tier_id: subscriptionTierId,
 		active_until: activeUntil,
-		is_billable: isBillable,
 		is_archived: user.is_archived,
 		settings: toUserSettingsDto(user.settings),
 		subscription_tier: subscriptionTier

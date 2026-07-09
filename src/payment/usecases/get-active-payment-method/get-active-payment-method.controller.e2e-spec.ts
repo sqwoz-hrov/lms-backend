@@ -158,7 +158,7 @@ describe('[E2E] Get active payment method usecase', () => {
 
 		await subscriptionSdk.giftSubscription({
 			params: {
-				userId: subscriber.id,
+				giftToUserId: subscriber.id,
 				subscriptionTierId: 'tier-basic',
 				durationDays,
 			},
@@ -184,7 +184,7 @@ describe('[E2E] Get active payment method usecase', () => {
 	});
 
 	it('returns null nextBillingAt when billing is not scheduled', async () => {
-		const subscriber = await createTestSubscriber(usersRepo, { is_billable: false });
+		const subscriber = await createTestSubscriber(usersRepo);
 		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
 			paymentMethodId: 'pm-get-2',
