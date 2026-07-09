@@ -81,8 +81,13 @@ describe('[E2E] Downgrade subscription usecase', () => {
 			current_tier_id: premiumTier.id,
 			active_until: activeUntil,
 		});
-		const existingSubscription = subscriber.subscription;
+		const existingUserWithSubscription = await userRepository.findByIdWithSubscriptionTier(subscriber.id);
+		const existingSubscription = existingUserWithSubscription?.subscription;
 		const lastAttempt = new Date('2024-11-05T10:00:00.000Z');
+
+		if (!existingSubscription) {
+			throw new Error('Unexpectedly did not find the subscription');
+		}
 
 		await usersRepo.connection
 			.updateTable('subscription')
@@ -114,7 +119,6 @@ describe('[E2E] Downgrade subscription usecase', () => {
 		expect(response.body.billingPeriodDays).to.equal(existingSubscription.billing_period_days);
 		expect(response.body.currentPeriodEnd).to.equal(existingSubscription.current_period_end?.toISOString());
 		expect(response.body.lastBillingAttempt).to.equal(lastAttempt.toISOString());
-		expect(response.body.isGifted).to.equal(existingSubscription.is_gifted);
 		expect(response.body.gracePeriodSize).to.equal(existingSubscription.grace_period_size);
 
 		const persisted = await subscriptionRepo.findById(existingSubscription.id);

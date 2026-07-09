@@ -48,6 +48,7 @@ export type PaidAndGiftedSubPerUserView = {
 	currentPaidSubscription: {
 		subscription: Subscription,
 		currentTier: SubscriptionTier,
+		nextTier: SubscriptionTier,
 	};
 	currentActiveGiftSubscription: {
 		gift: {
@@ -165,6 +166,7 @@ export class SubscriptionRepository {
 		const sub = await trx
 			.selectFrom('subscription as s')
 			.innerJoin('subscription_tier as st', 'st.id', 's.current_tier_id')
+			.innerJoin('subscription_tier as st_next', 'st_next.id', 's.next_tier_id')
             .leftJoinLateral(
 				(eb) => eb.selectFrom('gift')
 					.innerJoin('subscription_tier as st', 'st.id', 'gift.tier_id')
@@ -192,6 +194,13 @@ export class SubscriptionRepository {
 				'st.tier as paid_tier_name',
 				'st.price_rubles as paid_tier_price'
 			])
+			.select([
+				'st_next.id as paid_next_tier_id',
+				'st_next.power as paid_next_tier_power',
+				'st_next.permissions as paid_next_tier_permissions',
+				'st_next.tier as paid_next_tier_name',
+				'st_next.price_rubles as paid_next_tier_price'
+			])
 				.select([
 					'g.id as gift_id',
 					'g.gifted_tier_id',
@@ -217,6 +226,11 @@ export class SubscriptionRepository {
 			paid_tier_permissions,
 			paid_tier_power,
 			paid_tier_price,
+			paid_next_tier_id,
+			paid_next_tier_name,
+			paid_next_tier_permissions,
+			paid_next_tier_power,
+			paid_next_tier_price,
 			...paidSubscriptionData } = sub;
 
 
@@ -244,6 +258,13 @@ export class SubscriptionRepository {
 					power: paid_tier_power,
 					permissions: paid_tier_permissions,
 					price_rubles: paid_tier_price,
+				},
+				nextTier: {
+					id: paid_next_tier_id,
+					tier: paid_next_tier_name,
+					power: paid_next_tier_power,
+					permissions: paid_next_tier_permissions,
+					price_rubles: paid_next_tier_price,
 				}
 			}
 		};

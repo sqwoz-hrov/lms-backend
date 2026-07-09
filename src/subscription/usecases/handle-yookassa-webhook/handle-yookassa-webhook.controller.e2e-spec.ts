@@ -20,6 +20,7 @@ import { randomUUID } from 'crypto';
 import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
 import { UserRepository } from '../../../user/user.repository';
 import { expectSubscriptionIsFree } from '../../test-utils/utils';
+import { SubscriptionTier } from '../../../subscription-tier/subscription-tier.entity';
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
@@ -40,6 +41,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	let subscriptionRepo: SubscriptionTestRepository;
 	let giftRepo: GiftTestRepository;
 	let subscriptionSdk: SubscriptionTestSdk;
+	let freeTier: SubscriptionTier;
 
 	before(function (this: ISharedContext) {
 		app = this.app;
@@ -58,6 +60,14 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY),
 			),
 		);
+	});
+
+	beforeEach(async () => {
+		freeTier = await createTestSubscriptionTier(usersUtilRepository, {
+			power: 0,
+			tier: 'FREE TIER BASIC',
+			price_rubles: 0,
+		})
 	});
 
 	afterEach(async () => {
@@ -350,7 +360,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		});
 
 		expect(standardTier.power).to.be.lessThan(premiumTier.power);
-		expect(subscription.current_tier_id).to.equal(standardTier.id);
+		expect(subscription.current_tier_id).to.equal(premiumTier.id);
 
 		const occurredAt = new Date('2025-03-15T12:00:00.000Z');
 		const payload: YookassaPaymentSucceededWebhook = {
@@ -460,6 +470,9 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			paymentMethodId: 'pm-gift-low',
 		});
 
+		expect(subscription.current_tier_id).to.equal(paidTier.id);
+		expect(subscription.next_tier_id).to.equal(paidTier.id);
+
 		const activatedAt = addDays(new Date(), -5);
 		const gift = await giftRepo.insertGift({
 			gifted_by: user.id,
@@ -555,7 +568,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const freeTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'free', power: 0, price_rubles: 2000 });
 		const giftTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'gift-low', power: 3, price_rubles: 3000 });
 		const vipTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'vip', power: 5, price_rubles: 5000 });
-		const currentPeriodEnd = new Date('2025-06-10T00:00:00.000Z');
 
 		const { user, subscription } = await givenSubscription({
 			subscriptionOverrides: {
@@ -596,7 +608,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const updatedSubscription = await findSubscriptionOrFail(subscription.id);
 		expect(updatedSubscription.current_tier_id).to.equal(vipTier.id);
 		expect(updatedSubscription.next_tier_id).to.equal(vipTier.id);
-		expect(updatedSubscription.current_period_end?.getTime()).to.equal(addDays(currentPeriodEnd, 30).getTime());
+		expect(updatedSubscription.current_period_end?.getTime()).to.equal(addDays(occurredAt, 30).getTime());
 
 		const stashedGift = await giftRepo.getByFields({ giftedBy: user.id, giftedTo: user.id, tierId: giftTier.id });
 		expect(stashedGift?.id).to.equal(gift.id);
@@ -625,7 +637,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		});
 
 		const now = new Date();
-		const twoDaysAgo = new Date(now.getMilliseconds() - 2 * 24 * 3600 * 1000);
+		const twoDaysAgo = addDays(now, -2);
 
 		await giftRepo.insertGift({
 			gifted_by: user.id,
@@ -719,7 +731,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	});
 
 	it('stores cancellation event and downgrades subscription to free tier outside grace period', async () => {
-		const freeTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'free' });
 		const createdAt = new Date('2025-01-20T07:00:00.000Z');
 		const canceledAt = new Date('2025-01-20T08:00:00.000Z');
 
@@ -775,7 +786,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	});
 
 	it('stores cancellation event and downgrades paid subscription to free tier outside grace period but gifted sub stays same', async () => {
-		const freeTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'free' });
 		const createdAt = new Date('2025-01-20T07:00:00.000Z');
 		const canceledAt = new Date('2025-01-20T08:00:00.000Z');
 		const giftDurationDays = 10;
@@ -797,7 +807,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		});
 
 		const now = new Date();
-		const twoDaysAgo = new Date(now.getMilliseconds() - 2 * 24 * 3600 * 1000);
+		const twoDaysAgo = addDays(now, -2);
 
 		await giftRepo.insertGift({
 			gifted_by: user.id,
@@ -845,6 +855,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const userSubInView = await userRepository.findByIdWithSubscriptionTier(user.id);
 		expect(userSubInView?.subscription?.current_tier_id).to.equal(premiumTier.id);
 		expect(userSubInView?.subscription?.next_tier_id).to.equal(freeTier.id);
+		expect(userSubInView?.subscription?.is_gifted).to.be.true;
 		expect(userSubInView?.subscription_tier?.id).to.equal(premiumTier.id);
 		expect(userSubInView?.subscription?.current_period_end).to.be.null;
 	});

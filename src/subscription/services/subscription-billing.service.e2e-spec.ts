@@ -76,6 +76,21 @@ describe('SubscriptionBillingService integration', () => {
 		await usersTestRepo.clearAll();
 	});
 
+	const sendWebhook = async (payload: YookassaWebhookPayload) => {
+		const response = await subscriptionSdk.sendYookassaWebhook({
+			params: payload,
+			userMeta: { isAuth: false },
+		});
+		expect(response.status).to.equal(HttpStatus.OK);
+	};
+
+	const expectStoredEvent = async (payload: YookassaWebhookPayload, filter: { subscriptionId?: string } = {}) => {
+		const events = await subscriptionTestRepo.findPaymentEvents(filter);
+		expect(events.length).to.equal(1);
+		expect(events[0].event).to.deep.equal(payload);
+		return events[0];
+	};
+
 
 	const createService = (params: { yookassa?: YookassaClientPort; config?: Partial<ConfigType<typeof subscriptionBillingConfig>> } = {}) =>
 		new SubscriptionBillingService(
@@ -115,17 +130,18 @@ describe('SubscriptionBillingService integration', () => {
 			active_until: params.currentPeriodEnd ?? new Date('2024-01-01T00:00:00.000Z'),
 		});
 
-		await usersTestRepo.connection
+		const newSubscription = await usersTestRepo.connection
 			.updateTable('subscription')
 			.set({
 				next_tier_id: nextTier.id,
-				price_on_purchase_rubles: params.nextPriceRubles ?? nextTier.price_rubles,
+				price_on_purchase_rubles: params.currentPriceRubles ?? currentTier.price_rubles,
 				current_period_end: params.currentPeriodEnd ?? new Date('2024-01-01T00:00:00.000Z'),
 				last_billing_attempt: params.lastBillingAttempt ?? null,
 				updated_at: new Date(),
 			})
 			.where('id', '=', subscriber.subscription.id)
-			.execute();
+			.returningAll()
+			.executeTakeFirstOrThrow();
 
 		if (params.paymentMethodId !== null) {
 			await subscriptionTestRepo.addActivePaymentMethod({
@@ -134,22 +150,10 @@ describe('SubscriptionBillingService integration', () => {
 			});
 		}
 
-		return { subscriber, currentTier, nextTier, freeTier };
-	};
-
-	const sendWebhook = async (payload: YookassaWebhookPayload) => {
-		const response = await subscriptionSdk.sendYookassaWebhook({
-			params: payload,
-			userMeta: { isAuth: false },
-		});
-		expect(response.status).to.equal(HttpStatus.OK);
-	};
-
-	const expectStoredEvent = async (payload: YookassaWebhookPayload, filter: { subscriptionId?: string } = {}) => {
-		const events = await subscriptionTestRepo.findPaymentEvents(filter);
-		expect(events.length).to.equal(1);
-		expect(events[0].event).to.deep.equal(payload);
-		return events[0];
+		return { subscriber: {
+			...subscriber,
+			subscription: { ...newSubscription },
+		}, currentTier, nextTier, freeTier };
 	};
 
 	const findEvents = async () => await subscriptionTestRepo.findPaymentEvents();
@@ -275,14 +279,16 @@ describe('SubscriptionBillingService integration', () => {
 		expect(summary).to.deep.equal({ processed: 1, charged: 1, skipped: 0, failed: 0, downgradedToFreeTier: 0 });
 		expect(yookassa.calls).to.have.length(1);
 
+		const newYookassaClient = new RecordingYookassaClient();
+		const newService = createService({ yookassa: newYookassaClient })
 		const newAbortController = new AbortController();
-		const secondRunSummary = await service.runBillingCycle({
+		const secondRunSummary = await newService.runBillingCycle({
 			now: new Date('2024-02-01T00:00:00.000Z'),
 			signal: newAbortController.signal,
 		});
 
 		expect(secondRunSummary).to.deep.equal({ processed: 2, charged: 2, skipped: 0, failed: 0, downgradedToFreeTier: 0 });
-		expect(yookassa.calls).to.have.length(2);
+		expect(newYookassaClient.calls).to.have.length(2);
 	});
 
 	it("skips billing on a user when he's on active gift until the gift expires", async () => {
@@ -333,18 +339,19 @@ describe('SubscriptionBillingService integration', () => {
 
 		const yookassa = new RecordingYookassaClient();
 
-		expect(subscriber?.subscription?.current_tier_id).to.equal(paidTier.id);
-		expect(subscriber?.subscription?.next_tier_id).to.equal(freeTier.id);
+		const userWithSubBeforeBilling = await usersRepo.findByIdWithSubscriptionTier(subscriber.id);
+		expect(userWithSubBeforeBilling?.subscription?.current_tier_id).to.equal(paidTier.id);
+		expect(userWithSubBeforeBilling?.subscription?.next_tier_id).to.equal(freeTier.id);
 
 		const summary = await createService({ yookassa }).runBillingCycle({ now: new Date('2024-02-01T00:00:00.000Z') });
 
 		expect(summary).to.deep.equal({ processed: 1, charged: 0, skipped: 0, failed: 0, downgradedToFreeTier: 1 });
 		expect(yookassa.calls).to.have.length(0);
 
-		const sub = await subscriptionTestRepo.findById(subscriber.subscription.id);
-		expect(sub?.current_tier_id).to.equal(freeTier.id);
-		expect(sub?.next_tier_id).to.equal(freeTier.id);
-		expect(sub?.billing_period_days).to.equal(0);
+		const subAfterBilling = await subscriptionTestRepo.findById(subscriber.subscription.id);
+		expect(subAfterBilling?.current_tier_id).to.equal(freeTier.id);
+		expect(subAfterBilling?.next_tier_id).to.equal(freeTier.id);
+		expect(subAfterBilling?.billing_period_days).to.equal(0);
 
 		const userWithSubAfter = await usersRepo.findByIdWithSubscriptionTier(subscriber.id);
 		expect(userWithSubAfter?.subscription?.is_gifted).to.be.false;
@@ -353,7 +360,7 @@ describe('SubscriptionBillingService integration', () => {
 	});
 
 	it("doesn't charge on a user if there's no payment method, user gets downgraded to free tier if he's due to pay but no payment method", async () => {
-		const { subscriber, currentTier, nextTier } = await seedDueSubscriber({ userKey: 'no-payment-method', currentPriceRubles: 3000, currentTierPower: 5, nextPriceRubles: 4000, nextTierPower: 6, paymentMethodId: null });
+		const { subscriber, currentTier, nextTier, freeTier } = await seedDueSubscriber({ userKey: 'no-payment-method', currentPriceRubles: 3000, currentTierPower: 5, nextPriceRubles: 4000, nextTierPower: 6, paymentMethodId: null });
 
 		const yookassa = new RecordingYookassaClient();
 
@@ -365,7 +372,6 @@ describe('SubscriptionBillingService integration', () => {
 		expect(summary).to.deep.equal({ processed: 1, charged: 0, skipped: 0, failed: 0, downgradedToFreeTier: 1 });
 		expect(yookassa.calls).to.have.length(0);
 		const sub = await subscriptionTestRepo.findById(subscriber.subscription.id);
-		const freeTier = await subscriptionRepository.getFreeTier();
 		expect(sub?.current_tier_id).to.equal(freeTier.id);
 		expect(sub?.next_tier_id).to.equal(freeTier.id);
 
@@ -394,7 +400,7 @@ describe('SubscriptionBillingService integration', () => {
 	});
 
 	it('first cycle skips paid subscribers who have been on active gift sub but when the gift expires before second cycle run they will be charged', async () => {
-		const { subscriber, currentTier, nextTier } = await seedDueSubscriber({ userKey: 'gift-expiry', currentTierPower: 2, nextTierPower: 1 });
+		const { subscriber, currentTier, nextTier } = await seedDueSubscriber({ userKey: 'gift-expiry', currentTierPower: 2, nextTierPower: 1, nextPriceRubles: 1000, currentPriceRubles: 2000 });
 		const gift = await giftRepo.insertGift({
 			gifted_by: subscriber.id,
 			gifted_to: subscriber.id,
@@ -406,6 +412,7 @@ describe('SubscriptionBillingService integration', () => {
 		const userWithSub = await usersRepo.findByIdWithSubscriptionTier(subscriber.id);
 		expect(userWithSub?.subscription?.is_gifted).to.be.true;
 		expect(userWithSub?.subscription?.current_tier_id).to.equal(currentTier.id);
+		expect(userWithSub?.subscription?.price_on_purchase_rubles).to.equal(currentTier.price_rubles);
 		expect(userWithSub?.subscription?.next_tier_id).to.equal(nextTier.id);
 
 		const yookassa = new RecordingYookassaClient();
@@ -428,36 +435,8 @@ describe('SubscriptionBillingService integration', () => {
 		expect(secondSummary.charged).to.equal(1);
 		expect(yookassa.calls).to.have.length(1);
 
-		const userWithSubAfterSecond = await usersRepo.findByIdWithSubscriptionTier(subscriber.id);
-		expect(userWithSubAfterSecond?.subscription?.is_gifted).to.be.false;
-		expect(userWithSubAfterFirst?.subscription?.current_tier_id).to.equal(nextTier.id);
-		expect(userWithSubAfterFirst?.subscription?.next_tier_id).to.equal(nextTier.id);
-	});
-
-	it('treats missing dates as due when billing is otherwise valid, charges the guy and gives him + 30 days', async () => {
-		const { subscriber, currentTier, nextTier } = await seedDueSubscriber({ userKey: 'gift-expiry', currentTierPower: 2, nextTierPower: 1 });
-
-		await usersTestRepo.connection.updateTable('subscription')
-			.set({
-            	current_period_end: null,
-            	last_billing_attempt: null,
-				billing_period_days: 0,
-			})
-			.where('id', '=', subscriber?.subscription?.id)
-			.executeTakeFirst();
-
-		const userWithSub = await usersRepo.findByIdWithSubscriptionTier(subscriber.id);
-		expect(userWithSub?.subscription?.is_gifted).to.be.false;
-		expect(userWithSub?.subscription?.current_tier_id).to.equal(currentTier.id);
-		expect(userWithSub?.subscription?.next_tier_id).to.equal(nextTier.id);
-
-		const yookassa = new RecordingYookassaClient();
-		const summary = await createService({ yookassa }).runBillingCycle({ now: new Date('2024-02-01T00:00:00.000Z') });
-
-		//charge if he has payment method attached
-		expect(summary).to.deep.equal({ processed: 1, charged: 1, skipped: 0, failed: 0, downgradedToFreeTier: 0 });
-
-		const occurredAt = new Date('2024-02-01T00:00:10.000Z');
+		// simulate sdk call
+		const occurredAt = new Date('2024-02-03T00:00:10.000Z');
 
 		if (yookassa.responses[0].paid !== true) {
 			throw new Error('expected payment success on fake');
@@ -489,19 +468,53 @@ describe('SubscriptionBillingService integration', () => {
 		// response from sdk
 		await sendWebhook(payload)
 
-		// expect payment success
+		const userWithSubAfterSecond = await usersRepo.findByIdWithSubscriptionTier(subscriber.id);
+		expect(userWithSubAfterSecond?.subscription?.is_gifted).to.be.false;
+		expect(userWithSubAfterSecond?.subscription?.current_tier_id).to.equal(nextTier.id);
+		expect(userWithSubAfterSecond?.subscription?.next_tier_id).to.equal(nextTier.id);
+		// we probably don't update the thing here, we just charge for the next tier
+		// should make sure to update in webhook processing
+		expect(userWithSubAfterSecond?.subscription?.price_on_purchase_rubles).to.equal(nextTier.price_rubles);
+	});
+
+	// TODO: alert on broken subs
+	// "broken" subs that are not on free tier but have this data are just left out
+	it('treats broken sub records as not due', async () => {
+		const { subscriber, currentTier, nextTier } = await seedDueSubscriber({ userKey: 'gift-expiry', currentTierPower: 2, nextTierPower: 1, paymentMethodId: `pm-case-gift-expiry` });
+
+		await usersTestRepo.connection.updateTable('subscription')
+			.set({
+            	current_period_end: null,
+            	last_billing_attempt: null,
+				billing_period_days: 0,
+			})
+			.where('id', '=', subscriber?.subscription?.id)
+			.executeTakeFirst();
+
+		const userWithSub = await usersRepo.findByIdWithSubscriptionTier(subscriber.id);
+		expect(userWithSub?.subscription?.is_gifted).to.be.false;
+		expect(userWithSub?.subscription?.current_tier_id).to.equal(currentTier.id);
+		expect(userWithSub?.subscription?.next_tier_id).to.equal(nextTier.id);
+
+		const yookassa = new RecordingYookassaClient();
+		const summary = await createService({ yookassa }).runBillingCycle({ now: new Date('2024-02-01T00:00:00.000Z') });
+
+		//charge if he has payment method attached
+		expect(summary).to.deep.equal({ processed: 0, charged: 0, skipped: 0, failed: 0, downgradedToFreeTier: 0 });
+
+		// expect everything is still the same
 		const userWithSubAfterPayment = await usersRepo.findByIdWithSubscriptionTier(subscriber.id);
 		expect(userWithSubAfterPayment?.subscription?.is_gifted).to.be.false;
-		expect(userWithSubAfterPayment?.subscription?.current_tier_id).to.equal(nextTier.id);
+		expect(userWithSubAfterPayment?.subscription?.current_tier_id).to.equal(currentTier.id);
 		expect(userWithSubAfterPayment?.subscription?.next_tier_id).to.equal(nextTier.id);
 
-		// expect current_period_end is occuredAt + 30
-		expect(userWithSubAfterPayment?.subscription?.current_period_end?.toUTCString()).to.equal(addDays(occurredAt, 30).toUTCString());
-		expect(userWithSubAfterPayment?.subscription?.billing_period_days).to.equal(30);
+		expect(userWithSubAfterPayment?.subscription?.current_period_end?.toUTCString()).to.equal(userWithSub?.subscription?.current_period_end?.toUTCString());
+		expect(userWithSubAfterPayment?.subscription?.current_period_end?.toUTCString()).to.be.undefined;
+		expect(userWithSubAfterPayment?.subscription?.billing_period_days).to.equal(0);
 
 		// TODO: use sinon please, this is dumb asf
 		// last billing attempt around ~now
-		expect(userWithSubAfterPayment?.subscription?.last_billing_attempt?.getTime()).to.be.greaterThanOrEqual(Date.now() - 100);
+		expect(userWithSubAfterPayment?.subscription?.last_billing_attempt?.getTime()).to.be.undefined;
 	});
 
 	// The following cases were skipped since we rely on webhooks to determine next state of the sub in billing

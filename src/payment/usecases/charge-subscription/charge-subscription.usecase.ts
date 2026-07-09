@@ -38,7 +38,7 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 
 		if (targetTier.power < currentTier.power) {
 			throw new BadRequestException(
-				`Cannot upgrade subscription tier from lower tier "${currentTier.tier}" to higher tier "${targetTier.tier}"`,
+				`Cannot downgrade subscription tier from "${currentTier.tier}" to "${targetTier.tier}"`,
 			);
 		}
 

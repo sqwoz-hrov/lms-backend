@@ -3,7 +3,7 @@ import { SubscriptionTier } from '../../subscription-tier/subscription-tier.enti
 import { User } from '../../user/user.entity';
 import { MS_IN_DAY } from '../constants';
 import { SubscriptionState } from '../subscription.entity';
-import { PaymentWebhookEvent } from '../types/yookassa-webhook';
+import { PaymentWebhookEvent, YookassaPaymentCanceledWebhook, YookassaPaymentSucceededWebhook, YookassaWebhookPayload } from '../types/yookassa-webhook';
 import { ConfigType } from '@nestjs/config';
 import { subscriptionConfig } from '../../config/subscription.config';
 import { PaidAndGiftedSubPerUserView } from '../subscription.repository';
@@ -13,7 +13,7 @@ interface PaymentEventParams {
 	user: Pick<User, 'id'>;
 	freeTier: SubscriptionTier;
 	subscription: PaidAndGiftedSubPerUserView;
-	event: PaymentWebhookEvent & { meta: { targetTierPower: SubscriptionTier["power"] } };
+	event: PaymentWebhookEvent & { meta: { targetTierPower: SubscriptionTier["power"]; paidAmount: (YookassaPaymentCanceledWebhook | YookassaPaymentSucceededWebhook)['object']['amount'] } };
 }
 
 
@@ -54,6 +54,7 @@ export class SubscriptionStateService {
 
 					const updated: SubscriptionState = {
 						...currentPaidSubscription.subscription,
+						price_on_purchase_rubles: parseInt(event.meta.paidAmount.value),
 						grace_period_size: this.defaultGracePeriodSize,
 						current_period_end: nextEnd,
 						last_billing_attempt: occurredAt,
@@ -63,6 +64,7 @@ export class SubscriptionStateService {
 
 						const switched: SubscriptionState = {
 							...updated,
+							price_on_purchase_rubles: parseInt(event.meta.paidAmount.value),
 							current_tier_id: targetTierId,
 							next_tier_id: targetTierId,
 						};
@@ -87,6 +89,7 @@ export class SubscriptionStateService {
 						grace_period_size: this.defaultGracePeriodSize,
 						current_period_end: nextEnd,
 						last_billing_attempt: occurredAt,
+						price_on_purchase_rubles: parseInt(event.meta.paidAmount.value),
 					};
 
 					if (targetTierId !== currentPaidSubscription.subscription.current_tier_id) {
@@ -95,6 +98,7 @@ export class SubscriptionStateService {
 							...updated,
 							current_tier_id: targetTierId,
 							next_tier_id: targetTierId,
+							price_on_purchase_rubles: parseInt(event.meta.paidAmount.value),
 						};
 
 

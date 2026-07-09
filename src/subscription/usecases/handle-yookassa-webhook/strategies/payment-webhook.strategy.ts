@@ -16,6 +16,7 @@ export class PaymentWebhookHandlerStrategy {
 		private readonly giftRepository: GiftRepository,
 	) {}
 
+	// TODO: use Date.now instead of occured at to determine subscription new period end: when we experience downtime of 6 hours, sub will not get less experience
 	async handle({ payload, trx, context }: WebhookRouteParams<PaymentWebhookPayload>): Promise<void> {
 		const metadata = payload.object.metadata;
 
@@ -76,6 +77,7 @@ export class PaymentWebhookHandlerStrategy {
 				meta: {
 					...event.meta,
 					targetTierPower: targetTier.power,
+					paidAmount: payload.object.amount,
 				},
 			},
 			freeTier

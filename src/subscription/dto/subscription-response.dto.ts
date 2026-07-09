@@ -18,9 +18,6 @@ export class SubscriptionResponseDto {
 	priceOnPurchaseRubles!: number;
 
 	@ApiProperty()
-	isGifted!: boolean;
-
-	@ApiProperty()
 	gracePeriodSize!: number;
 
 	@ApiProperty()

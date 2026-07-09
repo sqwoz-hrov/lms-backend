@@ -31,6 +31,10 @@ export class GiftSubscriptionUsecase implements UsecaseInterface {
 			throw new NotFoundException('Subscription tier not found');
 		}
 
+		if (targetTier.power === 0) {
+			throw new BadRequestException(`Can't gift free tier subscription`);
+		}
+
 		const gift = await this.giftRepository.create({
 			gifted_to: payload.giftToUserId,
 			gifted_by: actor,

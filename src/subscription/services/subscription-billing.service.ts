@@ -264,7 +264,10 @@ export class SubscriptionBillingService {
 				return { status: 'skip', reason: 'not-due' } as const;
 			}
 
+			const { currentPaidSubscription } = subscriptionAggregation;
+
 			const { subscription: locked } = subscriptionAggregation.currentPaidSubscription;
+			const newPrice = currentPaidSubscription.nextTier.price_rubles;
 
 			// only increase this if we don't skip
 			await this.subscriptionRepository.update(
@@ -285,13 +288,13 @@ export class SubscriptionBillingService {
 						scheduled_for: context.runDate.toISOString(),
 						attempted_at: context.attemptTime.toISOString(),
 						payment_method_id: context.paymentMethodId,
-						amount_rubles: locked.price_on_purchase_rubles,
+						amount_rubles: newPrice,
 					},
 				},
 				trx,
 			);
 
-			return { status: 'ready', subscription: locked } as const;
+			return { status: 'ready', subscription: { ...locked, price_on_purchase_rubles: newPrice } } as const;
 		});
 	}
 
