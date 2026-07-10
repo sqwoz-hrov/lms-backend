@@ -47,28 +47,30 @@ export class SubscriptionTestRepository {
 		userId: string;
 		paymentMethodId: string;
 		status?: PaymentMethod['status'];
-	}): Promise<void> {
+	}): Promise<PaymentMethod | undefined> {
 		await this.connection
 			.deleteFrom('payment_method')
 			.where('payment_method_id', '=', params.paymentMethodId)
 			.execute();
 
-		await this.connection
+		const res = await this.connection
 			.insertInto('payment_method')
 			.values({
 				user_id: params.userId,
 				payment_method_id: params.paymentMethodId,
 				status: params.status ?? 'active',
 			})
+			.returningAll()
 			.execute();
+		return res.at(0);
 	}
 
-	async addActivePaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<void> {
-		await this.addPaymentMethod({ ...params, status: 'active' });
+	async addActivePaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<PaymentMethod | undefined> {
+		return await this.addPaymentMethod({ ...params, status: 'active' });
 	}
 
-	async addPendingPaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<void> {
-		await this.addPaymentMethod({ ...params, status: 'pending' });
+	async addPendingPaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<PaymentMethod | undefined> {
+		return await this.addPaymentMethod({ ...params, status: 'pending' });
 	}
 
 	async findPaymentMethod(userId: string): Promise<PaymentMethod | undefined> {

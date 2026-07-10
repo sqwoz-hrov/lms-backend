@@ -146,17 +146,50 @@ export class SubscriptionRepository {
 		return await executor.selectFrom('subscription').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
-	async findByUserId(
+	async findByUserIdWithTiers(
 		userId: Subscription['user_id'],
 		trx?: SubscriptionTransaction,
-	): Promise<Subscription | undefined> {
+	): Promise<{
+		subscription: Subscription,
+		currentTier: { power: number; price: number; };
+		nextTier: { power: number; price: number; }
+	} | undefined> {
 		const executor = this.getExecutor(trx);
-		return await executor
-			.selectFrom('subscription')
-			.selectAll()
+
+		const res = await executor
+			.selectFrom('subscription as s')
+			.innerJoin('subscription_tier as st_next', 'st_next.id', 's.next_tier_id')
+			.innerJoin('subscription_tier as st_curr', 'st_curr.id', 's.current_tier_id')
+			.selectAll('s')
+			.select([
+				'st_next.power as st_next_power',
+				'st_next.price_rubles as st_next_price',
+			])
+			.select([
+				'st_curr.power as st_curr_power',
+				'st_curr.price_rubles as st_curr_price',
+			])
 			.where('user_id', '=', userId)
 			.limit(1)
 			.executeTakeFirst();
+
+		if (!res) {
+			return undefined;
+		}
+
+		const { st_curr_power, st_curr_price, st_next_power, st_next_price, ...subscription } = res;
+
+		return {
+			subscription,
+			currentTier: {
+				power: st_curr_power,
+				price: st_curr_price,
+			},
+			nextTier: {
+				power: st_next_power,
+				price: st_next_price,
+			}
+		}
 	}
 
 	async lockSubscriptionByUserId(

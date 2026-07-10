@@ -23,7 +23,7 @@ export class GetActivePaymentMethodUsecase implements UsecaseInterface {
 			throw new NotFoundException('Payment method not found');
 		}
 
-		const subscription = await this.subscriptionRepository.findByUserId(user.id);
+		const subscription = await this.subscriptionRepository.findByUserIdWithTiers(user.id);
 
 		try {
 			const remotePaymentMethod = await this.yookassaPaymentMethodClient.getPaymentMethod({
