@@ -21,14 +21,37 @@ export type NewGift = Insertable<GiftTable>;
 export type GiftUpdate = Updateable<GiftTable>;
 
 export interface GiftAggregation {
-    gift: GiftTable;
-    user: UserTable;
+	gift: GiftTable;
+	user: UserTable;
 	subscription_tier: SubscriptionTierTable;
 	subscription: SubscriptionTable;
 }
 
-
 export type GiftWithUser = Gift & Pick<UserTable, 'telegram_username' | 'email' | 'name'>;
 export type GiftWithSubscriptionTier = Gift & { tier: Omit<SubscriptionTier, 'is_archived'> };
+export type GiftWithUserAndSubscriptionTier = GiftWithUser & { tier: Omit<SubscriptionTier, 'is_archived'> };
+export type GiftStatus = 'currently_active' | 'used' | 'available';
+export type GiftWithUserSubscriptionTierAndStatus = GiftWithUserAndSubscriptionTier & {
+	expires_at: Date | null;
+	gift_status: GiftStatus;
+};
 
-export type GiftWithSubscriptionTierAggregated = PrefixedValuesRequired<Gift, 'gift__'> & PrefixedValuesRequired<Omit<SubscriptionTier, 'is_archived'>, 'tier__'>;
+export type GiftGroupedByStatus = {
+	currentlyActive: GiftWithUserSubscriptionTierAndStatus[];
+	used: GiftWithUserSubscriptionTierAndStatus[];
+	available: GiftWithUserSubscriptionTierAndStatus[];
+};
+
+export type GiftGroupedByStatusPage = GiftGroupedByStatus & {
+	pagination: {
+		page: number;
+		pageSize: number;
+		totalItems: number;
+		totalPages: number;
+		hasNextPage: boolean;
+		hasPreviousPage: boolean;
+	};
+};
+
+export type GiftWithSubscriptionTierAggregated = PrefixedValuesRequired<Gift, 'gift__'> &
+	PrefixedValuesRequired<Omit<SubscriptionTier, 'is_archived'>, 'tier__'>;

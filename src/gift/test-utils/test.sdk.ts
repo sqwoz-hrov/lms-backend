@@ -1,8 +1,9 @@
-import { ValidateSDK, UserMeta } from "../../../test/test.abstract.sdk";
-import { TestHttpClient } from "../../../test/test.http-client";
-import { GiftAcceptedResponseDto } from "../dto/gift-accept-response.dto";
-import { GiftSubscriptionResponseDto } from "../dto/gift-response.dto";
-import { GiftSubscriptionDto } from "../dto/gift-subscription.dto";
+import { ValidateSDK, UserMeta } from '../../../test/test.abstract.sdk';
+import { TestHttpClient } from '../../../test/test.http-client';
+import { GiftAcceptedResponseDto } from '../dto/gift-accept-response.dto';
+import { GetGiftsResponseDto } from '../dto/get-gifts-response.dto';
+import { GiftSubscriptionResponseDto } from '../dto/gift-response.dto';
+import { GiftSubscriptionDto } from '../dto/gift-subscription.dto';
 
 export class GiftTestSdk implements ValidateSDK<GiftTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -24,4 +25,28 @@ export class GiftTestSdk implements ValidateSDK<GiftTestSdk> {
 		});
 	}
 
+	async getGifts({
+		params,
+		userMeta,
+	}: {
+		params?: { email?: string; page?: number; pageSize?: number };
+		userMeta: UserMeta;
+	}) {
+		const searchParams = new URLSearchParams();
+		if (params?.email) {
+			searchParams.set('email', params.email);
+		}
+		if (params?.page !== undefined) {
+			searchParams.set('page', String(params.page));
+		}
+		if (params?.pageSize !== undefined) {
+			searchParams.set('pageSize', String(params.pageSize));
+		}
+		const query = searchParams.size > 0 ? `?${searchParams.toString()}` : '';
+		return this.testClient.request<GetGiftsResponseDto>({
+			path: `/gifts${query}`,
+			method: 'GET',
+			userMeta,
+		});
+	}
 }

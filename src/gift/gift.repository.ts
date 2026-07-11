@@ -1,140 +1,376 @@
-import { Injectable, Inject, NotFoundException, HttpException, HttpStatus } from "@nestjs/common";
-import { Kysely, sql } from "kysely";
-import { DatabaseProvider } from "../infra/db/db.provider";
-import { NewGift, Gift, GiftAggregation, GiftWithUser, GiftWithSubscriptionTier, GiftWithSubscriptionTierAggregated, GiftState } from "./gift.entity";
-import { DELETED_USER_FIELD_FALLBACK, User } from "../user/user.entity";
-import { Paginated } from "../common/kysely-types/paginated";
-import { SubscriptionTransaction } from "../subscription/subscription.repository";
+import { Injectable, Inject, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
+import { Kysely, sql } from 'kysely';
+import { DatabaseProvider } from '../infra/db/db.provider';
+import {
+	NewGift,
+	Gift,
+	GiftAggregation,
+	GiftWithUser,
+	GiftWithSubscriptionTier,
+	GiftWithSubscriptionTierAggregated,
+	GiftState,
+	GiftGroupedByStatus,
+	GiftGroupedByStatusPage,
+	GiftStatus,
+} from './gift.entity';
+import { DELETED_USER_FIELD_FALLBACK, User } from '../user/user.entity';
+import { Paginated } from '../common/kysely-types/paginated';
+import { SubscriptionTransaction } from '../subscription/subscription.repository';
+import { applyOffsetPagination, OffsetPaginationInput, resolveOffsetPagination } from '../common/utils/pagination.util';
+
+const GIFTS_PAGINATION_TUNING = { defaultLimit: 20 };
 
 @Injectable()
 export class GiftRepository {
-    private readonly connection: Kysely<GiftAggregation>;
+	private readonly connection: Kysely<GiftAggregation>;
 
-    constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
-        this.connection = dbProvider.getDatabase<GiftAggregation>();
-    }
+	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
+		this.connection = dbProvider.getDatabase<GiftAggregation>();
+	}
 
-    private static mapGiftWithSubscriptionAggregatedToGiftWithSubscriptionTier(agg: GiftWithSubscriptionTierAggregated): GiftWithSubscriptionTier {
-        return {
-            id: agg.gift__id,
-            gifted_to: agg.gift__gifted_to,
-            gifted_by: agg.gift__gifted_by,
-            tier_id: agg.gift__tier_id,
-            activated_at: agg.gift__activated_at,
-            duration_days: agg.gift__duration_days,
-            tier: {
-                id: agg.tier__id,
-                tier: agg.tier__tier,
-                power: agg.tier__power,
-                permissions: agg.tier__permissions,
-                price_rubles: agg.tier__price_rubles,
-            }
-        }
-    }
+	private static mapGiftWithSubscriptionAggregatedToGiftWithSubscriptionTier(
+		agg: GiftWithSubscriptionTierAggregated,
+	): GiftWithSubscriptionTier {
+		return {
+			id: agg.gift__id,
+			gifted_to: agg.gift__gifted_to,
+			gifted_by: agg.gift__gifted_by,
+			tier_id: agg.gift__tier_id,
+			activated_at: agg.gift__activated_at,
+			duration_days: agg.gift__duration_days,
+			tier: {
+				id: agg.tier__id,
+				tier: agg.tier__tier,
+				power: agg.tier__power,
+				permissions: agg.tier__permissions,
+				price_rubles: agg.tier__price_rubles,
+			},
+		};
+	}
 
-    async create(data: NewGift): Promise<Gift> {
-        return await this.connection
-            .insertInto('gift')
-            .values({ ...data })
-            .returningAll()
-            .executeTakeFirstOrThrow();
-    }
+	private static getEmptyGiftGroups(): GiftGroupedByStatus {
+		return {
+			currentlyActive: [],
+			used: [],
+			available: [],
+		};
+	}
 
-    async resetGift(giftId: Gift['id'], updatedFields: GiftState, trx?: SubscriptionTransaction) {
-        if (trx) {
-            return await trx.updateTable('gift').where('id', '=', giftId).set(updatedFields).executeTakeFirstOrThrow();
-        }
+	private static mapGiftStatusToGroup(status: GiftStatus): keyof GiftGroupedByStatus {
+		if (status === 'currently_active') {
+			return 'currentlyActive';
+		}
 
-        return await this.connection.updateTable('gift').where('id', '=', giftId).set(updatedFields).executeTakeFirstOrThrow();
-    }
+		return status;
+	}
 
+	async create(data: NewGift): Promise<Gift> {
+		return await this.connection
+			.insertInto('gift')
+			.values({ ...data })
+			.returningAll()
+			.executeTakeFirstOrThrow();
+	}
 
+	async resetGift(giftId: Gift['id'], updatedFields: GiftState, trx?: SubscriptionTransaction) {
+		if (trx) {
+			return await trx.updateTable('gift').where('id', '=', giftId).set(updatedFields).executeTakeFirstOrThrow();
+		}
 
-    async findGiftedToUser(userId: Pick<User, 'id'>, filter: Partial<Pick<Gift, 'tier_id'> & (Pick<User, 'id'>)> = {}): Promise<Paginated<GiftWithUser>> {
-        let query = this.connection.selectFrom('gift').leftJoin('user as gifted_by_user', 'gift.gifted_by', 'gifted_by_user.id').where('gift.gifted_to', '=', userId.id).selectAll('gift').select(['gifted_by_user.telegram_username as telegram_username', 'gifted_by_user.email as email', 'gifted_by_user.name as name']);
-        const { tier_id: tierId, id: giftedBy } = filter;
+		return await this.connection
+			.updateTable('gift')
+			.where('id', '=', giftId)
+			.set(updatedFields)
+			.executeTakeFirstOrThrow();
+	}
 
-        if (giftedBy) {
-            query = query.where('gifted_by_user.id', '=', giftedBy);
-        }
+	async findGiftedToUser(
+		userId: Pick<User, 'id'>,
+		filter: Partial<Pick<Gift, 'tier_id'> & Pick<User, 'id'>> = {},
+	): Promise<Paginated<GiftWithUser>> {
+		let query = this.connection
+			.selectFrom('gift')
+			.leftJoin('user as gifted_by_user', 'gift.gifted_by', 'gifted_by_user.id')
+			.where('gift.gifted_to', '=', userId.id)
+			.selectAll('gift')
+			.select([
+				'gifted_by_user.telegram_username as telegram_username',
+				'gifted_by_user.email as email',
+				'gifted_by_user.name as name',
+			]);
+		const { tier_id: tierId, id: giftedBy } = filter;
 
-        if (tierId) {
-            query = query.where('gift.tier_id', '=', tierId);
-        }
+		if (giftedBy) {
+			query = query.where('gifted_by_user.id', '=', giftedBy);
+		}
 
-        const res = await query.execute();
-        return { items: res.map(row => ({ ...row, telegram_username: row.telegram_username ?? DELETED_USER_FIELD_FALLBACK, email: row.email ?? DELETED_USER_FIELD_FALLBACK, name: row.name ?? DELETED_USER_FIELD_FALLBACK })) };
-    }
+		if (tierId) {
+			query = query.where('gift.tier_id', '=', tierId);
+		}
 
+		const res = await query.execute();
+		return {
+			items: res.map(row => ({
+				...row,
+				telegram_username: row.telegram_username ?? DELETED_USER_FIELD_FALLBACK,
+				email: row.email ?? DELETED_USER_FIELD_FALLBACK,
+				name: row.name ?? DELETED_USER_FIELD_FALLBACK,
+			})),
+		};
+	}
 
-    async findGiftedByUser(userId: Pick<User, 'id'>, filter: Partial<Pick<Gift, 'tier_id'> & (Pick<User, 'telegram_username' | 'email'>)> = {}): Promise<Paginated<GiftWithUser>> {
-        let query = this.connection.selectFrom('gift').leftJoin('user as gifted_to_user', 'gift.gifted_to', 'gifted_to_user.id').where('gift.gifted_by', '=', userId.id).selectAll('gift').select(['gifted_to_user.telegram_username as telegram_username', 'gifted_to_user.email as email', 'gifted_to_user.name as name']);
-        const { tier_id: tierId, telegram_username: telegramUsername, email } = filter;
+	async findGiftedByUser(
+		userId: Pick<User, 'id'>,
+		filter: Partial<Pick<Gift, 'tier_id'> & Pick<User, 'telegram_username' | 'email'>> = {},
+	): Promise<Paginated<GiftWithUser>> {
+		let query = this.connection
+			.selectFrom('gift')
+			.leftJoin('user as gifted_to_user', 'gift.gifted_to', 'gifted_to_user.id')
+			.where('gift.gifted_by', '=', userId.id)
+			.selectAll('gift')
+			.select([
+				'gifted_to_user.telegram_username as telegram_username',
+				'gifted_to_user.email as email',
+				'gifted_to_user.name as name',
+			]);
+		const { tier_id: tierId, telegram_username: telegramUsername, email } = filter;
 
-        if (telegramUsername) {
-            query = query.where(eb => eb('gifted_to_user.telegram_username', 'like', `${telegramUsername}%`));
-        }
+		if (telegramUsername) {
+			query = query.where(eb => eb('gifted_to_user.telegram_username', 'like', `${telegramUsername}%`));
+		}
 
-        if (email) {
-            query = query.where(eb => eb('gifted_to_user.email', 'like', `${email}%`));
-        }
+		if (email) {
+			query = query.where(eb => eb('gifted_to_user.email', 'like', `${email}%`));
+		}
 
-        if (tierId) {
-            query = query.where('gift.tier_id', '=', tierId);
-        }
+		if (tierId) {
+			query = query.where('gift.tier_id', '=', tierId);
+		}
 
-        const res = await query.execute();
-        return { items: res.map(row => ({ ...row, telegram_username: row.telegram_username ?? DELETED_USER_FIELD_FALLBACK, email: row.email ?? DELETED_USER_FIELD_FALLBACK, name: row.name ?? DELETED_USER_FIELD_FALLBACK })) };
-    }
+		const res = await query.execute();
+		return {
+			items: res.map(row => ({
+				...row,
+				telegram_username: row.telegram_username ?? DELETED_USER_FIELD_FALLBACK,
+				email: row.email ?? DELETED_USER_FIELD_FALLBACK,
+				name: row.name ?? DELETED_USER_FIELD_FALLBACK,
+			})),
+		};
+	}
 
-    async findById(id: string): Promise<GiftWithSubscriptionTier | null> {
-        const res = await this.connection
-            .selectFrom('gift as g')
-            .innerJoin('subscription_tier as st', 'g.tier_id', 'st.id')
-            .select([
-                'g.id as gift__id',
-                'g.gifted_to as gift__gifted_to',
-                'g.gifted_by as gift__gifted_by',
-                'g.tier_id as gift__tier_id',
-                'g.activated_at as gift__activated_at',
-                'g.duration_days as gift__duration_days',
-                'st.id as tier__id',
-                'st.tier as tier__tier',
-                'st.power as tier__power',
-                'st.permissions as tier__permissions',
-                'st.price_rubles as tier__price_rubles',
-            ])
-            .where('g.id', '=', id)
-            .limit(1)
-            .executeTakeFirst();
-        return res ? GiftRepository.mapGiftWithSubscriptionAggregatedToGiftWithSubscriptionTier(res) : null;
-    }
+	async findGiftedToUserGroupedWithTier(
+		userId: Pick<User, 'id'>,
+		pagination: OffsetPaginationInput = {},
+	): Promise<GiftGroupedByStatusPage> {
+		const query = this.connection
+			.selectFrom('gift')
+			.leftJoin('user as gifted_by_user', 'gift.gifted_by', 'gifted_by_user.id')
+			.innerJoin('subscription_tier as tier', 'gift.tier_id', 'tier.id')
+			.where('gift.gifted_to', '=', userId.id)
+			.selectAll('gift')
+			.select([
+				'gifted_by_user.telegram_username as telegram_username',
+				'gifted_by_user.email as email',
+				'gifted_by_user.name as name',
+				'tier.id as tier__id',
+				'tier.tier as tier__tier',
+				'tier.power as tier__power',
+				'tier.permissions as tier__permissions',
+				'tier.price_rubles as tier__price_rubles',
+				sql<GiftStatus>`case
+					when gift.activated_at is null then 'available'
+					when gift.activated_at + gift.duration_days * interval '1 day' >= now() then 'currently_active'
+					else 'used'
+				end`.as('gift_status'),
+				sql<Date | null>`case
+					when gift.activated_at is null then null
+					else gift.activated_at + gift.duration_days * interval '1 day'
+				end`.as('expires_at'),
+			])
+			.orderBy('gift.activated_at', 'desc')
+			.orderBy('gift.id', 'desc');
 
-    async activateGift(userId: string, id: string): Promise<Gift> {
-        return await this.connection.transaction().execute(async trx => {
-            const currentGiftState = await trx.selectFrom('gift').selectAll().where('id', '=', id).limit(1).forUpdate().executeTakeFirst();
-            if (!currentGiftState || currentGiftState.gifted_to !== userId) {
-                throw new NotFoundException('Gift not found');
-            }
+		const [{ totalItems }, res] = await Promise.all([
+			this.connection
+				.selectFrom('gift')
+				.select(({ fn }) => fn.count<number>('id').as('totalItems'))
+				.where('gift.gifted_to', '=', userId.id)
+				.limit(1)
+				.executeTakeFirstOrThrow(),
+			applyOffsetPagination(query, pagination, GIFTS_PAGINATION_TUNING).execute(),
+		]);
 
-            if (currentGiftState.activated_at) {
-                throw new HttpException('Gift already activated', HttpStatus.CONFLICT);
-            }
+		return GiftRepository.buildPagedGroups(res, pagination, Number(totalItems));
+	}
 
-            await trx.updateTable('subscription').set({ current_period_end: sql`current_period_end + ${currentGiftState.duration_days} * interval '1 day'` }).where('user_id', '=', userId).execute();
+	async findGiftedByUserGroupedWithTier(
+		userId: Pick<User, 'id'>,
+		filter: Partial<Pick<User, 'email'>> = {},
+		pagination: OffsetPaginationInput = {},
+	): Promise<GiftGroupedByStatusPage> {
+		let query = this.connection
+			.selectFrom('gift')
+			.leftJoin('user as gifted_to_user', 'gift.gifted_to', 'gifted_to_user.id')
+			.innerJoin('subscription_tier as tier', 'gift.tier_id', 'tier.id')
+			.where('gift.gifted_by', '=', userId.id)
+			.selectAll('gift')
+			.select([
+				'gifted_to_user.telegram_username as telegram_username',
+				'gifted_to_user.email as email',
+				'gifted_to_user.name as name',
+				'tier.id as tier__id',
+				'tier.tier as tier__tier',
+				'tier.power as tier__power',
+				'tier.permissions as tier__permissions',
+				'tier.price_rubles as tier__price_rubles',
+				sql<GiftStatus>`case
+					when gift.activated_at is null then 'available'
+					when gift.activated_at + gift.duration_days * interval '1 day' >= now() then 'currently_active'
+					else 'used'
+				end`.as('gift_status'),
+				sql<Date | null>`case
+					when gift.activated_at is null then null
+					else gift.activated_at + gift.duration_days * interval '1 day'
+				end`.as('expires_at'),
+			]);
+		let countQuery = this.connection
+			.selectFrom('gift')
+			.leftJoin('user as gifted_to_user', 'gift.gifted_to', 'gifted_to_user.id')
+			.select(({ fn }) => fn.countAll<number>().as('totalItems'))
+			.where('gift.gifted_by', '=', userId.id);
 
-            const now = new Date();
+		if (filter.email) {
+			query = query.where('gifted_to_user.email', 'like', `${filter.email}%`);
+			countQuery = countQuery.where('gifted_to_user.email', 'like', `${filter.email}%`);
+		}
 
-            return await trx
-                .updateTable('gift')
-                // todo: is this test-induced design damage?
-                .set({ activated_at: sql<string>`${now.toUTCString()}::timestamptz` })
-                .where('id', '=', id)
-                .where('gifted_to', '=', userId)
-                .where('activated_at', 'is', null)
-                .returningAll()
-                .executeTakeFirstOrThrow();
-        });
+		query = query.orderBy('gift.activated_at', 'desc').orderBy('gift.id', 'desc');
 
-    }
+		const [{ totalItems }, res] = await Promise.all([
+			countQuery.limit(1).executeTakeFirstOrThrow(),
+			applyOffsetPagination(query, pagination, GIFTS_PAGINATION_TUNING).execute(),
+		]);
+
+		return GiftRepository.buildPagedGroups(res, pagination, Number(totalItems));
+	}
+
+	private static buildPagedGroups(
+		rows: Parameters<typeof GiftRepository.groupRows>[0],
+		pagination: OffsetPaginationInput,
+		totalItems: number,
+	): GiftGroupedByStatusPage {
+		const grouped = GiftRepository.groupRows(rows);
+		const resolved = resolveOffsetPagination(pagination, GIFTS_PAGINATION_TUNING);
+		const totalPages = Math.ceil(totalItems / resolved.pageSize);
+
+		return {
+			...grouped,
+			pagination: {
+				page: resolved.page,
+				pageSize: resolved.pageSize,
+				totalItems,
+				totalPages,
+				hasNextPage: resolved.offset + resolved.limit < totalItems,
+				hasPreviousPage: resolved.page > 1,
+			},
+		};
+	}
+
+	private static groupRows(
+		rows: (Gift & {
+			telegram_username: string | null;
+			email: string | null;
+			name: string | null;
+			tier__id: string;
+			tier__tier: string;
+			tier__power: number;
+			tier__permissions: string[];
+			tier__price_rubles: number;
+			gift_status: GiftStatus;
+			expires_at: Date | null;
+		})[],
+	): GiftGroupedByStatus {
+		const grouped = GiftRepository.getEmptyGiftGroups();
+
+		for (const row of rows) {
+			grouped[GiftRepository.mapGiftStatusToGroup(row.gift_status)].push({
+				...row,
+				telegram_username: row.telegram_username ?? DELETED_USER_FIELD_FALLBACK,
+				email: row.email ?? DELETED_USER_FIELD_FALLBACK,
+				name: row.name ?? DELETED_USER_FIELD_FALLBACK,
+				tier: {
+					id: row.tier__id,
+					tier: row.tier__tier,
+					power: row.tier__power,
+					permissions: row.tier__permissions,
+					price_rubles: row.tier__price_rubles,
+				},
+			});
+		}
+
+		return grouped;
+	}
+
+	async findById(id: string): Promise<GiftWithSubscriptionTier | null> {
+		const res = await this.connection
+			.selectFrom('gift as g')
+			.innerJoin('subscription_tier as st', 'g.tier_id', 'st.id')
+			.select([
+				'g.id as gift__id',
+				'g.gifted_to as gift__gifted_to',
+				'g.gifted_by as gift__gifted_by',
+				'g.tier_id as gift__tier_id',
+				'g.activated_at as gift__activated_at',
+				'g.duration_days as gift__duration_days',
+				'st.id as tier__id',
+				'st.tier as tier__tier',
+				'st.power as tier__power',
+				'st.permissions as tier__permissions',
+				'st.price_rubles as tier__price_rubles',
+			])
+			.where('g.id', '=', id)
+			.limit(1)
+			.executeTakeFirst();
+		return res ? GiftRepository.mapGiftWithSubscriptionAggregatedToGiftWithSubscriptionTier(res) : null;
+	}
+
+	async activateGift(userId: string, id: string): Promise<Gift> {
+		return await this.connection.transaction().execute(async trx => {
+			const currentGiftState = await trx
+				.selectFrom('gift')
+				.selectAll()
+				.where('id', '=', id)
+				.forUpdate()
+				.limit(1)
+				.executeTakeFirst();
+			if (!currentGiftState || currentGiftState.gifted_to !== userId) {
+				throw new NotFoundException('Gift not found');
+			}
+
+			if (currentGiftState.activated_at) {
+				throw new HttpException('Gift already activated', HttpStatus.CONFLICT);
+			}
+
+			await trx
+				.updateTable('subscription')
+				.set({
+					current_period_end: sql`current_period_end + ${currentGiftState.duration_days} * interval '1 day'`,
+					updated_at: sql`now()`,
+				})
+				.where('user_id', '=', userId)
+				.execute();
+
+			const now = new Date();
+
+			return await trx
+				.updateTable('gift')
+				// todo: is this test-induced design damage?
+				.set({ activated_at: sql<string>`${now.toUTCString()}::timestamptz` })
+				.where('id', '=', id)
+				.where('gifted_to', '=', userId)
+				.where('activated_at', 'is', null)
+				.returningAll()
+				.executeTakeFirstOrThrow();
+		});
+	}
 }

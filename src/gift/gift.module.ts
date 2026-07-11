@@ -7,22 +7,13 @@ import { AcceptGiftedSubscriptionUsecase } from './usecases/accept-gifted-subscr
 import { AcceptGiftedSubscriptionController } from './usecases/accept-gifted-subscription/accept-gifted-subscription.controller';
 import { GiftSubscriptionUsecase } from './usecases/gift-subscription/gift-subscription.usecase';
 import { GiftRepository } from './gift.repository';
+import { GetGiftsUsecase } from './usecases/get-gifts/get-gifts.usecase';
+import { GetGiftsController } from './usecases/get-gifts/get-gifts.controller';
 
 @Module({
-    imports: [
-        SubscriptionTierModule,
-        forwardRef(() => SubscriptionModule),
-        forwardRef(() => UserModule),
-    ],
-    providers: [
-        GiftSubscriptionUsecase,
-        AcceptGiftedSubscriptionUsecase,
-        GiftRepository,
-    ],
-    controllers: [
-        GiftSubscriptionController,
-        AcceptGiftedSubscriptionController,
-    ],
-    exports: [GiftRepository],
+	imports: [SubscriptionTierModule, forwardRef(() => SubscriptionModule), forwardRef(() => UserModule)],
+	providers: [GiftSubscriptionUsecase, AcceptGiftedSubscriptionUsecase, GetGiftsUsecase, GiftRepository],
+	controllers: [GiftSubscriptionController, AcceptGiftedSubscriptionController, GetGiftsController],
+	exports: [GiftRepository],
 })
 export class GiftModule {}
