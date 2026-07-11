@@ -44,6 +44,22 @@ export type DowngradeCandidateSubscriptionRow = Subscription & {
 	nextTierIsFree: boolean;
 }
 
+type FullSubscriptionTier = {
+	id: SubscriptionTier['id'];
+	name: SubscriptionTier['tier'];
+	permissions: SubscriptionTier['permissions'];
+};
+
+export type FullSubscription = {
+	currentGiftTier: (FullSubscriptionTier & { until: Date }) | null;
+	currentTier: FullSubscriptionTier & { until: Subscription['current_period_end'] };
+	nextTier: FullSubscriptionTier;
+	nextPayment: {
+		amount: SubscriptionTier['price_rubles'];
+		date: Subscription['current_period_end'];
+	};
+};
+
 export type PaidAndGiftedSubPerUserView = {
 	currentPaidSubscription: {
 		subscription: Subscription,
@@ -300,6 +316,85 @@ export class SubscriptionRepository {
 					price_rubles: paid_next_tier_price,
 				}
 			}
+		};
+	}
+
+	async getFullSubscriptionByUser(userId: Subscription['user_id']): Promise<FullSubscription | undefined> {
+		const row = await this.db
+			.selectFrom('subscription as s')
+			.innerJoin('subscription_tier as st_curr', 'st_curr.id', 's.current_tier_id')
+			.innerJoin('subscription_tier as st_next', 'st_next.id', 's.next_tier_id')
+			.leftJoinLateral(
+				eb =>
+					eb
+						.selectFrom('gift as g')
+						.innerJoin('subscription_tier as st_gift', 'st_gift.id', 'g.tier_id')
+						.select([
+							'st_gift.id as gift_tier_id',
+							'st_gift.tier as gift_tier_name',
+							'st_gift.permissions as gift_tier_permissions',
+							sql<Date>`g.activated_at::timestamptz + g.duration_days * interval '1 day'`.as('gift_tier_until'),
+						])
+						.where('g.activated_at', 'is not', null)
+						.whereRef('g.gifted_to', '=', 's.user_id')
+						.where(
+							sql`g.activated_at::timestamptz + g.duration_days * interval '1 day'`,
+							'>=',
+							sql`now()::timestamptz`,
+						)
+						.orderBy('st_gift.power', 'desc')
+						.orderBy('g.activated_at', 'desc')
+						.limit(1)
+						.as('active_gift'),
+				join => join.onTrue(),
+			)
+			.select([
+				'st_curr.id as current_tier_id',
+				'st_curr.tier as current_tier_name',
+				'st_curr.permissions as current_tier_permissions',
+				's.current_period_end as current_tier_until',
+				'st_next.id as next_tier_id',
+				'st_next.tier as next_tier_name',
+				'st_next.permissions as next_tier_permissions',
+				'st_next.price_rubles as next_payment_amount',
+				's.current_period_end as next_payment_date',
+				'active_gift.gift_tier_id',
+				'active_gift.gift_tier_name',
+				'active_gift.gift_tier_permissions',
+				'active_gift.gift_tier_until',
+			])
+			.where('s.user_id', '=', userId)
+			.limit(1)
+			.executeTakeFirst();
+
+		if (!row) {
+			return undefined;
+		}
+
+		return {
+			currentGiftTier: row.gift_tier_id
+				? {
+						id: row.gift_tier_id,
+						name: row.gift_tier_name!,
+						until: row.gift_tier_until!,
+						permissions: row.gift_tier_permissions!,
+					}
+				: null,
+			currentTier: {
+				id: row.current_tier_id,
+				name: row.current_tier_name,
+				until: row.current_tier_until,
+				permissions: row.current_tier_permissions,
+			},
+			nextTier: {
+				id: row.next_tier_id,
+				name: row.next_tier_name,
+				permissions: row.next_tier_permissions,
+			},
+			nextPayment: {
+				amount: row.next_payment_amount,
+				date: row.next_payment_date,
+			},
 		};
 	}
 

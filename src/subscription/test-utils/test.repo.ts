@@ -1,6 +1,6 @@
 import { Kysely, sql } from 'kysely';
 import { DatabaseProvider } from '../../infra/db/db.provider';
-import { NewSubscription, Subscription, SubscriptionTable } from '../subscription.entity';
+import { NewSubscription, Subscription, SubscriptionTable, SubscriptionUpdate } from '../subscription.entity';
 import { PaymentEventTable, PaymentMethodTable, PaymentEvent, PaymentMethod } from '../../payment/payment.entity';
 
 type SubscriptionTestDb = {
@@ -32,6 +32,18 @@ export class SubscriptionTestRepository {
 			.selectAll()
 			.where('id', '=', id)
 			.limit(1)
+			.executeTakeFirst();
+	}
+
+	async update(id: string, data: SubscriptionUpdate): Promise<Subscription | undefined> {
+		return await this.connection
+			.updateTable('subscription')
+			.set({
+				...data,
+				updated_at: sql`now()`,
+			})
+			.where('id', '=', id)
+			.returningAll()
 			.executeTakeFirst();
 	}
 

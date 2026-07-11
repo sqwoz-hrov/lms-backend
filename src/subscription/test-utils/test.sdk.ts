@@ -5,6 +5,7 @@ import { SubscriptionResponseDto } from '../dto/subscription-response.dto';
 import { YookassaWebhookPayload } from '../types/yookassa-webhook';
 import { DowngradeSubscriptionDto } from '../dto/downgrade-subscription.dto';
 import { PaymentMethodResponseDto } from '../../payment/dto/payment-method-response.dto';
+import { GetSubscriptionResponseDto } from '../dto/get-subscription-response.dto';
 
 export class SubscriptionTestSdk implements ValidateSDK<SubscriptionTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
@@ -23,6 +24,14 @@ export class SubscriptionTestSdk implements ValidateSDK<SubscriptionTestSdk> {
 			path: '/subscriptions/downgrade',
 			method: 'POST',
 			body: params,
+			userMeta,
+		});
+	}
+
+	async getSubscription({ userMeta }: { userMeta: UserMeta }) {
+		return this.testClient.request<GetSubscriptionResponseDto>({
+			path: '/subscription',
+			method: 'GET',
 			userMeta,
 		});
 	}

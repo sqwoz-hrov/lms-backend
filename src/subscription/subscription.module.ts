@@ -15,11 +15,14 @@ import { YookassaWebhookRouter } from './usecases/handle-yookassa-webhook/strate
 import { SubscriptionStateService } from './domain/subscription.state';
 import { SubscriptionService } from './services/subscription.service';
 import { GiftModule } from '../gift/gift.module';
+import { GetSubscriptionController } from './usecases/get-subscription/get-subscription.controller';
+import { GetSubscriptionUsecase } from './usecases/get-subscription/get-subscription.usecase';
 
 @Module({
 	imports: [YookassaModule, SubscriptionTierModule, forwardRef(() => GiftModule)],
-	controllers: [DowngradeSubscriptionController, HandleYookassaWebhookController],
+	controllers: [GetSubscriptionController, DowngradeSubscriptionController, HandleYookassaWebhookController],
 	providers: [
+		GetSubscriptionUsecase,
 		DowngradeSubscriptionUsecase,
 		HandleYookassaWebhookUsecase,
 		PaymentWebhookHandlerStrategy,
