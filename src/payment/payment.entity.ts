@@ -27,3 +27,8 @@ export interface PaymentEventTable {
 
 export type PaymentEvent = Selectable<PaymentEventTable>;
 export type NewPaymentEvent = Insertable<PaymentEventTable>;
+
+export type PaymentDatabase = {
+	payment_method: PaymentMethodTable;
+	payment_event: PaymentEventTable;
+}

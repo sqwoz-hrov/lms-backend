@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-export const SUPPORTED_EVENTS = new Set(['payment.succeeded', 'payment.canceled', 'payment_method.active'] as const);
+export const SUPPORTED_EVENTS = ['payment.succeeded', 'payment.canceled', 'payment_method.active'] as const;
+const SUPPORTED_EVENTS_SET = new Set(SUPPORTED_EVENTS);
 
 export const PAYMENT_METHOD_TYPES = [
 	'bank_card',

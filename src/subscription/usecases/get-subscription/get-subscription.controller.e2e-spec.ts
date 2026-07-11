@@ -17,7 +17,7 @@ import { SubscriptionTestRepository } from '../../test-utils/test.repo';
 import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
 import { MS_IN_DAY } from '../../constants';
 
-describe.only('[E2E] Get subscription usecase', () => {
+describe('[E2E] Get subscription usecase', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;
 	let giftRepo: GiftTestRepository;
