@@ -1,7 +1,7 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
-import { createTestAdmin } from '../../../../test/fixtures/user.fixture';
+import { createTestAdmin, createTestSubscriptionTier } from '../../../../test/fixtures/user.fixture';
 import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
@@ -84,5 +84,30 @@ describe('[E2E] Get subscription tiers usecase', () => {
 
 		const markdownRows = await markdownContentRepo.connection.selectFrom('markdown_content').selectAll().execute();
 		expect(markdownRows.map(row => row.content_text)).to.include.members([firstMarkdown, secondMarkdown]);
+	});
+
+	it('does not return archived subscription tiers', async () => {
+		const admin = await createTestAdmin(usersRepo);
+		const activeTier = await createTestSubscriptionTier(usersRepo, {
+			tier: 'visible-tier',
+			is_archived: false,
+		});
+		const archivedTier = await createTestSubscriptionTier(usersRepo, {
+			tier: 'hidden-archived-tier',
+			is_archived: true,
+		});
+
+		const response = await subscriptionTierSdk.getSubscriptionTiers({
+			userMeta: {
+				userId: admin.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+		if (response.status !== HttpStatus.OK) throw new Error('Unexpected response status');
+		expect(response.body.map(tier => tier.id)).to.include(activeTier.id);
+		expect(response.body.map(tier => tier.id)).not.to.include(archivedTier.id);
 	});
 });

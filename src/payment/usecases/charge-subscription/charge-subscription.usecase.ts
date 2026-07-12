@@ -21,7 +21,7 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 	}): Promise<ChargeSubscriptionResponseDto> {
 		const { current_tier_id, user } = params;
 
-		const targetTier = await this.subscriptionTierRepository.findById(current_tier_id);
+		const targetTier = await this.subscriptionTierRepository.findActiveById(current_tier_id);
 
 		if (!targetTier) {
 			throw new NotFoundException('Subscription tier not found');

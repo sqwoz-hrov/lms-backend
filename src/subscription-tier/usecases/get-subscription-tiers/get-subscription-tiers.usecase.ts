@@ -12,7 +12,7 @@ export class GetSubscriptionTiersUsecase implements UsecaseInterface {
 	) {}
 
 	async execute(): Promise<SubscriptionTierResponseDto[]> {
-		const tiers = await this.subscriptionTierRepository.findAll();
+		const tiers = await this.subscriptionTierRepository.findAllActive();
 		const markdownDescriptionIds = tiers
 			.map(tier => tier.markdown_description_id)
 			.filter((id): id is string => id !== null);

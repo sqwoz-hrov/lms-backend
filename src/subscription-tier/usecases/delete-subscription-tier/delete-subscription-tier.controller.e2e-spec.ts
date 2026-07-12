@@ -100,6 +100,6 @@ describe('[E2E] Delete subscription tier usecase', () => {
 		expect(getResponse.status).to.equal(HttpStatus.OK);
 		if (getResponse.status !== HttpStatus.OK) throw new Error('Unexpected response status');
 		const archivedTierFromGet = getResponse.body.find(tier => tier.id === createResponse.body.id);
-		expect(archivedTierFromGet?.markdown_description).to.equal(markdownDescription);
+		expect(archivedTierFromGet).to.equal(undefined);
 	});
 });

@@ -113,6 +113,30 @@ describe('[E2E] Charge subscription usecase', () => {
 		expect(res.body.description).to.equal('Subscription tier not found');
 	});
 
+	it('Returns 404 when subscription tier is archived', async () => {
+		const subscriber = await createTestSubscriber(usersRepo);
+		const archivedTier = await createTestSubscriptionTier(usersRepo, {
+			tier: 'archived-charge-tier',
+			is_archived: true,
+			price_rubles: 2990,
+		});
+
+		const res = await paymentSdk.chargeSubscription({
+			params: {
+				current_tier_id: archivedTier.id,
+			},
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.NOT_FOUND);
+		if (res.status !== HttpStatus.NOT_FOUND) throw new Error();
+		expect(res.body.description).to.equal('Subscription tier not found');
+	});
+
 	it('Returns 404 when payment method is missing', async () => {
 		const subscriber = await createTestSubscriber(usersRepo);
 		const tier = await createTestSubscriptionTier(usersRepo);
