@@ -29,14 +29,18 @@ export class PaymentMethodResponseDto {
 	@ApiProperty({ nullable: true })
 	nextBillingAt?: string | null;
 
+	@ApiProperty()
+	problemsWithPaymentMethod!: boolean;
+
 	static fromSources(
 		entity: PaymentMethod,
 		remote: YookassaPaymentMethod,
 		subscriptionAndTiers?: {
-			subscription: Subscription,
-			currentTier: { power: number; price: number; };
-			nextTier: { power: number; price: number; }
+			subscription: Subscription;
+			currentTier: { power: number; price: number };
+			nextTier: { power: number; price: number };
 		},
+		problemsWithPaymentMethod = false,
 	): PaymentMethodResponseDto {
 		const dto = new PaymentMethodResponseDto();
 		dto.id = entity.id;
@@ -45,12 +49,13 @@ export class PaymentMethodResponseDto {
 		dto.last4 = remote.card?.last4 ?? null;
 		dto.createdAt = entity.created_at.toISOString();
 		dto.updatedAt = entity.updated_at.toISOString();
+		dto.problemsWithPaymentMethod = problemsWithPaymentMethod;
 
 		if (subscriptionAndTiers) {
-			dto.nextBillingAt = 
-				subscriptionAndTiers.subscription.current_period_end
-				&& subscriptionAndTiers.nextTier.price > 0 
-				&& subscriptionAndTiers.nextTier.power > 0
+			dto.nextBillingAt =
+				subscriptionAndTiers.subscription.current_period_end &&
+				subscriptionAndTiers.nextTier.price > 0 &&
+				subscriptionAndTiers.nextTier.power > 0
 					? subscriptionAndTiers.subscription.current_period_end.toISOString()
 					: null;
 		}

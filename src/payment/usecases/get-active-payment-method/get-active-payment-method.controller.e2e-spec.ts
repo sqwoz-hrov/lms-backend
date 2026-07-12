@@ -8,11 +8,20 @@ import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { SubscriptionTestRepository } from '../../../subscription/test-utils/test.repo';
 import { SubscriptionTestSdk } from '../../../subscription/test-utils/test.sdk';
-import { createTestAdmin, createTestSubscriber, createTestSubscriptionTier, createTestUser } from '../../../../test/fixtures/user.fixture';
+import {
+	createTestAdmin,
+	createTestSubscriber,
+	createTestSubscriptionTier,
+	createTestUser,
+} from '../../../../test/fixtures/user.fixture';
 import { YOOKASSA_CLIENT } from '../../../yookassa/constants';
 import { FakeYookassaClient } from '../../../yookassa/services/fake-yookassa.client';
-import { SubscriptionTier } from '../../../subscription-tier/subscription-tier.entity';
 import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
+import { PaymentTestRepository } from '../../test-utils/test.repo';
+import {
+	YookassaPaymentCanceledWebhook,
+	YookassaPaymentSucceededWebhook,
+} from '../../../subscription/types/yookassa-webhook';
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
@@ -21,16 +30,17 @@ describe('[E2E] Get active payment method usecase', () => {
 
 	let usersRepo: UsersTestRepository;
 	let subscriptionRepo: SubscriptionTestRepository;
+	let paymentRepo: PaymentTestRepository;
 	let subscriptionSdk: SubscriptionTestSdk;
 	let fakeYookassaClient: FakeYookassaClient;
 	let giftRepo: GiftTestRepository;
-	let freeTier: SubscriptionTier;
 
 	before(function (this: ISharedContext) {
 		app = this.app;
 		const dbProvider = app.get(DatabaseProvider);
 		usersRepo = new UsersTestRepository(dbProvider);
 		subscriptionRepo = new SubscriptionTestRepository(dbProvider);
+		paymentRepo = new PaymentTestRepository(dbProvider);
 		fakeYookassaClient = app.get(YOOKASSA_CLIENT);
 		giftRepo = new GiftTestRepository(dbProvider);
 
@@ -46,12 +56,12 @@ describe('[E2E] Get active payment method usecase', () => {
 	});
 
 	beforeEach(async () => {
-		freeTier = await createTestSubscriptionTier(usersRepo, {
+		await createTestSubscriptionTier(usersRepo, {
 			power: 0,
 			price_rubles: 0,
 			tier: 'FREE BASIC TIER',
-		})
-	})
+		});
+	});
 
 	afterEach(async () => {
 		await giftRepo.clearAll();
@@ -91,8 +101,8 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.userId).to.equal(subscriber.id);
 		expect(response.body.nextBillingAt).to.equal(subscriber.subscription.current_period_end?.toISOString());
 		expect(response.body.nextBillingAt).not.to.equal(null);
+		expect(response.body.problemsWithPaymentMethod).to.equal(false);
 	});
-
 
 	it('returns 404 when user on free sub tier if user did not have payment method', async () => {
 		const freeTier = await createTestSubscriptionTier(usersRepo, {
@@ -115,7 +125,96 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.status).to.equal(HttpStatus.NOT_FOUND);
 	});
 
-	it.skip('If user had failed payments recently, this should be shown in "problemsWithPaymentMehtod" field', async () => {});
+	it('returns problemsWithPaymentMethod when latest payment was canceled with active payment method', async () => {
+		const subscriber = await createTestSubscriber(usersRepo);
+		const pm = await subscriptionRepo.addActivePaymentMethod({
+			userId: subscriber.id,
+			paymentMethodId: 'pm-get-problems',
+		});
+
+		fakeYookassaClient.registerPaymentMethod({
+			id: 'pm-get-problems',
+			type: 'bank_card',
+			saved: true,
+			card: { last4: '4321' },
+		});
+
+		const successfulPaymentPayload: YookassaPaymentSucceededWebhook = {
+			event: 'payment.succeeded',
+			object: {
+				id: 'pay-succeeded-active-method',
+				status: 'succeeded',
+				paid: true,
+				amount: {
+					value: '1500.00',
+					currency: 'RUB',
+				},
+				metadata: {
+					user_id: subscriber.id,
+					current_tier_id: subscriber.subscription.current_tier_id,
+				},
+				created_at: new Date('2025-12-01T00:00:00.000Z').toISOString(),
+				payment_method: {
+					id: 'pm-get-problems',
+					type: 'bank_card',
+					saved: true,
+					card: { last4: '4321' },
+				},
+			},
+		};
+
+		const canceledPaymentPayload: YookassaPaymentCanceledWebhook = {
+			event: 'payment.canceled',
+			object: {
+				id: 'pay-canceled-active-method',
+				status: 'canceled',
+				paid: false,
+				amount: {
+					value: '1500.00',
+					currency: 'RUB',
+				},
+				metadata: {
+					user_id: subscriber.id,
+					current_tier_id: subscriber.subscription.current_tier_id,
+				},
+				created_at: new Date('2026-01-01T00:00:00.000Z').toISOString(),
+				canceled_at: new Date('2026-01-01T00:00:00.000Z').toISOString(),
+				payment_method: {
+					id: 'pm-get-problems',
+					type: 'bank_card',
+					saved: true,
+					card: { last4: '4321' },
+				},
+			},
+		};
+
+		await paymentRepo.insertPaymentEvent({
+			user_id: subscriber.id,
+			subscription_id: subscriber.subscription.id,
+			event: successfulPaymentPayload,
+			created_at: new Date('2025-12-01T00:00:00.000Z'),
+		});
+
+		await paymentRepo.insertPaymentEvent({
+			user_id: subscriber.id,
+			subscription_id: subscriber.subscription.id,
+			event: canceledPaymentPayload,
+			created_at: new Date('2026-01-01T00:00:00.000Z'),
+		});
+
+		const response = await subscriptionSdk.getActivePaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.OK);
+		if (response.status !== 200) throw new Error();
+		expect(response.body.id).to.equal(pm?.id);
+		expect(response.body.problemsWithPaymentMethod).to.equal(true);
+	});
 
 	it('returns null nextBillingAt when user\'s next tier is free even though his current tier is a paid one and has payment method', async () => {
 		const freeTier = await createTestSubscriptionTier(usersRepo, {

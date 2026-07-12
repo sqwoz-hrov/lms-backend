@@ -3,9 +3,15 @@ import { Kysely, sql } from 'kysely';
 import { OffsetPaginationInput, resolveOffsetPagination } from '../common/utils/pagination.util';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { PaymentDatabase, PaymentEvent } from './payment.entity';
-import { SUPPORTED_EVENTS, YookassaPaymentSucceededWebhook } from '../subscription/types/yookassa-webhook';
+import {
+	SUPPORTED_EVENTS,
+	YookassaPaymentCanceledWebhook,
+	YookassaPaymentSucceededWebhook,
+} from '../subscription/types/yookassa-webhook';
 
 const SUCCESSFUL_PAYMENT_EVENT = 'payment.succeeded' satisfies (typeof SUPPORTED_EVENTS)[number];
+const CANCELED_PAYMENT_EVENT = 'payment.canceled' satisfies (typeof SUPPORTED_EVENTS)[number];
+const PAYMENT_EVENTS = [SUCCESSFUL_PAYMENT_EVENT, CANCELED_PAYMENT_EVENT] as const;
 const PAYMENT_HISTORY_PAGINATION = {
 	defaultLimit: 20,
 	maxLimit: 100,
@@ -13,6 +19,11 @@ const PAYMENT_HISTORY_PAGINATION = {
 
 export type SuccessfulPaymentStoredEvent = Pick<PaymentEvent, 'created_at' | 'event'> & {
 	event: YookassaPaymentSucceededWebhook;
+};
+
+type LatestPaymentEvent = {
+	event_name: typeof PAYMENT_EVENTS[number];
+	payment_method_id: string | null;
 };
 
 export type PaginatedPaymentHistory = {
@@ -79,5 +90,25 @@ export class PaymentHistoryRepository {
 				hasPreviousPage: resolved.page > 1,
 			},
 		};
+	}
+
+	async hasProblemsWithPaymentMethod(userId: string, paymentMethodId: string): Promise<boolean> {
+		const latestPaymentEvent = await this.connection
+			.selectFrom('payment_event as pt')
+			.select([
+				sql<LatestPaymentEvent['event_name']>`pt.event ->> 'event'`.as('event_name'),
+				sql<string | null>`pt.event -> 'object' -> 'payment_method' ->> 'id'`.as('payment_method_id'),
+			])
+			.where('user_id', '=', userId)
+			.where(sql<boolean>`pt.event ->> 'event' in (${sql.join(PAYMENT_EVENTS)})`)
+			.orderBy('pt.id', 'desc')
+			.$narrowType<LatestPaymentEvent>()
+			.limit(1)
+			.executeTakeFirst();
+
+		return (
+			latestPaymentEvent?.event_name === CANCELED_PAYMENT_EVENT &&
+			latestPaymentEvent.payment_method_id === paymentMethodId
+		);
 	}
 }
