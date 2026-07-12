@@ -8,6 +8,7 @@ import { ConfigType } from '@nestjs/config';
 import { subscriptionConfig } from '../../config/subscription.config';
 import { PaidAndGiftedSubPerUserView } from '../subscription.repository';
 import { GiftState } from '../../gift/gift.entity';
+import { parseAmount } from '../../payment/payment.utils';
 
 interface PaymentEventParams {
 	user: Pick<User, 'id'>;
@@ -54,7 +55,7 @@ export class SubscriptionStateService {
 
 					const updated: SubscriptionState = {
 						...currentPaidSubscription.subscription,
-						price_on_purchase_rubles: parseInt(event.meta.paidAmount.value),
+						price_on_purchase_rubles: parseAmount(event.meta.paidAmount.value),
 						grace_period_size: this.defaultGracePeriodSize,
 						current_period_end: nextEnd,
 						last_billing_attempt: occurredAt,
@@ -64,7 +65,7 @@ export class SubscriptionStateService {
 
 						const switched: SubscriptionState = {
 							...updated,
-							price_on_purchase_rubles: parseInt(event.meta.paidAmount.value),
+							price_on_purchase_rubles: parseAmount(event.meta.paidAmount.value),
 							current_tier_id: targetTierId,
 							next_tier_id: targetTierId,
 						};
@@ -89,7 +90,7 @@ export class SubscriptionStateService {
 						grace_period_size: this.defaultGracePeriodSize,
 						current_period_end: nextEnd,
 						last_billing_attempt: occurredAt,
-						price_on_purchase_rubles: parseInt(event.meta.paidAmount.value),
+						price_on_purchase_rubles: parseAmount(event.meta.paidAmount.value),
 					};
 
 					if (targetTierId !== currentPaidSubscription.subscription.current_tier_id) {
@@ -98,7 +99,7 @@ export class SubscriptionStateService {
 							...updated,
 							current_tier_id: targetTierId,
 							next_tier_id: targetTierId,
-							price_on_purchase_rubles: parseInt(event.meta.paidAmount.value),
+							price_on_purchase_rubles: parseAmount(event.meta.paidAmount.value),
 						};
 
 

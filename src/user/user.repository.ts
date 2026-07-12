@@ -19,7 +19,7 @@ import { PrefixedValuesNullable } from '../common/kysely-types/prefixed-values';
 type UserJoinRow = User &
 	PrefixedValuesNullable<Subscription, 'subscription__'> &
 	PrefixedValuesNullable<{ 'is_gifted': boolean | null }, 'subscription__'> &
-	PrefixedValuesNullable<SubscriptionTier, 'subscription_tier__'>;
+	PrefixedValuesNullable<Omit<SubscriptionTier, 'is_archived'>, 'subscription_tier__'>;
 
 type FindUsersFilters = {
 	roles?: UserRole[];
@@ -280,7 +280,7 @@ export class UserRepository {
 			};
 		}
 
-		const subscriptionTier: SubscriptionTier | null =
+		const subscriptionTier: Omit<SubscriptionTier, 'is_archived'> | null =
 			subscription_tier__id !== null &&
 			subscription_tier__tier !== null &&
 			subscription_tier__power !== null &&

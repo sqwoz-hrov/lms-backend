@@ -7,6 +7,7 @@ export interface SubscriptionTierTable {
 	power: ColumnType<number, number | undefined, number | undefined>;
 	permissions: ColumnType<string[], string[] | undefined, string[] | undefined>;
 	price_rubles: number;
+	is_archived: ColumnType<boolean, boolean | undefined, boolean | undefined>;
 }
 
 export type SubscriptionTier = Selectable<SubscriptionTierTable>;

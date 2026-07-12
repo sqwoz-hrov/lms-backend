@@ -42,6 +42,6 @@ export class SubscriptionTierRepository {
 	}
 
 	async delete(id: string): Promise<SubscriptionTier> {
-		return await this.db.deleteFrom('subscription_tier').where('id', '=', id).returningAll().executeTakeFirstOrThrow();
+		return await this.db.updateTable('subscription_tier').set({ is_archived: true }).where('id', '=', id).returningAll().executeTakeFirstOrThrow();
 	}
 }

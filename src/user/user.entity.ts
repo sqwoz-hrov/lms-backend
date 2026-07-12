@@ -53,15 +53,15 @@ export type SubscriptionGift = {
 
 export type UserWithNullableSubscriptionTier = (User & { role: 'admin' | 'user' } & {
 	subscription?: (Subscription & SubscriptionGift) | null;
-	subscription_tier?: SubscriptionTier | null;
+	subscription_tier?: Omit<SubscriptionTier, 'is_archived'> | null;
 }) | (User & { role: 'subscriber' } & {
 	subscription: Subscription & SubscriptionGift;
-	subscription_tier: SubscriptionTier;
+	subscription_tier: Omit<SubscriptionTier, 'is_archived'>;
 });
 
 export type UserWithSubscriptionTier = User & {
 	subscription: Subscription & SubscriptionGift;
-	subscription_tier: SubscriptionTier;
+	subscription_tier: Omit<SubscriptionTier, 'is_archived'>;
 };
 
 export const DELETED_USER_FIELD_FALLBACK = 'USER_DELETED' as const;

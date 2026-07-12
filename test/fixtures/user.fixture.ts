@@ -19,7 +19,7 @@ export const createEmail = () => {
 export const createTestSubscriptionTier = async (
 	userRepository: UsersTestRepository,
 	overrides: Partial<SubscriptionTier> = {},
-): Promise<SubscriptionTier> => {
+): Promise<Omit<SubscriptionTier, 'is_archived'>> => {
 	const { power: overridePower, ...restOverrides } = overrides;
 	const tierName = restOverrides.tier ?? `tier-${randomWord()}`;
 
@@ -40,7 +40,13 @@ export const createTestSubscriptionTier = async (
 			price_rubles: 1000,
 			...restOverrides,
 		})
-		.returningAll()
+		.returning([
+			'id',
+			'permissions',
+			'power',
+			'price_rubles',
+			'tier',
+		])
 		.executeTakeFirstOrThrow();
 };
 
@@ -90,14 +96,20 @@ type SubscriberFixtureOverrides = Partial<User> & {
 export const createTestSubscriber = async (
 	userRepository: UsersTestRepository,
 	overrides: SubscriberFixtureOverrides = {},
-): Promise<UserWithNullableSubscriptionTier & { subscription: Subscription; subscription_tier: SubscriptionTier }> => {
+): Promise<UserWithNullableSubscriptionTier & { subscription: Subscription; subscription_tier: Omit<SubscriptionTier, 'is_archived'> }> => {
 	const { current_tier_id, active_until, is_archived, ...userOverrides } = overrides;
 
 
 	const subscriptionTier = current_tier_id
 		? await userRepository.connection
 				.selectFrom('subscription_tier')
-				.selectAll()
+				.select([
+					'id',
+					'permissions',
+					'power',
+					'price_rubles',
+					'tier',
+				])
 				.where('id', '=', current_tier_id)
 				.limit(1)
 				.executeTakeFirstOrThrow()
@@ -121,6 +133,7 @@ export const createTestSubscriber = async (
 			...userOverrides,
 		})
 		.returningAll()
+		.$narrowType<{ role: 'subscriber' }>()
 		.executeTakeFirstOrThrow();
 
 	const subscription = await userRepository.connection
