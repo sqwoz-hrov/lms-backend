@@ -42,13 +42,15 @@ export type BillableSubscriptionRow = Subscription & {
 export type DowngradeCandidateSubscriptionRow = Subscription & {
 	billingPaymentMethodId: PaymentMethod['payment_method_id'] | null;
 	nextTierIsFree: boolean;
-}
+};
 
 type FullSubscriptionTier = {
 	id: SubscriptionTier['id'];
 	name: SubscriptionTier['tier'];
 	permissions: SubscriptionTier['permissions'];
 };
+
+export type SubscriptionTierWithoutPrivateFields = Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'>;
 
 export type FullSubscription = {
 	currentGiftTier: (FullSubscriptionTier & { until: Date }) | null;
@@ -62,22 +64,23 @@ export type FullSubscription = {
 
 export type PaidAndGiftedSubPerUserView = {
 	currentPaidSubscription: {
-		subscription: Subscription,
-		currentTier: SubscriptionTier,
-		nextTier: SubscriptionTier,
+		subscription: Subscription;
+		currentTier: SubscriptionTierWithoutPrivateFields;
+		nextTier: SubscriptionTierWithoutPrivateFields;
 	};
-	currentActiveGiftSubscription: {
-		gift: {
-			giftId: string;
-			giftedDaysLeft: number;
-		};
-		currentTier: {
-			giftedTierId: string;
-			giftedTierPower: number;
-		};
-	} | undefined;
+	currentActiveGiftSubscription:
+		| {
+				gift: {
+					giftId: string;
+					giftedDaysLeft: number;
+				};
+				currentTier: {
+					giftedTierId: string;
+					giftedTierPower: number;
+				};
+		  }
+		| undefined;
 };
-
 
 @Injectable()
 export class SubscriptionRepository {
@@ -96,11 +99,23 @@ export class SubscriptionRepository {
 	}
 
 	async getFreeTier(trx?: SubscriptionTransaction): Promise<SubscriptionTier> {
-		return await this.getExecutor(trx).selectFrom('subscription_tier').selectAll().where('power', '=', 0).orderBy('id', 'desc').limit(1).executeTakeFirstOrThrow();
+		return await this.getExecutor(trx)
+			.selectFrom('subscription_tier')
+			.selectAll()
+			.where('power', '=', 0)
+			.orderBy('id', 'desc')
+			.limit(1)
+			.executeTakeFirstOrThrow();
 	}
 
 	async getTierById(id: SubscriptionTier['id'], trx?: SubscriptionTransaction): Promise<SubscriptionTier> {
-		return await this.getExecutor(trx).selectFrom('subscription_tier').selectAll().where('id', '=', id).orderBy('id', 'desc').limit(1).executeTakeFirstOrThrow();
+		return await this.getExecutor(trx)
+			.selectFrom('subscription_tier')
+			.selectAll()
+			.where('id', '=', id)
+			.orderBy('id', 'desc')
+			.limit(1)
+			.executeTakeFirstOrThrow();
 	}
 
 	async create(data: NewSubscription, trx: UserSubscriptionTransaction): Promise<Subscription> {
@@ -133,23 +148,21 @@ export class SubscriptionRepository {
 		return result ?? undefined;
 	}
 
-	async updateBatch(
-		ids: Subscription['id'][],
-		data: SubscriptionUpdate,
-		trx?: SubscriptionTransaction,
-	) {
+	async updateBatch(ids: Subscription['id'][], data: SubscriptionUpdate, trx?: SubscriptionTransaction) {
 		const executor = this.getExecutor(trx);
 
-		const res = await executor.updateTable('subscription').set({
-			...data,
-			updated_at: sql`now()`
-		})
-		.where('id', 'in', ids)
-		.execute();
+		const res = await executor
+			.updateTable('subscription')
+			.set({
+				...data,
+				updated_at: sql`now()`,
+			})
+			.where('id', 'in', ids)
+			.execute();
 
 		return {
 			updated: res?.at(0)?.numUpdatedRows.toString() ?? '0',
-		}
+		};
 	}
 
 	async deleteById(id: Subscription['id'], trx?: SubscriptionTransaction): Promise<void> {
@@ -165,11 +178,14 @@ export class SubscriptionRepository {
 	async findByUserIdWithTiers(
 		userId: Subscription['user_id'],
 		trx?: SubscriptionTransaction,
-	): Promise<{
-		subscription: Subscription,
-		currentTier: { power: number; price: number; };
-		nextTier: { power: number; price: number; }
-	} | undefined> {
+	): Promise<
+		| {
+				subscription: Subscription;
+				currentTier: { power: number; price: number };
+				nextTier: { power: number; price: number };
+		  }
+		| undefined
+	> {
 		const executor = this.getExecutor(trx);
 
 		const res = await executor
@@ -177,14 +193,8 @@ export class SubscriptionRepository {
 			.innerJoin('subscription_tier as st_next', 'st_next.id', 's.next_tier_id')
 			.innerJoin('subscription_tier as st_curr', 'st_curr.id', 's.current_tier_id')
 			.selectAll('s')
-			.select([
-				'st_next.power as st_next_power',
-				'st_next.price_rubles as st_next_price',
-			])
-			.select([
-				'st_curr.power as st_curr_power',
-				'st_curr.price_rubles as st_curr_price',
-			])
+			.select(['st_next.power as st_next_power', 'st_next.price_rubles as st_next_price'])
+			.select(['st_curr.power as st_curr_power', 'st_curr.price_rubles as st_curr_price'])
 			.where('user_id', '=', userId)
 			.limit(1)
 			.executeTakeFirst();
@@ -204,8 +214,8 @@ export class SubscriptionRepository {
 			nextTier: {
 				power: st_next_power,
 				price: st_next_price,
-			}
-		}
+			},
+		};
 	}
 
 	async lockSubscriptionByUserId(
@@ -216,24 +226,29 @@ export class SubscriptionRepository {
 			.selectFrom('subscription as s')
 			.innerJoin('subscription_tier as st', 'st.id', 's.current_tier_id')
 			.innerJoin('subscription_tier as st_next', 'st_next.id', 's.next_tier_id')
-            .leftJoinLateral(
-				(eb) => eb.selectFrom('gift')
-					.innerJoin('subscription_tier as st', 'st.id', 'gift.tier_id')
-					.select(['gift.id', 'gift.tier_id as gifted_tier_id', 'st.power as gifted_tier_power'])
-					.select(({}) => [
-						sql<number>`CEIL(EXTRACT(EPOCH FROM((gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval) - now()::timestamptz)) / 86400)`.as('gifted_days_left')
-					])
-            		.where('gift.activated_at', 'is not', null)
-            		.$narrowType<{'activated_at': NotNull}>()
-					// this abomination checks if gift is active or not. Btw, we could use virtual computed columns from pg 18
-					.whereRef('gifted_to', '=', 's.user_id')
-            		.where(
-                		sql`(now()::timestamptz - gift.activated_at::timestamptz)`,
-                		'<=',
-                		sql`(gift.duration_days || ' days')::interval`,
-            		).limit(1).as('g'),
-					(join) => join.onTrue()
-
+			.leftJoinLateral(
+				eb =>
+					eb
+						.selectFrom('gift')
+						.innerJoin('subscription_tier as st', 'st.id', 'gift.tier_id')
+						.select(['gift.id', 'gift.tier_id as gifted_tier_id', 'st.power as gifted_tier_power'])
+						.select(({}) => [
+							sql<number>`CEIL(EXTRACT(EPOCH FROM((gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval) - now()::timestamptz)) / 86400)`.as(
+								'gifted_days_left',
+							),
+						])
+						.where('gift.activated_at', 'is not', null)
+						.$narrowType<{ activated_at: NotNull }>()
+						// this abomination checks if gift is active or not. Btw, we could use virtual computed columns from pg 18
+						.whereRef('gifted_to', '=', 's.user_id')
+						.where(
+							sql`(now()::timestamptz - gift.activated_at::timestamptz)`,
+							'<=',
+							sql`(gift.duration_days || ' days')::interval`,
+						)
+						.limit(1)
+						.as('g'),
+				join => join.onTrue(),
 			)
 			.selectAll('s')
 			.select([
@@ -241,21 +256,16 @@ export class SubscriptionRepository {
 				'st.power as paid_tier_power',
 				'st.permissions as paid_tier_permissions',
 				'st.tier as paid_tier_name',
-				'st.price_rubles as paid_tier_price'
+				'st.price_rubles as paid_tier_price',
 			])
 			.select([
 				'st_next.id as paid_next_tier_id',
 				'st_next.power as paid_next_tier_power',
 				'st_next.permissions as paid_next_tier_permissions',
 				'st_next.tier as paid_next_tier_name',
-				'st_next.price_rubles as paid_next_tier_price'
+				'st_next.price_rubles as paid_next_tier_price',
 			])
-				.select([
-					'g.id as gift_id',
-					'g.gifted_tier_id',
-					'g.gifted_days_left',
-					'g.gifted_tier_power',
-				])
+			.select(['g.id as gift_id', 'g.gifted_tier_id', 'g.gifted_days_left', 'g.gifted_tier_power'])
 			.where('s.user_id', '=', userId)
 			.forUpdate('s')
 			.limit(1)
@@ -266,10 +276,10 @@ export class SubscriptionRepository {
 		}
 
 		const {
-				gift_id,
-				gifted_tier_id,
-				gifted_days_left,
-				gifted_tier_power,
+			gift_id,
+			gifted_tier_id,
+			gifted_days_left,
+			gifted_tier_power,
 			paid_tier_id,
 			paid_tier_name,
 			paid_tier_permissions,
@@ -280,22 +290,22 @@ export class SubscriptionRepository {
 			paid_next_tier_permissions,
 			paid_next_tier_power,
 			paid_next_tier_price,
-			...paidSubscriptionData } = sub;
+			...paidSubscriptionData
+		} = sub;
 
-
-			const currentlyActiveGift = gift_id !== null ? {
-					gift: {
-						giftId: gift_id,
-						giftedDaysLeft: gifted_days_left && gifted_days_left > 0 ? gifted_days_left : 0,
-					},
-				currentTier: {
-					giftedTierId: gifted_tier_id!,
-					giftedTierPower: gifted_tier_power!,
-				},
-		} : undefined;
-
-
-
+		const currentlyActiveGift =
+			gift_id !== null
+				? {
+						gift: {
+							giftId: gift_id,
+							giftedDaysLeft: gifted_days_left && gifted_days_left > 0 ? gifted_days_left : 0,
+						},
+						currentTier: {
+							giftedTierId: gifted_tier_id!,
+							giftedTierPower: gifted_tier_power!,
+						},
+					}
+				: undefined;
 
 		return {
 			currentActiveGiftSubscription: currentlyActiveGift,
@@ -314,8 +324,8 @@ export class SubscriptionRepository {
 					power: paid_next_tier_power,
 					permissions: paid_next_tier_permissions,
 					price_rubles: paid_next_tier_price,
-				}
-			}
+				},
+			},
 		};
 	}
 
@@ -337,11 +347,7 @@ export class SubscriptionRepository {
 						])
 						.where('g.activated_at', 'is not', null)
 						.whereRef('g.gifted_to', '=', 's.user_id')
-						.where(
-							sql`g.activated_at::timestamptz + g.duration_days * interval '1 day'`,
-							'>=',
-							sql`now()::timestamptz`,
-						)
+						.where(sql`g.activated_at::timestamptz + g.duration_days * interval '1 day'`, '>=', sql`now()::timestamptz`)
 						.orderBy('st_gift.power', 'desc')
 						.orderBy('g.activated_at', 'desc')
 						.limit(1)
@@ -413,13 +419,15 @@ export class SubscriptionRepository {
 			.where('payment_method.status', '=', 'active')
 			.where('st_next.power', '<>', 0)
 			.where('subscription.billing_period_days', '>', 0)
-			.where(
-				eb => eb('subscription.current_period_end', 'is not', null)
-					.and('subscription.current_period_end', '<', doNotChargeAfter)
+			.where(eb =>
+				eb('subscription.current_period_end', 'is not', null).and(
+					'subscription.current_period_end',
+					'<',
+					doNotChargeAfter,
+				),
 			)
-			.where(
-				eb => eb('subscription.last_billing_attempt', 'is', null)
-					.or('subscription.last_billing_attempt', '<=', retryAfter)
+			.where(eb =>
+				eb('subscription.last_billing_attempt', 'is', null).or('subscription.last_billing_attempt', '<=', retryAfter),
 			);
 
 		if (params.cursor) {
@@ -437,7 +445,9 @@ export class SubscriptionRepository {
 		return await query.execute();
 	}
 
-	async findDowngradeCandidateSubscriptions(params: FindDowngradeCandidateSubscriptionsParams): Promise<DowngradeCandidateSubscriptionRow[]> {
+	async findDowngradeCandidateSubscriptions(
+		params: FindDowngradeCandidateSubscriptionsParams,
+	): Promise<DowngradeCandidateSubscriptionRow[]> {
 		const executor = this.getExecutor(params.trx);
 		const retryAfter = new Date(params.runDate.getTime() - params.retryWindowDays * MS_IN_DAY);
 		const doNotChargeAfter = getStartOfDayUtc(params.runDate);
@@ -451,8 +461,9 @@ export class SubscriptionRepository {
 			.innerJoin('subscription_tier as st_next', 'st_next.id', 'subscription.next_tier_id')
 			.leftJoin('payment_method as pm', 'pm.user_id', 'subscription.user_id')
 			.selectAll('subscription')
-			.select(eb => eb('st_next.power', '=', 0).as('nextTierIsFree')).$narrowType<{
-				nextTierIsFree: boolean
+			.select(eb => eb('st_next.power', '=', 0).as('nextTierIsFree'))
+			.$narrowType<{
+				nextTierIsFree: boolean;
 			}>()
 			.select(eb => [eb.ref('pm.payment_method_id').as('billingPaymentMethodId')])
 			.where(eb =>
@@ -462,13 +473,15 @@ export class SubscriptionRepository {
 				]),
 			)
 			.where('subscription.billing_period_days', '>', 0)
-			.where(
-				eb => eb('subscription.current_period_end', 'is not', null)
-					.and('subscription.current_period_end', '<', doNotChargeAfter)
+			.where(eb =>
+				eb('subscription.current_period_end', 'is not', null).and(
+					'subscription.current_period_end',
+					'<',
+					doNotChargeAfter,
+				),
 			)
-			.where(
-				eb => eb('subscription.last_billing_attempt', 'is', null)
-					.or('subscription.last_billing_attempt', '<=', retryAfter)
+			.where(eb =>
+				eb('subscription.last_billing_attempt', 'is', null).or('subscription.last_billing_attempt', '<=', retryAfter),
 			);
 
 		if (params.cursor) {

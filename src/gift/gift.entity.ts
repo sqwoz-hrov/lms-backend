@@ -28,8 +28,12 @@ export interface GiftAggregation {
 }
 
 export type GiftWithUser = Gift & Pick<UserTable, 'telegram_username' | 'email' | 'name'>;
-export type GiftWithSubscriptionTier = Gift & { tier: Omit<SubscriptionTier, 'is_archived'> };
-export type GiftWithUserAndSubscriptionTier = GiftWithUser & { tier: Omit<SubscriptionTier, 'is_archived'> };
+export type GiftWithSubscriptionTier = Gift & {
+	tier: Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'>;
+};
+export type GiftWithUserAndSubscriptionTier = GiftWithUser & {
+	tier: Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'>;
+};
 export type GiftStatus = 'currently_active' | 'used' | 'available';
 export type GiftWithUserSubscriptionTierAndStatus = GiftWithUserAndSubscriptionTier & {
 	expires_at: Date | null;
@@ -54,4 +58,4 @@ export type GiftGroupedByStatusPage = GiftGroupedByStatus & {
 };
 
 export type GiftWithSubscriptionTierAggregated = PrefixedValuesRequired<Gift, 'gift__'> &
-	PrefixedValuesRequired<Omit<SubscriptionTier, 'is_archived'>, 'tier__'>;
+	PrefixedValuesRequired<Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'>, 'tier__'>;

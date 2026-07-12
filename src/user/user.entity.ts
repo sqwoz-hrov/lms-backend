@@ -49,19 +49,21 @@ export type UserAndSubscriptionEntity = Pick<UserAggregation, 'subscription' | '
 
 export type SubscriptionGift = {
 	is_gifted: boolean;
-}
+};
 
-export type UserWithNullableSubscriptionTier = (User & { role: 'admin' | 'user' } & {
-	subscription?: (Subscription & SubscriptionGift) | null;
-	subscription_tier?: Omit<SubscriptionTier, 'is_archived'> | null;
-}) | (User & { role: 'subscriber' } & {
-	subscription: Subscription & SubscriptionGift;
-	subscription_tier: Omit<SubscriptionTier, 'is_archived'>;
-});
+export type UserWithNullableSubscriptionTier =
+	| (User & { role: 'admin' | 'user' } & {
+			subscription?: (Subscription & SubscriptionGift) | null;
+			subscription_tier?: Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'> | null;
+	  })
+	| (User & { role: 'subscriber' } & {
+			subscription: Subscription & SubscriptionGift;
+			subscription_tier: Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'>;
+	  });
 
 export type UserWithSubscriptionTier = User & {
 	subscription: Subscription & SubscriptionGift;
-	subscription_tier: Omit<SubscriptionTier, 'is_archived'>;
+	subscription_tier: Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'>;
 };
 
 export const DELETED_USER_FIELD_FALLBACK = 'USER_DELETED' as const;

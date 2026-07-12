@@ -12,14 +12,13 @@ import {
 	UserWithNullableSubscriptionTier,
 } from './user.entity';
 import { Inject, NotFoundException } from '@nestjs/common';
-import { SubscriptionTier } from '../subscription-tier/subscription-tier.entity';
 import { PrefixedValuesNullable } from '../common/kysely-types/prefixed-values';
-
+import { SubscriptionTierWithoutPrivateFields } from '../subscription/subscription.repository';
 
 type UserJoinRow = User &
 	PrefixedValuesNullable<Subscription, 'subscription__'> &
-	PrefixedValuesNullable<{ 'is_gifted': boolean | null }, 'subscription__'> &
-	PrefixedValuesNullable<Omit<SubscriptionTier, 'is_archived'>, 'subscription_tier__'>;
+	PrefixedValuesNullable<{ is_gifted: boolean | null }, 'subscription__'> &
+	PrefixedValuesNullable<SubscriptionTierWithoutPrivateFields, 'subscription_tier__'>;
 
 type FindUsersFilters = {
 	roles?: UserRole[];
@@ -41,35 +40,40 @@ export class UserRepository {
 	}
 
 	public async findAll(filters: FindUsersFilters = {}): Promise<UserWithNullableSubscriptionTier[]> {
-		let query = this.connection.with('current_subscription', qb => qb
-            .selectFrom('subscription as s')
-            .leftJoinLateral(
-				(eb) => eb.selectFrom('gift')
-					.selectAll()
-            		.where('gift.activated_at', 'is not', null)
-            		.$narrowType<{'activated_at': NotNull}>()
-					// this abomination checks if gift is active or not. Btw, we could use virtual computed columns from pg 18
-					.whereRef('gifted_to', '=', 's.user_id')
-            		.where(
-                		sql`(gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval)`,
-                		'>=',
-                		sql`now()::timestamptz`,
-            		).limit(1).as('g'),
-					(join) => join.onTrue()
-
+		let query = this.connection
+			.with('current_subscription', qb =>
+				qb
+					.selectFrom('subscription as s')
+					.leftJoinLateral(
+						eb =>
+							eb
+								.selectFrom('gift')
+								.selectAll()
+								.where('gift.activated_at', 'is not', null)
+								.$narrowType<{ activated_at: NotNull }>()
+								// this abomination checks if gift is active or not. Btw, we could use virtual computed columns from pg 18
+								.whereRef('gifted_to', '=', 's.user_id')
+								.where(
+									sql`(gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval)`,
+									'>=',
+									sql`now()::timestamptz`,
+								)
+								.limit(1)
+								.as('g'),
+						join => join.onTrue(),
+					)
+					.select([
+						sql<boolean>`(g.id IS NOT NULL)`.as('is_gifted'),
+						sql<string>`COALESCE(g.tier_id, s.current_tier_id)`.as('tier_id'),
+						sql<Date | null>`COALESCE(g.activated_at::timestamptz, NULL)`.as('gift_activated_at'),
+						sql<number | null>`COALESCE(g.duration_days::smallint, NULL)`.as('duration_days'),
+					])
+					.selectAll('s'),
 			)
-            .select([
-                sql<boolean>`(g.id IS NOT NULL)`.as('is_gifted'),
-                sql<string>`COALESCE(g.tier_id, s.current_tier_id)`.as('tier_id'),
-                sql<Date | null>`COALESCE(g.activated_at::timestamptz, NULL)`.as('gift_activated_at'),
-                sql<number | null>`COALESCE(g.duration_days::smallint, NULL)`.as('duration_days'),
-            ])
-			.selectAll('s')
-        )
-		.selectFrom('current_subscription as cs')
-		// this will inaccurate details about price that person will be paying if gift is active but it's not important since we'll not bill that amount
-        .innerJoin('subscription_tier as st', 'cs.tier_id', 'st.id')
-		.rightJoin('user', 'user.id', 'cs.user_id')
+			.selectFrom('current_subscription as cs')
+			// this will inaccurate details about price that person will be paying if gift is active but it's not important since we'll not bill that amount
+			.innerJoin('subscription_tier as st', 'cs.tier_id', 'st.id')
+			.rightJoin('user', 'user.id', 'cs.user_id')
 			.selectAll('user')
 			.select([
 				'cs.id as subscription__id',
@@ -92,7 +96,7 @@ export class UserRepository {
 				'st.permissions as subscription_tier__permissions',
 				'st.price_rubles as subscription_tier__price_rubles',
 			])
-			.limit(20)
+			.limit(20);
 
 		if (filters.roles?.length) {
 			query = query.where('user.role', 'in', filters.roles);
@@ -111,37 +115,42 @@ export class UserRepository {
 
 	// TODO: tests :/
 	public async findByIdWithSubscriptionTier(id: string): Promise<UserWithNullableSubscriptionTier | undefined> {
-		const query = this.connection.with('current_subscription', qb => qb
-            .selectFrom('subscription as s')
-            .leftJoinLateral(
-				(eb) => eb.selectFrom('gift')
-					.selectAll()
-            		.where('gift.activated_at', 'is not', null)
-            		.$narrowType<{'activated_at': NotNull}>()
-					// this abomination checks if gift is active or not. Btw, we could use virtual computed columns from pg 18
-					.whereRef('gifted_to', '=', 's.user_id')
-            		.where(
-                		sql`(gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval)`,
-                		'>=',
-                		sql`now()::timestamptz`,
-            		).limit(1).as('g'),
-					(join) => join.onTrue()
-
+		const query = this.connection
+			.with('current_subscription', qb =>
+				qb
+					.selectFrom('subscription as s')
+					.leftJoinLateral(
+						eb =>
+							eb
+								.selectFrom('gift')
+								.selectAll()
+								.where('gift.activated_at', 'is not', null)
+								.$narrowType<{ activated_at: NotNull }>()
+								// this abomination checks if gift is active or not. Btw, we could use virtual computed columns from pg 18
+								.whereRef('gifted_to', '=', 's.user_id')
+								.where(
+									sql`(gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval)`,
+									'>=',
+									sql`now()::timestamptz`,
+								)
+								.limit(1)
+								.as('g'),
+						join => join.onTrue(),
+					)
+					.where('s.user_id', '=', id)
+					.select([
+						sql<boolean>`(g.id IS NOT NULL)`.as('is_gifted'),
+						sql<string>`COALESCE(g.tier_id, s.current_tier_id)`.as('tier_id'),
+						sql<Date | null>`COALESCE(g.activated_at::timestamptz, NULL)`.as('gift_activated_at'),
+						sql<number | null>`COALESCE(g.duration_days::smallint, NULL)`.as('duration_days'),
+					])
+					.selectAll('s'),
 			)
-            .where('s.user_id', '=', id)
-            .select([
-                sql<boolean>`(g.id IS NOT NULL)`.as('is_gifted'),
-                sql<string>`COALESCE(g.tier_id, s.current_tier_id)`.as('tier_id'),
-                sql<Date | null>`COALESCE(g.activated_at::timestamptz, NULL)`.as('gift_activated_at'),
-                sql<number | null>`COALESCE(g.duration_days::smallint, NULL)`.as('duration_days'),
-            ])
-			.selectAll('s')
-        )
-		.selectFrom('current_subscription as cs')
-		// this will inaccurate details about price that person will be paying if gift is active but it's not important since we'll not bill that amount
-		// TODO: test cases
-        .innerJoin('subscription_tier as st', 'cs.tier_id', 'st.id')
-		.rightJoin('user', 'user.id', 'cs.user_id')
+			.selectFrom('current_subscription as cs')
+			// this will inaccurate details about price that person will be paying if gift is active but it's not important since we'll not bill that amount
+			// TODO: test cases
+			.innerJoin('subscription_tier as st', 'cs.tier_id', 'st.id')
+			.rightJoin('user', 'user.id', 'cs.user_id')
 			.selectAll('user')
 			.select([
 				'cs.id as subscription__id',
@@ -280,7 +289,7 @@ export class UserRepository {
 			};
 		}
 
-		const subscriptionTier: Omit<SubscriptionTier, 'is_archived'> | null =
+		const subscriptionTier: SubscriptionTierWithoutPrivateFields | null =
 			subscription_tier__id !== null &&
 			subscription_tier__tier !== null &&
 			subscription_tier__power !== null &&

@@ -1,5 +1,6 @@
 import { SubscriptionTier } from '../../src/subscription-tier/subscription-tier.entity';
 import { Subscription } from '../../src/subscription/subscription.entity';
+import { SubscriptionTierWithoutPrivateFields } from '../../src/subscription/subscription.repository';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
 import { User, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
@@ -19,7 +20,7 @@ export const createEmail = () => {
 export const createTestSubscriptionTier = async (
 	userRepository: UsersTestRepository,
 	overrides: Partial<SubscriptionTier> = {},
-): Promise<Omit<SubscriptionTier, 'is_archived'>> => {
+): Promise<SubscriptionTierWithoutPrivateFields> => {
 	const { power: overridePower, ...restOverrides } = overrides;
 	const tierName = restOverrides.tier ?? `tier-${randomWord()}`;
 
@@ -40,13 +41,7 @@ export const createTestSubscriptionTier = async (
 			price_rubles: 1000,
 			...restOverrides,
 		})
-		.returning([
-			'id',
-			'permissions',
-			'power',
-			'price_rubles',
-			'tier',
-		])
+		.returning(['id', 'permissions', 'power', 'price_rubles', 'tier'])
 		.executeTakeFirstOrThrow();
 };
 
@@ -96,20 +91,18 @@ type SubscriberFixtureOverrides = Partial<User> & {
 export const createTestSubscriber = async (
 	userRepository: UsersTestRepository,
 	overrides: SubscriberFixtureOverrides = {},
-): Promise<UserWithNullableSubscriptionTier & { subscription: Subscription; subscription_tier: Omit<SubscriptionTier, 'is_archived'> }> => {
+): Promise<
+	UserWithNullableSubscriptionTier & {
+		subscription: Subscription;
+		subscription_tier: SubscriptionTierWithoutPrivateFields;
+	}
+> => {
 	const { current_tier_id, active_until, is_archived, ...userOverrides } = overrides;
-
 
 	const subscriptionTier = current_tier_id
 		? await userRepository.connection
 				.selectFrom('subscription_tier')
-				.select([
-					'id',
-					'permissions',
-					'power',
-					'price_rubles',
-					'tier',
-				])
+				.select(['id', 'permissions', 'power', 'price_rubles', 'tier'])
 				.where('id', '=', current_tier_id)
 				.limit(1)
 				.executeTakeFirstOrThrow()

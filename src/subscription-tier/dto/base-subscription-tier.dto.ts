@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsInt, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsArray, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class BaseSubscriptionTierDto {
 	@ApiProperty()
@@ -24,6 +24,11 @@ export class BaseSubscriptionTierDto {
 	@ApiProperty()
 	@IsNumber()
 	price_rubles: number;
+
+	@ApiProperty({ required: false, nullable: true })
+	@IsOptional()
+	@IsString()
+	markdown_description?: string | null;
 }
 
 export class SubscriptionTierResponseDto extends BaseSubscriptionTierDto {}

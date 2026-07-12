@@ -26,6 +26,14 @@ export class MarkdownContentRespository {
 		return markdownContent;
 	}
 
+	public async findByIds(ids: string[]): Promise<MarkDownContent[]> {
+		if (ids.length === 0) {
+			return [];
+		}
+
+		return this.connection.selectFrom('markdown_content').selectAll().where('id', 'in', ids).execute();
+	}
+
 	public async update(id: string, markdownContent: MarkDownContentUpdate): Promise<MarkDownContent> {
 		return this.connection
 			.updateTable('markdown_content')
