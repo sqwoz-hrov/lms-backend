@@ -10,6 +10,8 @@ const freeTier: SubscriptionTier = {
 	power: 0,
 	permissions: [],
 	price_rubles: 0,
+	is_archived: false,
+	markdown_description_id: null,
 };
 
 const paidTier: SubscriptionTier = {
@@ -18,6 +20,8 @@ const paidTier: SubscriptionTier = {
 	power: 1,
 	permissions: [],
 	price_rubles: 2000,
+	is_archived: false,
+	markdown_description_id: null,
 };
 
 const premiumTier: SubscriptionTier = {
@@ -26,10 +30,15 @@ const premiumTier: SubscriptionTier = {
 	power: 2,
 	permissions: [],
 	price_rubles: 4000,
+	is_archived: false,
+	markdown_description_id: null,
 };
+
+const tiers = new Map<string, SubscriptionTier>([freeTier, paidTier, premiumTier].map(tier => [tier.id, tier]));
 
 const BASE_DATE = new Date('2024-01-01T00:00:00.000Z');
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+const paidAmount = (tier: SubscriptionTier) => ({ value: tier.price_rubles.toString(), currency: 'RUB' as const });
 
 const createService = () =>
 	new SubscriptionStateService({
@@ -40,11 +49,11 @@ const createService = () =>
 const buildSubscriptionState = (overrides: Partial<SubscriptionState> = {}): SubscriptionState => ({
 	id: overrides.id ?? 'sub-1',
 	user_id: overrides.user_id ?? 'user-1',
-		current_tier_id: overrides.current_tier_id ?? paidTier.id,
-		next_tier_id: overrides.next_tier_id ?? paidTier.id,
-		price_on_purchase_rubles: overrides.price_on_purchase_rubles ?? 1500,
-		grace_period_size: overrides.grace_period_size ?? 3,
-		billing_period_days: overrides.billing_period_days ?? 30,
+	current_tier_id: overrides.current_tier_id ?? paidTier.id,
+	next_tier_id: overrides.next_tier_id ?? paidTier.id,
+	price_on_purchase_rubles: overrides.price_on_purchase_rubles ?? 1500,
+	grace_period_size: overrides.grace_period_size ?? 3,
+	billing_period_days: overrides.billing_period_days ?? 30,
 	current_period_end: overrides.current_period_end !== undefined ? overrides.current_period_end : new Date(BASE_DATE),
 	last_billing_attempt:
 		overrides.last_billing_attempt !== undefined ? overrides.last_billing_attempt : new Date(BASE_DATE),
@@ -52,7 +61,7 @@ const buildSubscriptionState = (overrides: Partial<SubscriptionState> = {}): Sub
 
 const buildAggregation = (
 	subscription: SubscriptionState,
-	params: { paidTier?: SubscriptionTier; giftedTier?: SubscriptionTier; giftedDaysLeft?: number } = {},
+	params: { giftedTier?: SubscriptionTier; giftedDaysLeft?: number } = {},
 ): PaidAndGiftedSubPerUserView => ({
 	currentPaidSubscription: {
 		subscription: {
@@ -60,7 +69,8 @@ const buildAggregation = (
 			created_at: BASE_DATE,
 			updated_at: BASE_DATE,
 		},
-		currentTier: params.paidTier ?? paidTier,
+		currentTier: tiers.get(subscription.current_tier_id) ?? paidTier,
+		nextTier: tiers.get(subscription.next_tier_id) ?? paidTier,
 	},
 	currentActiveGiftSubscription: params.giftedTier
 		? {
@@ -75,6 +85,17 @@ const buildAggregation = (
 			}
 		: undefined,
 });
+
+type HandlePaymentEventParams = Parameters<SubscriptionStateService['handlePaymentEvent']>[0];
+
+const expectRepeatedHandlingToBeDeeplyEqual = (service: SubscriptionStateService, params: HandlePaymentEventParams) => {
+	const firstResult = service.handlePaymentEvent(params);
+	const secondResult = service.handlePaymentEvent(params);
+
+	expect(secondResult).to.deep.equal(firstResult);
+
+	return firstResult;
+};
 
 describe('SubscriptionStateService', () => {
 	it('creates free tier subscription fields for new user', () => {
@@ -111,6 +132,7 @@ describe('SubscriptionStateService', () => {
 					current_tier_id: subscription.current_tier_id,
 					user_id: subscription.user_id,
 					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
 				},
 				occurredAt,
 			},
@@ -135,10 +157,15 @@ describe('SubscriptionStateService', () => {
 		const { newSub } = service.handlePaymentEvent({
 			user: { id: subscription.user_id },
 			freeTier,
-			subscription: buildAggregation(subscription, { paidTier: premiumTier }),
+			subscription: buildAggregation(subscription),
 			event: {
 				type: 'payment.succeeded',
-				meta: { current_tier_id: paidTier.id, user_id: subscription.user_id, targetTierPower: paidTier.power },
+				meta: {
+					current_tier_id: paidTier.id,
+					user_id: subscription.user_id,
+					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
+				},
 				occurredAt,
 			},
 		});
@@ -164,7 +191,12 @@ describe('SubscriptionStateService', () => {
 			subscription: buildAggregation(subscription),
 			event: {
 				type: 'payment.succeeded',
-				meta: { current_tier_id: premiumTier.id, user_id: subscription.user_id, targetTierPower: premiumTier.power },
+				meta: {
+					current_tier_id: premiumTier.id,
+					user_id: subscription.user_id,
+					targetTierPower: premiumTier.power,
+					paidAmount: paidAmount(premiumTier),
+				},
 				occurredAt,
 			},
 		});
@@ -193,6 +225,7 @@ describe('SubscriptionStateService', () => {
 					current_tier_id: subscription.current_tier_id,
 					user_id: subscription.user_id,
 					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
 				},
 				occurredAt: canceledAt,
 			},
@@ -224,6 +257,7 @@ describe('SubscriptionStateService', () => {
 					current_tier_id: subscription.current_tier_id,
 					user_id: subscription.user_id,
 					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
 				},
 				occurredAt: canceledAt,
 			},
@@ -256,6 +290,7 @@ describe('SubscriptionStateService', () => {
 					current_tier_id: paidTier.id,
 					user_id: subscription.user_id,
 					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
 				},
 				occurredAt: canceledAt,
 			},
@@ -280,7 +315,12 @@ describe('SubscriptionStateService', () => {
 			subscription: buildAggregation(subscription, { giftedTier: paidTier, giftedDaysLeft: 6 }),
 			event: {
 				type: 'payment.succeeded',
-				meta: { current_tier_id: paidTier.id, user_id: subscription.user_id, targetTierPower: paidTier.power },
+				meta: {
+					current_tier_id: paidTier.id,
+					user_id: subscription.user_id,
+					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
+				},
 				occurredAt: new Date('2024-09-20T00:00:00.000Z'),
 			},
 		});
@@ -304,7 +344,12 @@ describe('SubscriptionStateService', () => {
 			subscription: buildAggregation(subscription, { giftedTier: paidTier, giftedDaysLeft: 6 }),
 			event: {
 				type: 'payment.succeeded',
-				meta: { current_tier_id: premiumTier.id, user_id: subscription.user_id, targetTierPower: premiumTier.power },
+				meta: {
+					current_tier_id: premiumTier.id,
+					user_id: subscription.user_id,
+					targetTierPower: premiumTier.power,
+					paidAmount: paidAmount(premiumTier),
+				},
 				occurredAt: new Date('2024-09-20T00:00:00.000Z'),
 			},
 		});
@@ -336,16 +381,150 @@ describe('SubscriptionStateService', () => {
 			subscription: buildAggregation(subscription, { giftedTier: premiumTier, giftedDaysLeft: GIFTED_DAYS_LEFT }),
 			event: {
 				type: 'payment.succeeded',
-				meta: { current_tier_id: paidTier.id, user_id: subscription.user_id, targetTierPower: paidTier.power },
+				meta: {
+					current_tier_id: paidTier.id,
+					user_id: subscription.user_id,
+					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
+				},
 				occurredAt: new Date('2024-09-20T00:00:00.000Z'),
 			},
 		});
 
 		expect(newSub.current_tier_id).to.equal(paidTier.id);
 		expect(newSub.next_tier_id).to.equal(paidTier.id);
-		expect(newSub.current_period_end).to.equal(
-			addDays(subscription.current_period_end, BILLING_DEFAULT_PERIOD + GIFTED_DAYS_LEFT)
-		)
+		expect(newSub.current_period_end?.getTime()).to.equal(
+			addDays(subscription.current_period_end, BILLING_DEFAULT_PERIOD + GIFTED_DAYS_LEFT).getTime(),
+		);
+		expect(newGift).to.be.undefined;
+		expect(newSub.price_on_purchase_rubles.toString()).to.equal(paidAmount(paidTier).value);
+	});
+
+	it('returns the same result when the same payment success event is handled twice', () => {
+		const service = createService();
+		const occurredAt = new Date('2024-10-15T00:00:00.000Z');
+		const currentEnd = new Date('2024-10-20T00:00:00.000Z');
+		const subscription = buildSubscriptionState({
+			current_period_end: currentEnd,
+			last_billing_attempt: addDays(occurredAt, -5),
+		});
+
+		const { newSub, newGift } = expectRepeatedHandlingToBeDeeplyEqual(service, {
+			user: { id: subscription.user_id },
+			freeTier,
+			subscription: buildAggregation(subscription),
+			event: {
+				type: 'payment.succeeded',
+				meta: {
+					current_tier_id: subscription.current_tier_id,
+					user_id: subscription.user_id,
+					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
+				},
+				occurredAt,
+			},
+		});
+
+		expect(newSub.current_period_end?.getTime()).to.equal(addDays(currentEnd, 30).getTime());
+		expect(newSub.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
+		expect(newGift).to.deep.equal({ activated_at: null, duration_days: 0 });
+	});
+
+	it('returns the same result when the same lower-tier payment success with active gift is handled twice', () => {
+		const service = createService();
+		const occurredAt = new Date('2024-10-15T00:00:00.000Z');
+		const currentEnd = new Date('2024-10-20T00:00:00.000Z');
+		const giftedDaysLeft = 6;
+		const subscription = buildSubscriptionState({
+			current_period_end: currentEnd,
+			last_billing_attempt: addDays(occurredAt, -5),
+		});
+
+		const { newSub, newGift } = expectRepeatedHandlingToBeDeeplyEqual(service, {
+			user: { id: subscription.user_id },
+			freeTier,
+			subscription: buildAggregation(subscription, { giftedTier: premiumTier, giftedDaysLeft }),
+			event: {
+				type: 'payment.succeeded',
+				meta: {
+					current_tier_id: paidTier.id,
+					user_id: subscription.user_id,
+					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
+				},
+				occurredAt,
+			},
+		});
+
+		expect(newSub.current_period_end?.getTime()).to.equal(addDays(currentEnd, 30 + giftedDaysLeft).getTime());
+		expect(newSub.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
+		expect(newGift).to.be.undefined;
+	});
+
+	it('returns the same result when the same grace-period cancellation is handled twice', () => {
+		const service = createService();
+		const canceledAt = new Date('2024-10-05T00:00:00.000Z');
+		const periodEnd = new Date('2024-10-03T00:00:00.000Z');
+		const subscription = buildSubscriptionState({
+			current_period_end: periodEnd,
+			grace_period_size: 5,
+			last_billing_attempt: addDays(canceledAt, -5),
+		});
+
+		const { newSub, newGift } = expectRepeatedHandlingToBeDeeplyEqual(service, {
+			user: { id: subscription.user_id },
+			freeTier,
+			subscription: buildAggregation(subscription),
+			event: {
+				type: 'payment.canceled',
+				meta: {
+					current_tier_id: subscription.current_tier_id,
+					user_id: subscription.user_id,
+					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
+				},
+				occurredAt: canceledAt,
+			},
+		});
+
+		expect(newSub.current_tier_id).to.equal(subscription.current_tier_id);
+		expect(newSub.current_period_end?.getTime()).to.equal(periodEnd.getTime());
+		expect(newSub.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
+		expect(newGift).to.be.undefined;
+	});
+
+	it('returns the same result when the same out-of-grace cancellation is handled twice', () => {
+		const service = createService();
+		const canceledAt = new Date('2024-10-10T00:00:00.000Z');
+		const periodEnd = new Date('2024-10-01T00:00:00.000Z');
+		const subscription = buildSubscriptionState({
+			current_tier_id: paidTier.id,
+			next_tier_id: paidTier.id,
+			current_period_end: periodEnd,
+			grace_period_size: 3,
+			last_billing_attempt: addDays(canceledAt, -10),
+		});
+
+		const { newSub, newGift } = expectRepeatedHandlingToBeDeeplyEqual(service, {
+			user: { id: subscription.user_id },
+			freeTier,
+			subscription: buildAggregation(subscription),
+			event: {
+				type: 'payment.canceled',
+				meta: {
+					current_tier_id: paidTier.id,
+					user_id: subscription.user_id,
+					targetTierPower: paidTier.power,
+					paidAmount: paidAmount(paidTier),
+				},
+				occurredAt: canceledAt,
+			},
+		});
+
+		expect(newSub.current_tier_id).to.equal(freeTier.id);
+		expect(newSub.next_tier_id).to.equal(freeTier.id);
+		expect(newSub.current_period_end).to.equal(null);
+		expect(newSub.last_billing_attempt?.getTime()).to.equal(canceledAt.getTime());
 		expect(newGift).to.be.undefined;
 	});
 });

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Kysely, NotNull, Transaction, sql } from 'kysely';
+import { Kysely, NotNull, Transaction, sql, type SqlBool } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { UserAggregation } from '../user/user.entity';
 import type { BillableSubscriptionCursor } from './ports/subscription-repository.port';
@@ -8,6 +8,7 @@ import { getStartOfDayUtc } from './utils/get-start-of-day-utc';
 import { MS_IN_DAY } from './constants';
 import {
 	PaymentEventTable,
+	PaymentEvent,
 	PaymentMethod,
 	NewPaymentEvent,
 	NewPaymentMethod,
@@ -24,6 +25,20 @@ export type SubscriptionDatabase = SubscriptionAggregation &
 export type SubscriptionTransaction = Transaction<SubscriptionDatabase>;
 
 type SubscriptionQueryExecutor = Kysely<SubscriptionDatabase> | SubscriptionTransaction;
+
+const YOOKASSA_WEBHOOK_DEDUPE_INDEX_TARGET = sql`
+	((event ->> 'event')),
+	(((event -> 'object') ->> 'id'))
+`;
+
+const SUPPORTED_YOOKASSA_EVENT_PREDICATE = sql<SqlBool>`
+	event ? 'event'
+	AND event ? 'object'
+	AND (event -> 'object') ? 'id'
+	AND
+	(event ->> 'event') IN ('payment.succeeded', 'payment.canceled', 'payment_method.active')
+	AND (event -> 'object' ->> 'id') IS NOT NULL
+`;
 
 type FindBillableSubscriptionsParams = {
 	runDate: Date;
@@ -503,6 +518,38 @@ export class SubscriptionRepository {
 	async insertPaymentEvent(data: NewPaymentEvent, trx?: SubscriptionTransaction): Promise<void> {
 		const executor = this.getExecutor(trx);
 		await executor.insertInto('payment_event').values(data).returningAll().executeTakeFirstOrThrow();
+	}
+
+	async findPaymentEventByYookassaWebhookDedupeKey(
+		key: { event: string; objectId: string },
+		trx?: SubscriptionTransaction,
+	): Promise<PaymentEvent | undefined> {
+		const executor = this.getExecutor(trx);
+		return await executor
+			.selectFrom('payment_event')
+			.selectAll()
+			.where(sql<string>`event ->> 'event'`, '=', key.event)
+			.where(sql<string>`event -> 'object' ->> 'id'`, '=', key.objectId)
+			.limit(1)
+			.executeTakeFirst();
+	}
+
+	async insertPaymentEventOnYookassaWebhookConflictDoNothing(
+		data: NewPaymentEvent,
+		trx?: SubscriptionTransaction,
+	): Promise<PaymentEvent | undefined> {
+		const executor = this.getExecutor(trx);
+		return await executor
+			.insertInto('payment_event')
+			.values(data)
+			.onConflict(oc =>
+				oc
+					.expression(YOOKASSA_WEBHOOK_DEDUPE_INDEX_TARGET)
+					.where(SUPPORTED_YOOKASSA_EVENT_PREDICATE)
+					.doNothing(),
+			)
+			.returningAll()
+			.executeTakeFirst();
 	}
 
 	async upsertPaymentMethod(

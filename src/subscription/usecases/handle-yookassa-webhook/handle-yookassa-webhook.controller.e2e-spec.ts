@@ -21,6 +21,7 @@ import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
 import { UserRepository } from '../../../user/user.repository';
 import { expectSubscriptionIsFree } from '../../test-utils/utils';
 import { SubscriptionTier } from '../../../subscription-tier/subscription-tier.entity';
+import * as sinon from 'sinon';
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
@@ -183,6 +184,31 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		expect(event.user_id).to.equal(null);
 	});
 
+	it('stores duplicate unsupported webhook deliveries', async () => {
+		const rawPayload = {
+			event: 'payment.waiting_for_capture',
+			object: {
+				id: 'payment-ignored-duplicate-001',
+				status: 'waiting_for_capture',
+				paid: false,
+				amount: {
+					value: '300.00',
+					currency: 'RUB',
+				},
+				created_at: new Date('2025-02-01T12:00:00.000Z').toISOString(),
+			},
+		};
+
+		const payload = rawPayload as unknown as YookassaWebhookPayload;
+		await sendWebhook(payload);
+		await sendWebhook(payload);
+
+		const events = await subscriptionRepo.findPaymentEvents();
+		expect(events).to.have.length(2);
+		expect(events.every(event => event.subscription_id === null)).to.equal(true);
+		expect(events.every(event => event.user_id === null)).to.equal(true);
+	});
+
 	it('stores payment success event and prolongs subscription', async () => {
 		const currentPeriodEnd = new Date('2025-01-05T00:00:00.000Z');
 		const billingPeriodDays = 30;
@@ -236,6 +262,80 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await expectPaymentMethodId(user.id, 'pm-123');
 
 		await expectStoredEvent(payload, { subscriptionId: subscription.id });
+	});
+
+	it('skips duplicate supported webhook delivery without storing or processing it again', async () => {
+		const currentPeriodEnd = new Date('2025-01-05T00:00:00.000Z');
+		const billingPeriodDays = 30;
+
+		const { user, subscription } = await givenSubscription({
+			tierOverrides: { tier: 'premium' },
+			subscriptionOverrides: {
+				price_on_purchase_rubles: 2500,
+				grace_period_size: 3,
+				billing_period_days: billingPeriodDays,
+				current_period_end: currentPeriodEnd,
+				last_billing_attempt: new Date('2024-12-01T00:00:00.000Z'),
+			},
+			paymentMethodId: 'pm-deduped',
+		});
+
+		const occurredAt = new Date('2024-12-15T12:00:00.000Z');
+		const payload: YookassaPaymentSucceededWebhook = {
+			event: 'payment.succeeded',
+			object: {
+				id: 'payment-deduped-001',
+				status: 'succeeded',
+				paid: true,
+				amount: {
+					value: '200.00',
+					currency: 'RUB',
+				},
+				metadata: {
+					user_id: user.id,
+					current_tier_id: subscription.current_tier_id,
+				},
+				created_at: occurredAt.toISOString(),
+				payment_method: {
+					id: 'pm-deduped',
+					type: 'bank_card',
+					saved: true,
+					card: { last4: '4242' },
+				},
+			},
+		};
+
+		const expectedEnd = addDays(currentPeriodEnd, billingPeriodDays);
+
+		await sendWebhook(payload);
+
+		const subscriptionAfterFirstCall = await findSubscriptionOrFail(subscription.id, 'Subscription missing after webhook');
+		expect(subscriptionAfterFirstCall.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(subscriptionAfterFirstCall.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
+
+		const redeliveryAt = addDays(occurredAt, 10);
+		const clock = sinon.useFakeTimers({
+			now: redeliveryAt.getTime(),
+			shouldClearNativeTimers: true,
+			toFake: ['Date'],
+		});
+
+		try {
+			await sendWebhook(payload);
+		} finally {
+			clock.restore();
+		}
+
+		const subscriptionAfterSecondCall = await findSubscriptionOrFail(subscription.id, 'Subscription missing after webhook');
+		expect(subscriptionAfterSecondCall.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(subscriptionAfterSecondCall.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
+
+		expect(subscriptionAfterSecondCall.current_period_end?.getTime()).to.equal(subscriptionAfterFirstCall.current_period_end?.getTime());
+		expect(subscriptionAfterSecondCall.last_billing_attempt?.getTime()).to.equal(subscriptionAfterFirstCall?.last_billing_attempt?.getTime());
+
+		const events = await subscriptionRepo.findPaymentEvents({ subscriptionId: subscription.id });
+		expect(events).to.have.length(1);
+		expect(events[0].event).to.deep.equal(payload);
 	});
 
 	it('prolongs subscription when payment succeeds after period end but within grace window', async () => {
