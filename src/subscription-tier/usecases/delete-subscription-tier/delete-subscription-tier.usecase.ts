@@ -16,7 +16,7 @@ export class DeleteSubscriptionTierUsecase implements UsecaseInterface {
 		}
 
 		const deleted = await this.subscriptionTierRepository.delete(dto.id);
-		const { markdown_description_id, ...deletedTier } = deleted;
+		const { markdown_description_id: _, ...deletedTier } = deleted;
 
 		return deletedTier;
 	}

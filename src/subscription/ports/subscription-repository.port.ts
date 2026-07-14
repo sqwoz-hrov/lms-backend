@@ -1,4 +1,4 @@
-import type { Subscription, SubscriptionUpdate } from '../subscription.entity';
+import type { Subscription } from '../subscription.entity';
 
 export type BillableSubscriptionCursor = {
 	id: Subscription['id'];

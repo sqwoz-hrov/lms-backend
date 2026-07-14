@@ -7,7 +7,6 @@ import {
 	PaymentWebhookEvent,
 	YookassaPaymentCanceledWebhook,
 	YookassaPaymentSucceededWebhook,
-	YookassaWebhookPayload,
 } from '../types/yookassa-webhook';
 import { ConfigType } from '@nestjs/config';
 import { subscriptionConfig } from '../../config/subscription.config';
@@ -138,7 +137,7 @@ export class SubscriptionStateService {
 	}
 
 	public createFreeTierSubFields(
-		subscription: {},
+		subscription: Record<string, never>,
 		freeTier: SubscriptionTier,
 	): Omit<SubscriptionState, 'id' | 'last_billing_attempt' | 'user_id'>;
 	public createFreeTierSubFields(
@@ -146,7 +145,9 @@ export class SubscriptionStateService {
 		freeTier: SubscriptionTier,
 	): SubscriptionState;
 	public createFreeTierSubFields(
-		subscription: Pick<SubscriptionState, 'user_id'> & Pick<SubscriptionState, 'last_billing_attempt' | 'id'>,
+		subscription:
+			| (Pick<SubscriptionState, 'user_id'> & Pick<SubscriptionState, 'last_billing_attempt' | 'id'>)
+			| Record<string, never>,
 		freeTier: SubscriptionTier,
 	): SubscriptionState | Omit<SubscriptionState, 'id' | 'last_billing_attempt' | 'user_id'> {
 		if (subscription.id) {

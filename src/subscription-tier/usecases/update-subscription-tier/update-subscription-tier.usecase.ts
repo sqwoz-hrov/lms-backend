@@ -38,7 +38,7 @@ export class UpdateSubscriptionTierUsecase implements UsecaseInterface {
 				markdownDescription = undefined;
 
 				if (existing.markdown_description_id) {
-					const { markdown_description_id, ...updated } = await this.subscriptionTierRepository.update(
+					const { markdown_description_id: _, ...updated } = await this.subscriptionTierRepository.update(
 						id,
 						filteredUpdates,
 					);
@@ -64,7 +64,7 @@ export class UpdateSubscriptionTierUsecase implements UsecaseInterface {
 			Object.keys(filteredUpdates).length === 0
 				? existing
 				: await this.subscriptionTierRepository.update(id, filteredUpdates);
-		const { markdown_description_id, ...updatedTier } = updated;
+		const { markdown_description_id: _, ...updatedTier } = updated;
 
 		return {
 			...updatedTier,

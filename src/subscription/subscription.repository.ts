@@ -247,7 +247,7 @@ export class SubscriptionRepository {
 						.selectFrom('gift')
 						.innerJoin('subscription_tier as st', 'st.id', 'gift.tier_id')
 						.select(['gift.id', 'gift.tier_id as gifted_tier_id', 'st.power as gifted_tier_power'])
-						.select(({}) => [
+						.select(_ => [
 							sql<number>`CEIL(EXTRACT(EPOCH FROM((gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval) - now()::timestamptz)) / 86400)`.as(
 								'gifted_days_left',
 							),

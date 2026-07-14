@@ -25,10 +25,6 @@ import { YookassaPaymentSucceededWebhook, YookassaWebhookPayload } from '../type
 import { SubscriptionTestSdk } from '../test-utils/test.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
 
-const MS_IN_DAY = 24 * 60 * 60 * 1000;
-
-const addDays = (date: Date, days: number) => new Date(date.getTime() + days * MS_IN_DAY);
-
 const baseConfig = {
 	enabled: true,
 	dailyTime: '05:00',
@@ -82,13 +78,6 @@ describe('SubscriptionBillingService integration', () => {
 			userMeta: { isAuth: false },
 		});
 		expect(response.status).to.equal(HttpStatus.OK);
-	};
-
-	const expectStoredEvent = async (payload: YookassaWebhookPayload, filter: { subscriptionId?: string } = {}) => {
-		const events = await subscriptionTestRepo.findPaymentEvents(filter);
-		expect(events.length).to.equal(1);
-		expect(events[0].event).to.deep.equal(payload);
-		return events[0];
 	};
 
 	const createService = (
@@ -333,7 +322,7 @@ describe('SubscriptionBillingService integration', () => {
 	});
 
 	it("skips billing on a user when he's on active gift until the gift expires", async () => {
-		const { subscriber, currentTier, nextTier } = await seedDueSubscriber({
+		const { subscriber, nextTier } = await seedDueSubscriber({
 			userKey: 'active-gift',
 			currentTierPower: 2,
 			nextTierPower: 2,
@@ -560,6 +549,7 @@ describe('SubscriptionBillingService integration', () => {
 				current_period_end: null,
 				last_billing_attempt: null,
 				billing_period_days: 0,
+				updated_at: new Date(),
 			})
 			.where('id', '=', subscriber?.subscription?.id)
 			.executeTakeFirst();

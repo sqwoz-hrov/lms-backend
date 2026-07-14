@@ -17,7 +17,6 @@ export class AcceptGiftedSubscriptionUsecase implements UsecaseInterface {
 		giftRecipient: UserWithNullableSubscriptionTier;
 		giftId: string;
 	}): Promise<GiftAcceptedResponseType | null> {
-		const now = new Date();
 		if (giftRecipient.role !== 'subscriber') {
 			this.logger.debug(
 				`Cannot use gift as a non-subscriber user of role ${giftRecipient.role} with id ${giftRecipient.id}`,

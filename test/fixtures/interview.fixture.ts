@@ -4,7 +4,7 @@ import { CreateInterviewDto } from '../../src/interview/dto/create-interview.dto
 import { Interview } from '../../src/interview/interview.entity';
 import { InterviewsTestRepository } from '../../src/interview/test-utils/test.repo';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { NonSubscriberUser, User } from '../../src/user/user.entity';
+import { NonSubscriberUser } from '../../src/user/user.entity';
 import { randomWord } from './common.fixture';
 import { createTestHrConnection } from './hr-connection.fixture';
 

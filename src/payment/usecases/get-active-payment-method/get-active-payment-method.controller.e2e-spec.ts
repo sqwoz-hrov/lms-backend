@@ -232,6 +232,7 @@ describe('[E2E] Get active payment method usecase', () => {
 			.updateTable('subscription')
 			.set({
 				next_tier_id: freeTier.id,
+				updated_at: new Date(),
 			})
 			.where('id', '=', subscriber.subscription.id)
 			.executeTakeFirstOrThrow();

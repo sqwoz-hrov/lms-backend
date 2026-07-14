@@ -2,7 +2,7 @@ import { SubscriptionTier } from '../../src/subscription-tier/subscription-tier.
 import { Subscription } from '../../src/subscription/subscription.entity';
 import { SubscriptionTierWithoutPrivateFields } from '../../src/subscription/subscription.repository';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { NonSubscriberUser, User, UserRole, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
+import { User, UserRole, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
 
 export const createName = () => {
@@ -45,8 +45,6 @@ export const createTestSubscriptionTier = async (
 		.executeTakeFirstOrThrow();
 };
 
-
-
 type TestUserOverridesWithoutRole = Omit<Partial<User>, 'role'> & {
 	role?: undefined;
 };
@@ -59,12 +57,9 @@ type TestUserOverridesMaybeRole<Role extends UserRole> = Omit<Partial<User>, 'ro
 	role?: Role;
 };
 
-export type CreateTestUserOverrides<Role extends UserRole = UserRole> =
-	TestUserOverridesMaybeRole<Role>;
+export type CreateTestUserOverrides<Role extends UserRole = UserRole> = TestUserOverridesMaybeRole<Role>;
 
-export function createTestUser(
-	userRepository: UsersTestRepository,
-): Promise<User & { role: 'user' }>;
+export function createTestUser(userRepository: UsersTestRepository): Promise<User & { role: 'user' }>;
 
 export function createTestUser(
 	userRepository: UsersTestRepository,

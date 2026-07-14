@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SubscriptionTier } from '../../subscription-tier/subscription-tier.entity';
 import { User } from '../../user/user.entity';
-import { NewSubscription, Subscription, SubscriptionDraft, SubscriptionState } from '../subscription.entity';
+import { NewSubscription, Subscription, SubscriptionDraft } from '../subscription.entity';
 import { SubscriptionRepository, SubscriptionTransaction } from '../subscription.repository';
 import { SubscriptionStateService } from '../domain/subscription.state';
 import { UserSubscriptionTransaction } from '../../user/user.repository';

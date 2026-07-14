@@ -23,7 +23,7 @@ export class CreateSubscriptionTierUsecase implements UsecaseInterface {
 			...tierData,
 			markdown_description_id: markdownDescription?.id,
 		});
-		const { markdown_description_id, ...createdTier } = created;
+		const { markdown_description_id: _, ...createdTier } = created;
 
 		return {
 			...createdTier,

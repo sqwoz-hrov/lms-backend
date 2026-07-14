@@ -3,7 +3,6 @@ import { Generated } from '../common/kysely-types/generated';
 import { Timestamp } from '../common/kysely-types/timestamp';
 import { PaymentMethodTable } from '../payment/payment.entity';
 import { GiftTable } from '../gift/gift.entity';
-import { SubscriptionTier } from '../subscription-tier/subscription-tier.entity';
 
 export interface SubscriptionTable {
 	id: Generated<string>;

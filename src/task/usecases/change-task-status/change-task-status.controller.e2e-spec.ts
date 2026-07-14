@@ -115,7 +115,6 @@ describe('[E2E] Change task status usecase', () => {
 		expect(res.status).to.equal(HttpStatus.OK);
 		if (res.status != 200) throw new Error();
 		expect(res.body.status).to.equal('in_progress');
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		expect(res.body.markdown_content).to.be.a('string').and.to.be.not.empty;
 	});
 

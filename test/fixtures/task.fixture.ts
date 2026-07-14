@@ -6,7 +6,7 @@ import { MarkDownContent } from '../../src/markdown-content/markdown-content.ent
 import { createTestMarkdownContent } from './markdown-content.fixture';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
 import { createTestAdmin, createTestUser } from './user.fixture';
-import { NonSubscriberUser, User } from '../../src/user/user.entity';
+import { NonSubscriberUser } from '../../src/user/user.entity';
 import { CreateTaskDto } from '../../src/task/dto/create-task.dto';
 import { CreateTaskForMultipleUsersDto } from '../../src/task/dto/create-task-for-multiple-users.dto';
 

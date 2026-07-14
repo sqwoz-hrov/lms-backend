@@ -3,11 +3,7 @@ import { Kysely, sql } from 'kysely';
 import { OffsetPaginationInput, resolveOffsetPagination } from '../common/utils/pagination.util';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { PaymentDatabase, PaymentEvent } from './payment.entity';
-import {
-	SUPPORTED_EVENTS,
-	YookassaPaymentCanceledWebhook,
-	YookassaPaymentSucceededWebhook,
-} from '../subscription/types/yookassa-webhook';
+import { SUPPORTED_EVENTS, YookassaPaymentSucceededWebhook } from '../subscription/types/yookassa-webhook';
 
 const SUCCESSFUL_PAYMENT_EVENT = 'payment.succeeded' satisfies (typeof SUPPORTED_EVENTS)[number];
 const CANCELED_PAYMENT_EVENT = 'payment.canceled' satisfies (typeof SUPPORTED_EVENTS)[number];
