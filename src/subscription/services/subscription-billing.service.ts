@@ -4,14 +4,17 @@ import { randomUUID } from 'crypto';
 import { subscriptionBillingConfig } from '../../config/subscription-billing.config';
 import { YOOKASSA_CLIENT } from '../../yookassa/constants';
 import { YookassaClientPort } from '../../yookassa/services/yookassa-client.interface';
-import { BillableSubscriptionRow, DowngradeCandidateSubscriptionRow, SubscriptionRepository, SubscriptionTransaction } from '../subscription.repository';
+import {
+	BillableSubscriptionRow,
+	DowngradeCandidateSubscriptionRow,
+	SubscriptionRepository,
+	SubscriptionTransaction,
+} from '../subscription.repository';
 import { Switch } from '../../common/utils/safe-guard';
 import { BillingEventType } from '../constants';
 import { Subscription } from '../subscription.entity';
 import { isDueNow } from '../utils/is-due-now';
-import {
-	BillableSubscriptionCursor,
-} from '../ports/subscription-repository.port';
+import { BillableSubscriptionCursor } from '../ports/subscription-repository.port';
 import { SubscriptionService } from './subscription.service';
 
 type BillingOutcome = 'charged' | 'skipped' | 'failed';
@@ -89,8 +92,8 @@ export class SubscriptionBillingService {
 				break;
 			}
 
-			// downgrade and 
-			// mark 
+			// downgrade and
+			// mark
 			const { downgradedCount } = await this.subscriptionService.batchDowngradeToFreeTier({
 				freeTier,
 				existingSubs: downgradeCandidatesBatch,
@@ -103,7 +106,10 @@ export class SubscriptionBillingService {
 		return summary;
 	}
 
-	private async chargeSubscriberPaymentMethod(candidate: BillableSubscriptionRow, runDate: Date): Promise<BillingOutcome> {
+	private async chargeSubscriberPaymentMethod(
+		candidate: BillableSubscriptionRow,
+		runDate: Date,
+	): Promise<BillingOutcome> {
 		const context: BillingAttemptContext = {
 			attemptId: randomUUID(),
 			attemptTime: new Date(),
@@ -253,12 +259,14 @@ export class SubscriptionBillingService {
 	): Promise<PreparedBillingAttempt> {
 		return await this.subscriptionRepository.transaction(async (trx: SubscriptionTransaction) => {
 			// TODO: batch-up this part
-			const subscriptionAggregation = await this.subscriptionRepository.lockSubscriptionByUserId(candidate.user_id, trx);
+			const subscriptionAggregation = await this.subscriptionRepository.lockSubscriptionByUserId(
+				candidate.user_id,
+				trx,
+			);
 
 			if (!subscriptionAggregation) {
 				return { status: 'skip', reason: 'subscription-missing' } as const;
 			}
-
 
 			if (!isDueNow(subscriptionAggregation, context.runDate, this.config.retryWindowDays)) {
 				return { status: 'skip', reason: 'not-due' } as const;
@@ -316,7 +324,6 @@ export class SubscriptionBillingService {
 			},
 		});
 	}
-
 
 	private async recordFailure(
 		subscription: Subscription,

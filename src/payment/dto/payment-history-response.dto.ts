@@ -4,13 +4,13 @@ import { PaginatedPaymentHistory } from '../payment-history.repository';
 
 export class PaymentHistoryItemDto {
 	@ApiProperty()
-	paymentMethodName!: string; 
+	paymentMethodName!: string;
 
 	@ApiProperty()
 	amount!: number;
 
 	@ApiProperty()
-	currency!: "RUB";
+	currency!: 'RUB';
 
 	@ApiProperty()
 	date!: string;

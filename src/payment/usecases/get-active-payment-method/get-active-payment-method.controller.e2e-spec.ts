@@ -108,11 +108,10 @@ describe('[E2E] Get active payment method usecase', () => {
 		const freeTier = await createTestSubscriptionTier(usersRepo, {
 			power: 0,
 			price_rubles: 0,
-		})
+		});
 		const subscriber = await createTestSubscriber(usersRepo, {
 			current_tier_id: freeTier.id,
 		});
-
 
 		const response = await subscriptionSdk.getActivePaymentMethod({
 			userMeta: {
@@ -216,7 +215,7 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.problemsWithPaymentMethod).to.equal(true);
 	});
 
-	it('returns null nextBillingAt when user\'s next tier is free even though his current tier is a paid one and has payment method', async () => {
+	it("returns null nextBillingAt when user's next tier is free even though his current tier is a paid one and has payment method", async () => {
 		const freeTier = await createTestSubscriptionTier(usersRepo, {
 			power: 0,
 			price_rubles: 0,
@@ -224,14 +223,18 @@ describe('[E2E] Get active payment method usecase', () => {
 		const paidTier = await createTestSubscriptionTier(usersRepo, {
 			power: 3,
 			price_rubles: 2000,
-		})
+		});
 		const subscriber = await createTestSubscriber(usersRepo, {
 			current_tier_id: paidTier.id,
 		});
 
-		await usersRepo.connection.updateTable('subscription').set({
-			next_tier_id: freeTier.id,
-		}).where('id', '=', subscriber.subscription.id).executeTakeFirstOrThrow();
+		await usersRepo.connection
+			.updateTable('subscription')
+			.set({
+				next_tier_id: freeTier.id,
+			})
+			.where('id', '=', subscriber.subscription.id)
+			.executeTakeFirstOrThrow();
 
 		const pm = await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
@@ -259,11 +262,11 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.nextBillingAt).to.equal(null);
 	});
 
-	it('returns null nextBillingAt when user\'s next tier is free and his current tier is free and has payment method', async () => {
+	it("returns null nextBillingAt when user's next tier is free and his current tier is free and has payment method", async () => {
 		const freeTier = await createTestSubscriptionTier(usersRepo, {
 			power: 0,
 			price_rubles: 0,
-		})
+		});
 		const subscriber = await createTestSubscriber(usersRepo, {
 			current_tier_id: freeTier.id,
 		});
@@ -297,11 +300,11 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.nextBillingAt).to.equal(null);
 	});
 
-	it('returns null nextBillingAt when user\'s next tier is free and he is on a paid gift tier now and has payment method', async () => {
+	it("returns null nextBillingAt when user's next tier is free and he is on a paid gift tier now and has payment method", async () => {
 		const freeTier = await createTestSubscriptionTier(usersRepo, {
 			power: 0,
 			price_rubles: 0,
-		})
+		});
 		const subscriber = await createTestSubscriber(usersRepo, {
 			current_tier_id: freeTier.id,
 		});
@@ -345,49 +348,46 @@ describe('[E2E] Get active payment method usecase', () => {
 		expect(response.body.nextBillingAt).to.equal(null);
 	});
 
-	it(
-		'returns 404 when no payment method, user\'s next tier is paid tier and is on a gifted sub for now',
-		async () => {
-			const paidTier = await createTestSubscriptionTier(usersRepo, {
-				power: 3,
-				price_rubles: 3000,
-			})
-			const giftTier = await createTestSubscriptionTier(usersRepo, {
-				power: 5,
-				price_rubles: 1000,
-			});
-
-			const subscriber = await createTestSubscriber(usersRepo, {
-				current_tier_id: paidTier.id
-			});
-
-			// add active gift
-			const activatedAt = addDays(new Date(), -5);
-			await giftRepo.insertGift({
-				gifted_by: subscriber.id,
-				gifted_to: subscriber.id,
-				tier_id: giftTier.id,
-				duration_days: 20,
-				activated_at: activatedAt,
-			});
-
-			const response = await subscriptionSdk.getActivePaymentMethod({
-				userMeta: {
-					userId: subscriber.id,
-					isAuth: true,
-					isWrongAccessJwt: false,
-				},
-			});
-
-			expect(response.status).to.equal(HttpStatus.NOT_FOUND);
-		},
-	);
-
-	it('returns not null nextBillingAt when user\'s next tier is paid tier and is on a gifted sub for now', async () => {
+	it("returns 404 when no payment method, user's next tier is paid tier and is on a gifted sub for now", async () => {
 		const paidTier = await createTestSubscriptionTier(usersRepo, {
 			power: 3,
 			price_rubles: 3000,
-		})
+		});
+		const giftTier = await createTestSubscriptionTier(usersRepo, {
+			power: 5,
+			price_rubles: 1000,
+		});
+
+		const subscriber = await createTestSubscriber(usersRepo, {
+			current_tier_id: paidTier.id,
+		});
+
+		// add active gift
+		const activatedAt = addDays(new Date(), -5);
+		await giftRepo.insertGift({
+			gifted_by: subscriber.id,
+			gifted_to: subscriber.id,
+			tier_id: giftTier.id,
+			duration_days: 20,
+			activated_at: activatedAt,
+		});
+
+		const response = await subscriptionSdk.getActivePaymentMethod({
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(response.status).to.equal(HttpStatus.NOT_FOUND);
+	});
+
+	it("returns not null nextBillingAt when user's next tier is paid tier and is on a gifted sub for now", async () => {
+		const paidTier = await createTestSubscriptionTier(usersRepo, {
+			power: 3,
+			price_rubles: 3000,
+		});
 		const subscriber = await createTestSubscriber(usersRepo, {
 			current_tier_id: paidTier.id,
 		});
@@ -488,8 +488,8 @@ describe('[E2E] Get active payment method usecase', () => {
 				userId: admin.id,
 				isAuth: true,
 				isWrongAccessJwt: false,
-			}
-		})
+			},
+		});
 
 		expect(adminResponse.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
@@ -516,5 +516,5 @@ describe('[E2E] Get active payment method usecase', () => {
 		});
 
 		expect(response.status).to.equal(HttpStatus.UNAUTHORIZED);
-	})
+	});
 });

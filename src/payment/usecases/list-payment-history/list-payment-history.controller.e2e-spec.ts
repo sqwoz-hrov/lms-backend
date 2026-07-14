@@ -181,7 +181,6 @@ describe('[E2E] List payment history usecase', () => {
 			created_at: new Date('2026-01-04T00:00:00.000Z'),
 		});
 
-
 		const firstPage = await paymentSdk.getPaymentHistory({
 			params: { page: 1, pageSize: 1 },
 			userMeta: buildUserMeta(subscriber.id),

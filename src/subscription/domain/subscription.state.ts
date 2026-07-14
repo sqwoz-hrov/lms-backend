@@ -3,7 +3,12 @@ import { SubscriptionTier } from '../../subscription-tier/subscription-tier.enti
 import { User } from '../../user/user.entity';
 import { MS_IN_DAY } from '../constants';
 import { SubscriptionState } from '../subscription.entity';
-import { PaymentWebhookEvent, YookassaPaymentCanceledWebhook, YookassaPaymentSucceededWebhook, YookassaWebhookPayload } from '../types/yookassa-webhook';
+import {
+	PaymentWebhookEvent,
+	YookassaPaymentCanceledWebhook,
+	YookassaPaymentSucceededWebhook,
+	YookassaWebhookPayload,
+} from '../types/yookassa-webhook';
 import { ConfigType } from '@nestjs/config';
 import { subscriptionConfig } from '../../config/subscription.config';
 import { PaidAndGiftedSubPerUserView } from '../subscription.repository';
@@ -14,10 +19,13 @@ interface PaymentEventParams {
 	user: Pick<User, 'id'>;
 	freeTier: SubscriptionTier;
 	subscription: PaidAndGiftedSubPerUserView;
-	event: PaymentWebhookEvent & { meta: { targetTierPower: SubscriptionTier["power"]; paidAmount: (YookassaPaymentCanceledWebhook | YookassaPaymentSucceededWebhook)['object']['amount'] } };
+	event: PaymentWebhookEvent & {
+		meta: {
+			targetTierPower: SubscriptionTier['power'];
+			paidAmount: (YookassaPaymentCanceledWebhook | YookassaPaymentSucceededWebhook)['object']['amount'];
+		};
+	};
 }
-
-
 
 @Injectable()
 export class SubscriptionStateService {
@@ -25,14 +33,12 @@ export class SubscriptionStateService {
 	private readonly defaultGracePeriodSize: number;
 	private readonly logger = new Logger(SubscriptionStateService.name);
 
-	constructor(
-		@Inject(subscriptionConfig.KEY) private readonly config: ConfigType<typeof subscriptionConfig>,
-	) {
+	constructor(@Inject(subscriptionConfig.KEY) private readonly config: ConfigType<typeof subscriptionConfig>) {
 		this.defaultBillingPeriodDays = this.config.defaultBillingPeriodDays ?? 30;
 		this.defaultGracePeriodSize = this.config.defaultGracePeriodSize ?? 3;
 	}
 
-	public handlePaymentEvent(params: PaymentEventParams): { newSub: SubscriptionState; newGift: GiftState | undefined; } {
+	public handlePaymentEvent(params: PaymentEventParams): { newSub: SubscriptionState; newGift: GiftState | undefined } {
 		const { subscription, event, freeTier } = params;
 		const { currentActiveGiftSubscription, currentPaidSubscription } = subscription;
 
@@ -40,11 +46,12 @@ export class SubscriptionStateService {
 			case 'payment.succeeded': {
 				const occurredAt = event.occurredAt;
 				const base = this.maxDate(currentPaidSubscription.subscription.current_period_end, occurredAt);
-				const periodDays = this.normalizePeriodDays(currentPaidSubscription.subscription.billing_period_days || this.defaultBillingPeriodDays);
+				const periodDays = this.normalizePeriodDays(
+					currentPaidSubscription.subscription.billing_period_days || this.defaultBillingPeriodDays,
+				);
 
 				const giftedSubDays = this.normalizeGiftDays(currentActiveGiftSubscription?.gift.giftedDaysLeft);
 				const giftedSubPower = currentActiveGiftSubscription?.currentTier.giftedTierPower ?? 0;
-
 
 				const targetTierId = event.meta.current_tier_id;
 				const targetTierPower = event.meta.targetTierPower;
@@ -62,7 +69,6 @@ export class SubscriptionStateService {
 					};
 
 					if (targetTierId !== currentPaidSubscription.subscription.current_tier_id) {
-
 						const switched: SubscriptionState = {
 							...updated,
 							price_on_purchase_rubles: parseAmount(event.meta.paidAmount.value),
@@ -70,14 +76,13 @@ export class SubscriptionStateService {
 							next_tier_id: targetTierId,
 						};
 
-
 						return { newSub: switched, newGift: undefined };
 					}
 
 					return { newSub: updated, newGift: undefined };
 
-				// stash away the gift with leftover days when he buys a higher/equal tier sub
-				// wrap up the unused part of the gift to go
+					// stash away the gift with leftover days when he buys a higher/equal tier sub
+					// wrap up the unused part of the gift to go
 				} else {
 					const nextEnd = this.addDays(base, periodDays);
 					const newGift: GiftState = {
@@ -94,7 +99,6 @@ export class SubscriptionStateService {
 					};
 
 					if (targetTierId !== currentPaidSubscription.subscription.current_tier_id) {
-
 						const switched: SubscriptionState = {
 							...updated,
 							current_tier_id: targetTierId,
@@ -102,24 +106,24 @@ export class SubscriptionStateService {
 							price_on_purchase_rubles: parseAmount(event.meta.paidAmount.value),
 						};
 
-
-
 						return { newSub: switched, newGift };
 					}
 
 					return { newSub: updated, newGift };
 				}
-
 			}
 			case 'payment.canceled': {
 				const occurredAt = params.event.occurredAt;
 				const withinGrace = this.isWithinGracePeriod(currentPaidSubscription.subscription, occurredAt);
 
 				if (!withinGrace) {
-					const downgraded = this.createFreeTierSubFields({
-						...currentPaidSubscription.subscription,
-						last_billing_attempt: occurredAt
-					}, freeTier);
+					const downgraded = this.createFreeTierSubFields(
+						{
+							...currentPaidSubscription.subscription,
+							last_billing_attempt: occurredAt,
+						},
+						freeTier,
+					);
 					return { newSub: downgraded, newGift: undefined };
 				}
 
@@ -128,14 +132,23 @@ export class SubscriptionStateService {
 					last_billing_attempt: occurredAt,
 				};
 
-				return {newSub: updated, newGift: undefined };
+				return { newSub: updated, newGift: undefined };
 			}
 		}
 	}
 
-	public createFreeTierSubFields(subscription: {}, freeTier: SubscriptionTier): Omit<SubscriptionState, 'id' | 'last_billing_attempt' | 'user_id'>
-	public createFreeTierSubFields(subscription: Pick<SubscriptionState, 'user_id' | 'id' | 'last_billing_attempt'>, freeTier: SubscriptionTier): SubscriptionState
-	public createFreeTierSubFields(subscription: Pick<SubscriptionState, 'user_id'> & Pick<SubscriptionState, 'last_billing_attempt' | 'id'>, freeTier: SubscriptionTier): SubscriptionState | Omit<SubscriptionState, 'id' | 'last_billing_attempt' | 'user_id'> {
+	public createFreeTierSubFields(
+		subscription: {},
+		freeTier: SubscriptionTier,
+	): Omit<SubscriptionState, 'id' | 'last_billing_attempt' | 'user_id'>;
+	public createFreeTierSubFields(
+		subscription: Pick<SubscriptionState, 'user_id' | 'id' | 'last_billing_attempt'>,
+		freeTier: SubscriptionTier,
+	): SubscriptionState;
+	public createFreeTierSubFields(
+		subscription: Pick<SubscriptionState, 'user_id'> & Pick<SubscriptionState, 'last_billing_attempt' | 'id'>,
+		freeTier: SubscriptionTier,
+	): SubscriptionState | Omit<SubscriptionState, 'id' | 'last_billing_attempt' | 'user_id'> {
 		if (subscription.id) {
 			return {
 				...subscription,
@@ -156,7 +169,7 @@ export class SubscriptionStateService {
 			grace_period_size: 0,
 			billing_period_days: 0,
 			current_period_end: null,
-		}
+		};
 	}
 
 	private normalizePeriodDays(candidate: number | undefined): number {

@@ -53,7 +53,7 @@ export class PaymentWebhookHandlerStrategy {
 
 		if (metadata.user_id !== currentPaidSubscription.subscription.user_id) {
 			this.logger.warn(
-				`Webhook metadata user ${metadata.user_id} does not match subscription owner ${currentPaidSubscription.subscription.user_id}`
+				`Webhook metadata user ${metadata.user_id} does not match subscription owner ${currentPaidSubscription.subscription.user_id}`,
 			);
 		}
 
@@ -80,17 +80,25 @@ export class PaymentWebhookHandlerStrategy {
 					paidAmount: payload.object.amount,
 				},
 			},
-			freeTier
+			freeTier,
 		});
 
-		await this.subscriptionRepository.update(currentPaidSubscription.subscription.id, {
-			...newSub,
-		}, trx);
+		await this.subscriptionRepository.update(
+			currentPaidSubscription.subscription.id,
+			{
+				...newSub,
+			},
+			trx,
+		);
 
 		if (newGift && currentActiveGiftSubscription && newGift.duration_days > 0) {
-			await this.giftRepository.resetGift(currentActiveGiftSubscription.gift.giftId, {
-				...newGift,
-			}, trx);
+			await this.giftRepository.resetGift(
+				currentActiveGiftSubscription.gift.giftId,
+				{
+					...newGift,
+				},
+				trx,
+			);
 		}
 	}
 

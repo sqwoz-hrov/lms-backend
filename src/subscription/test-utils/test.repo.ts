@@ -77,11 +77,17 @@ export class SubscriptionTestRepository {
 		return res.at(0);
 	}
 
-	async addActivePaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<PaymentMethod | undefined> {
+	async addActivePaymentMethod(params: {
+		userId: string;
+		paymentMethodId: string;
+	}): Promise<PaymentMethod | undefined> {
 		return await this.addPaymentMethod({ ...params, status: 'active' });
 	}
 
-	async addPendingPaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<PaymentMethod | undefined> {
+	async addPendingPaymentMethod(params: {
+		userId: string;
+		paymentMethodId: string;
+	}): Promise<PaymentMethod | undefined> {
 		return await this.addPaymentMethod({ ...params, status: 'pending' });
 	}
 

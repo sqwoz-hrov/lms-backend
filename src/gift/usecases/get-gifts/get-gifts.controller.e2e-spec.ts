@@ -17,7 +17,6 @@ import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { GiftTestRepository } from '../../test-utils/test.repo';
 import { GiftTestSdk } from '../../test-utils/test.sdk';
 
-
 describe('[E2E] Get gifts usecase', () => {
 	let app: INestApplication;
 	let usersRepo: UsersTestRepository;

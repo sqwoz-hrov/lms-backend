@@ -14,7 +14,7 @@ export class GiftSubscriptionUsecase implements UsecaseInterface {
 		private readonly userRepository: UserRepository,
 	) {}
 
-	async execute(params: { payload: GiftSubscriptionDto, actor: string }): Promise<GiftSubscriptionResponseDto | null> {
+	async execute(params: { payload: GiftSubscriptionDto; actor: string }): Promise<GiftSubscriptionResponseDto | null> {
 		const { payload, actor } = params;
 
 		const giftTo = await this.userRepository.findById(payload.giftToUserId);

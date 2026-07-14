@@ -17,7 +17,6 @@ import {
 import { GiftTestSdk } from '../../test-utils/test.sdk';
 import { GiftTestRepository } from '../../test-utils/test.repo';
 
-
 describe('[E2E] Gift subscription usecase', () => {
 	let app: INestApplication;
 
@@ -189,7 +188,7 @@ describe('[E2E] Gift subscription usecase', () => {
 		try {
 			const admin = await createTestAdmin(usersRepo);
 			const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free', power: 0 });
-			const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 5 })
+			const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 5 });
 
 			const recipient = await createTestSubscriber(usersRepo, {
 				current_tier_id: freeTier.id,
@@ -312,7 +311,7 @@ describe('[E2E] Gift subscription usecase', () => {
 		try {
 			const admin = await createTestAdmin(usersRepo);
 			const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free', power: 0 });
-			const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 5 })
+			const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 5 });
 			const existingPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
 			const recipient = await createTestSubscriber(usersRepo, {
@@ -345,7 +344,6 @@ describe('[E2E] Gift subscription usecase', () => {
 			expect(persisted.current_tier_id).to.equal(premiumTier.id);
 			expect(persisted.next_tier_id).to.equal(existingSubscription.next_tier_id);
 			expect(persisted.current_period_end?.getTime()).to.equal(existingPeriodEnd.getTime());
-
 		} finally {
 			clock.restore();
 		}

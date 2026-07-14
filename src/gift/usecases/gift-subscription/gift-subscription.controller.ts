@@ -20,7 +20,10 @@ export class GiftSubscriptionController {
 	})
 	@Post('gift')
 	@HttpCode(HttpStatus.CREATED)
-	async gift(@Body() dto: GiftSubscriptionDto, @Req() request: RequestWithUser): Promise<GiftSubscriptionResponseDto | null> {
+	async gift(
+		@Body() dto: GiftSubscriptionDto,
+		@Req() request: RequestWithUser,
+	): Promise<GiftSubscriptionResponseDto | null> {
 		return await this.giftSubscriptionUsecase.execute({ payload: dto, actor: request.user.id });
 	}
 }

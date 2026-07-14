@@ -68,7 +68,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			power: 0,
 			tier: 'FREE TIER BASIC',
 			price_rubles: 0,
-		})
+		});
 	});
 
 	afterEach(async () => {
@@ -89,7 +89,12 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const { tierOverrides, userOverrides, subscriptionOverrides, paymentMethodId } = options;
 		const tier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'premium', ...(tierOverrides ?? {}) });
 		const user = await createTestUser(usersUtilRepository, { role: 'subscriber', ...(userOverrides ?? {}) });
-		const { current_tier_id: overrideTierId, next_tier_id: overrideNextTierId, user_id: _ignoredUserId, ...restOverrides } = subscriptionOverrides ?? {};
+		const {
+			current_tier_id: overrideTierId,
+			next_tier_id: overrideNextTierId,
+			user_id: _ignoredUserId,
+			...restOverrides
+		} = subscriptionOverrides ?? {};
 
 		const subscriptionToInsert: NewSubscription = {
 			user_id: user.id,
@@ -309,7 +314,10 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		await sendWebhook(payload);
 
-		const subscriptionAfterFirstCall = await findSubscriptionOrFail(subscription.id, 'Subscription missing after webhook');
+		const subscriptionAfterFirstCall = await findSubscriptionOrFail(
+			subscription.id,
+			'Subscription missing after webhook',
+		);
 		expect(subscriptionAfterFirstCall.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 		expect(subscriptionAfterFirstCall.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 
@@ -326,12 +334,19 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			clock.restore();
 		}
 
-		const subscriptionAfterSecondCall = await findSubscriptionOrFail(subscription.id, 'Subscription missing after webhook');
+		const subscriptionAfterSecondCall = await findSubscriptionOrFail(
+			subscription.id,
+			'Subscription missing after webhook',
+		);
 		expect(subscriptionAfterSecondCall.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
 		expect(subscriptionAfterSecondCall.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 
-		expect(subscriptionAfterSecondCall.current_period_end?.getTime()).to.equal(subscriptionAfterFirstCall.current_period_end?.getTime());
-		expect(subscriptionAfterSecondCall.last_billing_attempt?.getTime()).to.equal(subscriptionAfterFirstCall?.last_billing_attempt?.getTime());
+		expect(subscriptionAfterSecondCall.current_period_end?.getTime()).to.equal(
+			subscriptionAfterFirstCall.current_period_end?.getTime(),
+		);
+		expect(subscriptionAfterSecondCall.last_billing_attempt?.getTime()).to.equal(
+			subscriptionAfterFirstCall?.last_billing_attempt?.getTime(),
+		);
 
 		const events = await subscriptionRepo.findPaymentEvents({ subscriptionId: subscription.id });
 		expect(events).to.have.length(1);
@@ -553,9 +568,21 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	});
 
 	it('stores payment success event and switches subscription to tier with more power from metadata when currently subscriber was on gifted sub with lower power. Rest of gift is stashed away', async () => {
-		const paidTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'paid', power: 2, price_rubles: 2000 });
-		const giftTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'gift-low', power: 3, price_rubles: 3000 });
-		const vipTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'vip', power: 5, price_rubles: 5000 });
+		const paidTier = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'paid',
+			power: 2,
+			price_rubles: 2000,
+		});
+		const giftTier = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'gift-low',
+			power: 3,
+			price_rubles: 3000,
+		});
+		const vipTier = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'vip',
+			power: 5,
+			price_rubles: 5000,
+		});
 		const currentPeriodEnd = new Date('2025-06-10T00:00:00.000Z');
 
 		const { user, subscription } = await givenSubscription({
@@ -612,7 +639,11 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	});
 
 	it('stores payment success event and switches subscription to paid one from metadata when currently subscriber was on gifted subscription of same tier power. Rest of gift is stashed away', async () => {
-		const paidTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'paid-same-power', power: 4, price_rubles: 4000 });
+		const paidTier = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'paid-same-power',
+			power: 4,
+			price_rubles: 4000,
+		});
 		const currentPeriodEnd = new Date('2025-07-10T00:00:00.000Z');
 
 		const { user, subscription } = await givenSubscription({
@@ -665,9 +696,21 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	});
 
 	it('when user is on free tier with gifted sub of tier 1 but the payment event for tier 2 comes, he gets tier 2 and rest of the gift is stashed away', async () => {
-		const freeTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'free', power: 0, price_rubles: 2000 });
-		const giftTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'gift-low', power: 3, price_rubles: 3000 });
-		const vipTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'vip', power: 5, price_rubles: 5000 });
+		const freeTier = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'free',
+			power: 0,
+			price_rubles: 2000,
+		});
+		const giftTier = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'gift-low',
+			power: 3,
+			price_rubles: 3000,
+		});
+		const vipTier = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'vip',
+			power: 5,
+			price_rubles: 5000,
+		});
 
 		const { user, subscription } = await givenSubscription({
 			subscriptionOverrides: {
@@ -720,8 +763,16 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	});
 
 	it('when user has a current gifted sub with tier 2 but next_tier_id is 1 after the webhook is processed his current_tier_id should be pointing to tier 1 but user view shows active tier 2 gift and billing date includes gift remainder plus paid period', async () => {
-		const tier1 = await createTestSubscriptionTier(usersUtilRepository, { tier: 'tier-1-gift', power: 1, price_rubles: 1000 });
-		const tier2 = await createTestSubscriptionTier(usersUtilRepository, { tier: 'tier-2-gift', power: 2, price_rubles: 2000 });
+		const tier1 = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'tier-1-gift',
+			power: 1,
+			price_rubles: 1000,
+		});
+		const tier2 = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'tier-2-gift',
+			power: 2,
+			price_rubles: 2000,
+		});
 		const currentPeriodEnd = new Date('2025-09-01T00:00:00.000Z');
 		const giftDurationDays = 10;
 

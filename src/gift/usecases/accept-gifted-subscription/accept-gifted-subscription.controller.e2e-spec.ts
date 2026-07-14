@@ -83,7 +83,7 @@ describe('[E2E] Gift subscription usecase', () => {
 		} finally {
 			clock.restore();
 		}
-	};
+	}
 
 	const createGiftViaApi = async (params: {
 		giftedBy: string;
@@ -204,7 +204,7 @@ describe('[E2E] Gift subscription usecase', () => {
 		});
 	});
 
-	it('does not allow claiming another user\'s gift', async () => {
+	it("does not allow claiming another user's gift", async () => {
 		await withFakeClock('2026-02-02T00:00:00.000Z', async () => {
 			const admin = await createTestAdmin(usersRepo);
 			const tier = await createTestSubscriptionTier(usersRepo, { tier: 'gift-tier-other-user', power: 11 });
@@ -326,7 +326,11 @@ describe('[E2E] Gift subscription usecase', () => {
 			expect(afterFirstAcceptSub.is_gifted).to.equal(true);
 
 			clock.tick((giftDurationDays + 1) * DAY_MS);
-			await db.updateTable('gift').set({ activated_at: sql`activated_at - interval '8 day'` }).where('id', '=', gift.id).execute();
+			await db
+				.updateTable('gift')
+				.set({ activated_at: sql`activated_at - interval '8 day'` })
+				.where('id', '=', gift.id)
+				.execute();
 
 			const expiredGift = await getGiftById(gift.id);
 			const beforeSecondAcceptSub = await getSubscriptionOrThrow(recipient.subscription.id);
@@ -347,7 +351,9 @@ describe('[E2E] Gift subscription usecase', () => {
 			const afterSecondAcceptGift = await getGiftById(gift.id);
 
 			// assert times are same and current sub isn't gifted since the gifted expired
-			expect(afterSecondAcceptSub.current_period_end?.getTime()).to.equal(beforeSecondAcceptSub.current_period_end?.getTime());
+			expect(afterSecondAcceptSub.current_period_end?.getTime()).to.equal(
+				beforeSecondAcceptSub.current_period_end?.getTime(),
+			);
 			expect(afterSecondAcceptGift?.activated_at?.getTime()).to.equal(expiredGift?.activated_at?.getTime());
 			expect(afterSecondAcceptSub.is_gifted).to.equal(false);
 		});
@@ -400,9 +406,11 @@ describe('[E2E] Gift subscription usecase', () => {
 
 			const afterSecondAcceptSub = await getSubscriptionOrThrow(recipient.subscription.id);
 			const afterSecondGift = await getGiftById(gift.id);
-			
+
 			// assert the times haven't move also
-			expect(afterSecondAcceptSub.current_period_end?.getTime()).to.equal(afterFirstAcceptSub.current_period_end?.getTime());
+			expect(afterSecondAcceptSub.current_period_end?.getTime()).to.equal(
+				afterFirstAcceptSub.current_period_end?.getTime(),
+			);
 			expect(afterSecondGift?.activated_at?.getTime()).to.equal(afterFirstGift?.activated_at?.getTime());
 
 			expect(afterSecondAcceptSub.is_gifted).to.equal(true);
@@ -445,7 +453,11 @@ describe('[E2E] Gift subscription usecase', () => {
 			// expiration is based on DB time, so we'l have to be a bit dirty
 			// the 'clock' bit is unnecessary
 			clock.tick(4 * DAY_MS);
-			await db.updateTable('gift').set({ activated_at: sql`activated_at - interval '8 day'` }).where('id', '=', firstGift.id).execute();
+			await db
+				.updateTable('gift')
+				.set({ activated_at: sql`activated_at - interval '8 day'` })
+				.where('id', '=', firstGift.id)
+				.execute();
 
 			const secondGiftDuration = 8;
 			const secondGift = await createGiftViaApi({
@@ -550,7 +562,7 @@ describe('[E2E] Gift subscription usecase', () => {
 			assertPeriodMovedByDays(before.current_period_end, after.current_period_end, giftDurationDays);
 
 			// assert that we haven't actually changed the database value of current_tier_id
-			const { current_tier_id: afterTierIdFromDb } = await subscriptionRepo.findById(recipient.subscription.id) ?? {};
+			const { current_tier_id: afterTierIdFromDb } = (await subscriptionRepo.findById(recipient.subscription.id)) ?? {};
 			expect(afterTierIdFromDb).to.equal(before.current_tier_id);
 			expect(afterTierIdFromDb).to.equal(sameTier.id);
 
@@ -594,7 +606,6 @@ describe('[E2E] Gift subscription usecase', () => {
 				userMeta: buildUserMeta(recipient.id),
 			});
 
-
 			expect(response.status).to.equal(HttpStatus.ACCEPTED);
 			if (response.status !== HttpStatus.ACCEPTED) {
 				throw new Error('Unexpected response status');
@@ -605,7 +616,7 @@ describe('[E2E] Gift subscription usecase', () => {
 			assertPeriodMovedByDays(before.current_period_end, after.current_period_end, giftDurationDays);
 
 			// assert that we haven't actually changed the database value of current_tier_id
-			const { current_tier_id: afterTierIdFromDb } = await subscriptionRepo.findById(recipient.subscription.id) ?? {};
+			const { current_tier_id: afterTierIdFromDb } = (await subscriptionRepo.findById(recipient.subscription.id)) ?? {};
 			expect(afterTierIdFromDb).to.equal(before.current_tier_id);
 			expect(afterTierIdFromDb).to.equal(currentTier.id);
 

@@ -17,16 +17,14 @@ export class FinishRegistrationUsecase implements UsecaseInterface {
 		const user = await this.repo.findByEmail(email);
 		if (!user) return { success: false };
 
-			const isValid = await this.otpService.isOtpValid({
-				userId: user.id,
-				userInputOtp: inputOtp,
-			});
+		const isValid = await this.otpService.isOtpValid({
+			userId: user.id,
+			userInputOtp: inputOtp,
+		});
 
-			if (!isValid) {
-				return { success: false };
-			}
-
-
+		if (!isValid) {
+			return { success: false };
+		}
 
 		await this.repo.transaction(async trx => {
 			const lockedUser = await trx
@@ -53,9 +51,12 @@ export class FinishRegistrationUsecase implements UsecaseInterface {
 				throw new InternalServerErrorException('Subscription already exists');
 			}
 
-			await this.subscriptionService.handleRegistration({
-				user: userInfo,
-			}, trx);
+			await this.subscriptionService.handleRegistration(
+				{
+					user: userInfo,
+				},
+				trx,
+			);
 		});
 
 		return { success: true };

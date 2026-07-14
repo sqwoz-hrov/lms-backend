@@ -186,7 +186,11 @@ describe('[E2E] Downgrade subscription usecase', () => {
 	it('lets user downgrade despite having active higher-power gift and only lowers next tier', async () => {
 		const premiumTier = await createTestSubscriptionTier(usersRepo, { tier: 'premium', power: 4, price_rubles: 3200 });
 		const freeTier = await createTestSubscriptionTier(usersRepo, { tier: 'free', power: 0, price_rubles: 0 });
-		const giftedTier = await createTestSubscriptionTier(usersRepo, { tier: 'gifted-vip', power: 10, price_rubles: 8000 });
+		const giftedTier = await createTestSubscriptionTier(usersRepo, {
+			tier: 'gifted-vip',
+			power: 10,
+			price_rubles: 8000,
+		});
 
 		// TODO: refactor - use other helpers
 		const activeUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);

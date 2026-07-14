@@ -3,5 +3,5 @@ export type PrefixedValuesNullable<T, Prefix extends string> = {
 };
 
 export type PrefixedValuesRequired<T, Prefix extends string> = {
-    [K in keyof T as `${Prefix}${K & string}`]: T[K];
+	[K in keyof T as `${Prefix}${K & string}`]: T[K];
 };

@@ -31,4 +31,4 @@ export type NewPaymentEvent = Insertable<PaymentEventTable>;
 export type PaymentDatabase = {
 	payment_method: PaymentMethodTable;
 	payment_event: PaymentEventTable;
-}
+};

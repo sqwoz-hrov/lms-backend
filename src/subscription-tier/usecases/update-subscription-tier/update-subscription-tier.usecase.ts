@@ -38,15 +38,17 @@ export class UpdateSubscriptionTierUsecase implements UsecaseInterface {
 				markdownDescription = undefined;
 
 				if (existing.markdown_description_id) {
-					const {markdown_description_id, ...updated } = await this.subscriptionTierRepository.update(id, filteredUpdates);
+					const { markdown_description_id, ...updated } = await this.subscriptionTierRepository.update(
+						id,
+						filteredUpdates,
+					);
 					await this.markdownContentService.deleteMakdownContent(existing.markdown_description_id);
 
 					return {
 						...updated,
 						permissions: updated.permissions ?? [],
-					}
+					};
 				}
-
 			} else if (existing.markdown_description_id) {
 				markdownDescription = await this.markdownContentService.updateMarkdownContent(
 					existing.markdown_description_id,

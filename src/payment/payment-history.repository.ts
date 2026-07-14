@@ -22,7 +22,7 @@ export type SuccessfulPaymentStoredEvent = Pick<PaymentEvent, 'created_at' | 'ev
 };
 
 type LatestPaymentEvent = {
-	event_name: typeof PAYMENT_EVENTS[number];
+	event_name: (typeof PAYMENT_EVENTS)[number];
 	payment_method_id: string | null;
 };
 

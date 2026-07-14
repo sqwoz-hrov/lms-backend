@@ -2,7 +2,11 @@ import { MS_IN_DAY } from '../constants';
 import { PaidAndGiftedSubPerUserView } from '../subscription.repository';
 import { getStartOfDayUtc } from './get-start-of-day-utc';
 
-export const isDueNow = (subscriptionAgg: PaidAndGiftedSubPerUserView, runDate: Date, retryWindowDays: number): boolean => {
+export const isDueNow = (
+	subscriptionAgg: PaidAndGiftedSubPerUserView,
+	runDate: Date,
+	retryWindowDays: number,
+): boolean => {
 	const { subscription } = subscriptionAgg.currentPaidSubscription;
 
 	if (subscriptionAgg.currentActiveGiftSubscription) {

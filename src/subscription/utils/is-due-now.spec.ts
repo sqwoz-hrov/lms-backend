@@ -89,7 +89,7 @@ describe('isDueNow', () => {
 		});
 		const dueSub = createSubscription({
 			current_period_end: new Date('2024-02-09T23:59:59.999Z'),
-		})
+		});
 
 		expect(isDueNow(createSubscriptionAggregation(notDueSub), runDate, retryWindowDays)).to.equal(false);
 		expect(isDueNow(createSubscriptionAggregation(dueSub), runDate, retryWindowDays)).to.equal(true);

@@ -543,10 +543,7 @@ export class SubscriptionRepository {
 			.insertInto('payment_event')
 			.values(data)
 			.onConflict(oc =>
-				oc
-					.expression(YOOKASSA_WEBHOOK_DEDUPE_INDEX_TARGET)
-					.where(SUPPORTED_YOOKASSA_EVENT_PREDICATE)
-					.doNothing(),
+				oc.expression(YOOKASSA_WEBHOOK_DEDUPE_INDEX_TARGET).where(SUPPORTED_YOOKASSA_EVENT_PREDICATE).doNothing(),
 			)
 			.returningAll()
 			.executeTakeFirst();

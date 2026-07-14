@@ -116,7 +116,6 @@ $$;
 This is done but with different code
 - [x] BillingService: Doesn't charge on a user if there's no payment method, user gets downgraded to free tier if he's due to pay but no payment method
 - [x] BillingService: we should filter out the subs with next_tier pointing to free tier, meaning the prepareAttempt or some other method should say that they need to be excluded from billing and we should process them with downgrading to free tier
-- [ ] GET /payments/history (фильтр по платёжным эвентам - самый простой вариант)
 
 - [x] Удалить SubscriptionManager, ведь по сути теперь повышение и понижение уровней - это просто круды, а биллинг - ваще отдельная история. Единственный флоу где биллинг связан с понижением это после неудачных списаний принудительно перевести чела на гифт если есть или на бесплатный левел. Логику принудительного юза гифтов я бы выключил даже, так что по сути всё что может произойти - это перевод на бесплатку в случае неудачных списаний
 А повышение происходит после удачной оплаты просто крудом, так что ну типа)..
@@ -130,14 +129,61 @@ This is done but with different code
 - /use-gift (single mode)
 
 - [x] billingCron (в зависимости от next_sub_level и тд)
-- [ ] Добавить is_archived в уровень подписки и возможность работать с архивными уровнями (главный нюанс в том что tierByPower хуя с два найдёшь для subscription-manager + migration unique index on subscription_tier (power, is_archived))
+- [x] Новые гифты (use, send)
+- [x] Фиксы в /charge (повышение уровня)
 - [+-] Дропнуть левые поля в subscription(is_gifted, priceOnPurchase и тд, всё это из джойнов должно получаться)
-- [ ] Новые гифты (get, use, send)
-- [ ] Фиксы в /charge (повышение уровня)
 
-- [ ] GET /payment-methods/
-- [ ] GET /subscription/ (типа по твоей подписке инфа)
+- [x] GET /payment-method/
+Нужно додумать про nextBillingAt. Он есть только в таких ситуациях:
+Вне зависимости от гифта: по сути условия след списания такие: next_tier is not free && subscription.current_period_end is not null, ну а когда списание - в день current_period_end
+
+Иначе null
+- [x] e2e GET /payment-method/
+- [x] GET /gifts/
+- [x] GET /subscription/ (info about requester's subscription)
+
+Contract
+
+Request:
+GET /subscription/
+
+Response:
+currentGiftTier (id, name, until, permissions) // until comes from activated_at + gift_duration, everything else from gift g inner join subscription_tier st on g.tier_id = st.id where g.activated_at + g.gift_duration >= now()
+currentTier (id, name, until, permissions) // from subscription s inner join subscription_tier st_curr on s.current_tier_id = st_curr.id
+nextTier (id, name, permissions) // from subscription s inner join subscription_tier st_next on s.next_tier_id = st_next.id
+nextPayment (amount, date) // amount comes from st_next.price_rubles, date from subscription.current_period_end
+
+
+- [x] GET /payments/history (фильтр по платёжным эвентам - самый простой вариант)
+- [x] Добавить is_archived в уровень подписки и возможность работать с архивными уровнями 
+- [x] GET /subscription-tiers/ - по тирам с краткой сводкой
+- [пока скип] GET /subscription-tiers/:id - по данному тиру подробно (все возможности и лимиты)
+- [x] problemsWithPaymentMethod field in GET /payment-method/
+- [x] Archived tiers cannot be purchased and are not shown in the get tiers method
+- [~] Fake yookassa client webhooks
+- [x] Идемпотентность и дедупликация вебхуков
+- [ ] Врот Енд
+- [ ] Архивные тиры показываются с прикольным значком на странице подписки
 - [ ] Идемпотентность в /charge
+- [ ] typecheck problems
+- [ ] Неуловимый баг бредятины в тесте e2e-хуков кассы (если всплывёт)
+- [ ] Payment webhook robustness: statuses order /*
+				Options:
+				Handle existing:
+				- [x] here. Return early, do not save
+				- in strategies
+				
+				Out of order:
+				- here
+				- [x] in strategies. This is a deal of the usecase. Still save, but ignore in handling
+
+				Save events:
+				- [x] here. Less duplication
+				- in strategies
+
+
+				- ignore existing here, deal with out-of-order events in 
+				*/
 
 ----
 ## Upgrade / downgrade of subscription
