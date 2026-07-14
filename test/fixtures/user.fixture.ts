@@ -2,7 +2,7 @@ import { SubscriptionTier } from '../../src/subscription-tier/subscription-tier.
 import { Subscription } from '../../src/subscription/subscription.entity';
 import { SubscriptionTierWithoutPrivateFields } from '../../src/subscription/subscription.repository';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { User, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
+import { NonSubscriberUser, User, UserRole, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
 
 export const createName = () => {
@@ -45,10 +45,46 @@ export const createTestSubscriptionTier = async (
 		.executeTakeFirstOrThrow();
 };
 
-export const createTestUser = async (
+
+
+type TestUserOverridesWithoutRole = Omit<Partial<User>, 'role'> & {
+	role?: undefined;
+};
+
+type TestUserOverridesWithRole<Role extends UserRole> = Omit<Partial<User>, 'role'> & {
+	role: Role;
+};
+
+type TestUserOverridesMaybeRole<Role extends UserRole> = Omit<Partial<User>, 'role'> & {
+	role?: Role;
+};
+
+export type CreateTestUserOverrides<Role extends UserRole = UserRole> =
+	TestUserOverridesMaybeRole<Role>;
+
+export function createTestUser(
 	userRepository: UsersTestRepository,
-	overrides: Partial<User> = {},
-): Promise<User> => {
+): Promise<User & { role: 'user' }>;
+
+export function createTestUser(
+	userRepository: UsersTestRepository,
+	overrides: TestUserOverridesWithoutRole,
+): Promise<User & { role: 'user' }>;
+
+export function createTestUser<Role extends UserRole>(
+	userRepository: UsersTestRepository,
+	overrides: TestUserOverridesWithRole<Role>,
+): Promise<User & { role: Role }>;
+
+export function createTestUser<Role extends UserRole>(
+	userRepository: UsersTestRepository,
+	overrides: TestUserOverridesMaybeRole<Role>,
+): Promise<User & { role: Role | 'user' }>;
+
+export async function createTestUser(
+	userRepository: UsersTestRepository,
+	overrides: CreateTestUserOverrides = {},
+): Promise<User> {
 	return userRepository.connection
 		.insertInto('user')
 		.values({
@@ -62,12 +98,12 @@ export const createTestUser = async (
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
-};
+}
 
 export const createTestAdmin = async (
 	userRepository: UsersTestRepository,
 	overrides: Partial<User & { role: 'admin' }> = {},
-): Promise<User> => {
+): Promise<User & { role: 'admin' }> => {
 	return userRepository.connection
 		.insertInto('user')
 		.values({
@@ -80,6 +116,7 @@ export const createTestAdmin = async (
 			...overrides,
 		})
 		.returningAll()
+		.$narrowType<{ role: 'admin' }>()
 		.executeTakeFirstOrThrow();
 };
 

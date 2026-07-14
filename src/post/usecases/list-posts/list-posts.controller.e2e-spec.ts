@@ -20,7 +20,7 @@ import { PostsTestSdk } from '../../test-utils/test.sdk';
 import { PostResponseDto } from '../../dto/base-post.dto';
 import { createTestVideoRecord } from '../../../../test/fixtures/video-db.fixture';
 import { VideosTestRepository } from '../../../video/test-utils/test.repo';
-import { SubscriptionTier } from '../../../subscription-tier/subscription-tier.entity';
+import { SubscriptionTierWithoutPrivateFields } from '../../../subscription/subscription.repository';
 
 describe('[E2E] List posts usecase', () => {
 	let app: INestApplication;
@@ -331,7 +331,7 @@ describe('[E2E] List posts usecase', () => {
 
 	describe('Subscriber access', () => {
 		let subscriber: TestSubscriber;
-		let otherTier: SubscriptionTier;
+		let otherTier: SubscriptionTierWithoutPrivateFields;
 
 		beforeEach(async () => {
 			subscriber = await createTestSubscriber(userUtilRepository);

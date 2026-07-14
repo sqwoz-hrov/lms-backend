@@ -2,7 +2,7 @@ import { CreateHrConnectionDto } from '../../src/hr-connection/dto/create-hr-con
 import { HrConnection } from '../../src/hr-connection/hr-connection.entity';
 import { HrConnectionsTestRepository } from '../../src/hr-connection/test-utils/test.repo';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { User } from '../../src/user/user.entity';
+import { NonSubscriberUser, User } from '../../src/user/user.entity';
 import { randomWord } from './common.fixture';
 import { createTestUser } from './user.fixture';
 
@@ -23,7 +23,7 @@ export const createTestHrConnection = async (
 	userRepository: UsersTestRepository,
 	hrConnectionRepository: HrConnectionsTestRepository,
 	overrides: {
-		user?: Partial<User>;
+		user?: Partial<NonSubscriberUser>;
 		hrConnection?: Partial<HrConnection>;
 	} = {},
 ): Promise<HrConnection> => {

@@ -20,8 +20,8 @@ import { randomUUID } from 'crypto';
 import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
 import { UserRepository } from '../../../user/user.repository';
 import { expectSubscriptionIsFree } from '../../test-utils/utils';
-import { SubscriptionTier } from '../../../subscription-tier/subscription-tier.entity';
 import * as sinon from 'sinon';
+import { SubscriptionTierWithoutPrivateFields } from '../../subscription.repository';
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
@@ -42,7 +42,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	let subscriptionRepo: SubscriptionTestRepository;
 	let giftRepo: GiftTestRepository;
 	let subscriptionSdk: SubscriptionTestSdk;
-	let freeTier: SubscriptionTier;
+	let freeTier: SubscriptionTierWithoutPrivateFields;
 
 	before(function (this: ISharedContext) {
 		app = this.app;

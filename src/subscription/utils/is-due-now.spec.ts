@@ -36,6 +36,14 @@ const createSubscriptionAggregation = (
 			permissions: [],
 			price_rubles: subscription.price_on_purchase_rubles,
 		},
+		// just the same tier
+		nextTier: {
+			id: subscription.current_tier_id,
+			tier: 'tier',
+			power: 1,
+			permissions: [],
+			price_rubles: subscription.price_on_purchase_rubles,
+		},
 	},
 	currentActiveGiftSubscription: hasActiveGift
 		? {

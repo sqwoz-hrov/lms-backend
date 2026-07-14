@@ -4,7 +4,7 @@ import { CreateInterviewDto } from '../../src/interview/dto/create-interview.dto
 import { Interview } from '../../src/interview/interview.entity';
 import { InterviewsTestRepository } from '../../src/interview/test-utils/test.repo';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { User } from '../../src/user/user.entity';
+import { NonSubscriberUser, User } from '../../src/user/user.entity';
 import { randomWord } from './common.fixture';
 import { createTestHrConnection } from './hr-connection.fixture';
 
@@ -16,7 +16,7 @@ export class InterviewAggregateBuilder {
 	) {}
 
 	async createInterview(overrides: {
-		user?: Partial<User>;
+		user?: Partial<NonSubscriberUser>;
 		hrConnection?: Partial<HrConnection>;
 		interview?: Partial<Interview>;
 	}) {

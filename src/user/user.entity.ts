@@ -35,6 +35,7 @@ export interface UserTable {
 }
 
 export type User = Selectable<UserTable>;
+export type NonSubscriberUser = User & { role: 'admin' | 'user' };
 export type NewUser = Insertable<UserTable>;
 export type UserUpdate = Updateable<UserTable>;
 
