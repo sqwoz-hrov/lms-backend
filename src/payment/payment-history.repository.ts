@@ -65,6 +65,7 @@ export class PaymentHistoryRepository {
 					'pt.event',
 					sql<string>`pt.event -> 'object' -> 'payment_method' -> 'card' ->> 'last4'`.as('payment_method'),
 				])
+				.orderBy('pt.created_at', 'desc')
 				.orderBy('pt.id', 'desc')
 				.limit(resolved.limit)
 				.offset(resolved.offset)
@@ -97,6 +98,7 @@ export class PaymentHistoryRepository {
 			])
 			.where('user_id', '=', userId)
 			.where(sql<boolean>`pt.event ->> 'event' in (${sql.join(PAYMENT_EVENTS)})`)
+			.orderBy('pt.created_at', 'desc')
 			.orderBy('pt.id', 'desc')
 			.$narrowType<LatestPaymentEvent>()
 			.limit(1)
