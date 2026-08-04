@@ -3,6 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { createTestPost } from '../../../../test/fixtures/post.fixture';
 import {
+	createTestActiveGift,
 	createTestAdmin,
 	createTestSubscriber,
 	createTestSubscriptionTier,
@@ -21,6 +22,7 @@ import { PostResponseDto } from '../../dto/base-post.dto';
 import { createTestVideoRecord } from '../../../../test/fixtures/video-db.fixture';
 import { VideosTestRepository } from '../../../video/test-utils/test.repo';
 import { SubscriptionTierWithoutPrivateFields } from '../../../subscription/subscription.repository';
+import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
 
 describe('[E2E] List posts usecase', () => {
 	let app: INestApplication;
@@ -29,6 +31,7 @@ describe('[E2E] List posts usecase', () => {
 	let postUtilRepository: PostsTestRepository;
 	let videoUtilRepository: VideosTestRepository;
 	let markdownUtilRepository: MarkDownContentTestRepository;
+	let giftUtilRepository: GiftTestRepository;
 	let postTestSdk: PostsTestSdk;
 
 	before(function (this: ISharedContext) {
@@ -38,6 +41,7 @@ describe('[E2E] List posts usecase', () => {
 		postUtilRepository = new PostsTestRepository(kysely);
 		videoUtilRepository = new VideosTestRepository(kysely);
 		markdownUtilRepository = new MarkDownContentTestRepository(kysely);
+		giftUtilRepository = new GiftTestRepository(kysely);
 
 		postTestSdk = new PostsTestSdk(
 			new TestHttpClient(
@@ -51,6 +55,7 @@ describe('[E2E] List posts usecase', () => {
 	});
 
 	afterEach(async () => {
+		await giftUtilRepository.clearAll();
 		await userUtilRepository.clearAll();
 		await postUtilRepository.clearAll();
 		await markdownUtilRepository.clearAll();
@@ -399,6 +404,52 @@ describe('[E2E] List posts usecase', () => {
 			expect(restricted.locked_preview).to.deep.equal({
 				has_video: true,
 			});
+		});
+
+		it('Higher paid and gifted tiers unlock posts with a lower minimum tier', async () => {
+			const minimumTier = await createTestSubscriptionTier(userUtilRepository, {
+				tier: 'Minimum Post Tier',
+				power: subscriber.subscription_tier.power + 10,
+			});
+			const paidTier = await createTestSubscriptionTier(userUtilRepository, {
+				tier: 'Higher Paid Post Tier',
+				power: minimumTier.power + 10,
+			});
+			const giftTier = await createTestSubscriptionTier(userUtilRepository, {
+				tier: 'Higher Gift Post Tier',
+				power: paidTier.power + 10,
+			});
+			const paidSubscriber = await createTestSubscriber(userUtilRepository, { current_tier_id: paidTier.id });
+			const minimumTierPaidSub = await createTestSubscriber(userUtilRepository, { current_tier_id: minimumTier.id });
+			const created = await createTestPost(postUtilRepository, markdownUtilRepository, {
+				post: { title: 'Power-accessible Post' },
+			});
+
+			await postUtilRepository.db
+				.insertInto('post_tier')
+				.values([
+					{ post_id: created.post.id, tier_id: giftTier.id },
+					{ post_id: created.post.id, tier_id: minimumTier.id },
+				])
+				.execute();
+			await createTestActiveGift(userUtilRepository, {
+				giftedTo: subscriber.id,
+				tierId: giftTier.id,
+			});
+
+			for (const userId of [paidSubscriber.id, subscriber.id, minimumTierPaidSub.id]) {
+				const res = await postTestSdk.getPosts({
+					userMeta: { userId, isAuth: true, isWrongAccessJwt: false },
+				});
+
+				expect(res.status).to.equal(HttpStatus.OK);
+				if (res.status !== HttpStatus.OK) throw new Error('Request failed');
+
+				const post = res.body.items.find(item => item.id === created.post.id);
+				expect(post?.markdown_content).to.equal(created.markdown.content_text);
+				expect(post?.locked_preview).to.equal(undefined);
+				expect(post?.minimal_tier_id).to.equal(minimumTier.id);
+			}
 		});
 
 		it('Subscriber cannot override tier filter via query params', async () => {

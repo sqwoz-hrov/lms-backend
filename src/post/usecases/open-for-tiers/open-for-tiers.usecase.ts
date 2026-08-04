@@ -6,13 +6,13 @@ import { PostRepository } from '../../post.repository';
 export class OpenPostForTiersUsecase implements UsecaseInterface {
 	constructor(private readonly postRepository: PostRepository) {}
 
-	async execute({ postId, tierIds }: { postId: string; tierIds: string[] }): Promise<void> {
+	async execute({ postId, minimalTierId }: { postId: string; minimalTierId: string }): Promise<void> {
 		const post = await this.postRepository.findById(postId);
 
 		if (!post) {
 			throw new NotFoundException('Пост не найден');
 		}
 
-		await this.postRepository.openForTiers(postId, tierIds);
+		await this.postRepository.setMinimumTier(postId, minimalTierId);
 	}
 }

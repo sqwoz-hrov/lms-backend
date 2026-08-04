@@ -20,7 +20,7 @@ export class OpenPostForTiersController {
 	async open(@Param('id') postId: string, @Body() dto: OpenPostForTiersDto): Promise<void> {
 		await this.openPostForTiersUsecase.execute({
 			postId,
-			tierIds: dto.tier_ids,
+			minimalTierId: dto.minimal_tier_id,
 		});
 	}
 }

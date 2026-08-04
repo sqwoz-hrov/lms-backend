@@ -20,7 +20,7 @@ export class OpenSubjectForTiersController {
 	async open(@Param('id') subjectId: string, @Body() dto: OpenSubjectForTiersDto): Promise<void> {
 		await this.openSubjectForTiersUsecase.execute({
 			subjectId,
-			tierIds: dto.tier_ids,
+			minimalTierId: dto.minimal_tier_id,
 		});
 	}
 }

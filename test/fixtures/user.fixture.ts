@@ -1,6 +1,7 @@
 import { SubscriptionTier } from '../../src/subscription-tier/subscription-tier.entity';
 import { Subscription } from '../../src/subscription/subscription.entity';
 import { SubscriptionTierWithoutPrivateFields } from '../../src/subscription/subscription.repository';
+import { Gift } from '../../src/gift/gift.entity';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
 import { User, UserRole, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
@@ -184,3 +185,30 @@ export const createTestSubscriber = async (
 };
 
 export type TestSubscriber = Awaited<ReturnType<typeof createTestSubscriber>>;
+
+export const createTestActiveGift = async (
+	userRepository: UsersTestRepository,
+	{
+		giftedTo,
+		tierId,
+		giftedBy,
+	}: {
+		giftedTo: string;
+		tierId: string;
+		giftedBy?: string;
+	},
+): Promise<Gift> => {
+	const resolvedGiftedBy = giftedBy ?? (await createTestAdmin(userRepository)).id;
+
+	return userRepository.connection
+		.insertInto('gift')
+		.values({
+			gifted_to: giftedTo,
+			gifted_by: resolvedGiftedBy,
+			tier_id: tierId,
+			activated_at: new Date(),
+			duration_days: 30,
+		})
+		.returningAll()
+		.executeTakeFirstOrThrow();
+};

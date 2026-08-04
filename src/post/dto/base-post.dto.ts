@@ -41,10 +41,10 @@ export class LockedPostPreviewDto {
 }
 
 export class PostResponseDto extends BasePostDto {
-	@ApiPropertyOptional({ type: [String] })
-	@IsString({ each: true })
+	@ApiPropertyOptional({ format: 'uuid' })
+	@IsUUID()
 	@IsOptional()
-	current_tier_ids?: string[];
+	minimal_tier_id?: string;
 
 	@ApiPropertyOptional({ type: () => LockedPostPreviewDto })
 	@ValidateNested()

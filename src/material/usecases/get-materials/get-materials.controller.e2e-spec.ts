@@ -3,6 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { createTestMaterial } from '../../../../test/fixtures/material.fixture';
 import {
+	createTestActiveGift,
 	createTestAdmin,
 	createTestSubscriber,
 	createTestSubscriptionTier,
@@ -20,6 +21,7 @@ import { User, UserWithNullableSubscriptionTier } from '../../../user/user.entit
 import { MaterialsTestRepository } from '../../test-utils/test.repo';
 import { MaterialsTestSdk } from '../../test-utils/test.sdk';
 import { Material } from '../../material.entity';
+import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
 
 describe('[E2E] Get materials usecase', () => {
 	let app: INestApplication;
@@ -28,6 +30,7 @@ describe('[E2E] Get materials usecase', () => {
 	let materialUtilRepository: MaterialsTestRepository;
 	let markdownContentUtilRepository: MarkDownContentTestRepository;
 	let subjectUtilRepository: SubjectsTestRepository;
+	let giftUtilRepo: GiftTestRepository;
 	let materialTestSdk: MaterialsTestSdk;
 
 	const createMaterial = async ({
@@ -58,6 +61,7 @@ describe('[E2E] Get materials usecase', () => {
 		materialUtilRepository = new MaterialsTestRepository(kysely);
 		markdownContentUtilRepository = new MarkDownContentTestRepository(kysely);
 		subjectUtilRepository = new SubjectsTestRepository(kysely);
+		giftUtilRepo = new GiftTestRepository(kysely);
 
 		materialTestSdk = new MaterialsTestSdk(
 			new TestHttpClient(
@@ -68,6 +72,7 @@ describe('[E2E] Get materials usecase', () => {
 	});
 
 	afterEach(async () => {
+		await giftUtilRepo.clearAll();
 		await userUtilRepository.clearAll();
 		await materialUtilRepository.clearAll();
 		await markdownContentUtilRepository.clearAll();
@@ -271,13 +276,13 @@ describe('[E2E] Get materials usecase', () => {
 
 			const allowRes = await materialTestSdk.openMaterialForTiers({
 				materialId: accessibleMaterial.id,
-				params: { tier_ids: [subscriber.subscription.current_tier_id] },
+				params: { minimal_tier_id: subscriber.subscription.current_tier_id },
 				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
 			const restrictRes = await materialTestSdk.openMaterialForTiers({
 				materialId: materialForAnotherTier.id,
-				params: { tier_ids: [otherTier.id] },
+				params: { minimal_tier_id: otherTier.id },
 				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 			});
 
@@ -299,6 +304,49 @@ describe('[E2E] Get materials usecase', () => {
 			expect(materialIds).to.not.include(materialNotMeantForSubscribers.id);
 			expect(materialIds).to.not.include(materialForAnotherTier.id);
 			expect(materialIds).to.not.include(hiddenMaterial.id);
+		});
+
+		it('Higher and equal paid and gifted tiers see materials with a lower minimum tier', async () => {
+			const minimumTier = await createTestSubscriptionTier(userUtilRepository, {
+				tier: 'Minimum Material Tier',
+				power: subscriber.subscription_tier.power + 10,
+			});
+			const paidTier = await createTestSubscriptionTier(userUtilRepository, {
+				tier: 'Higher Paid Material Tier',
+				power: minimumTier.power + 10,
+			});
+			const giftTier = await createTestSubscriptionTier(userUtilRepository, {
+				tier: 'Higher Gift Material Tier',
+				power: paidTier.power + 10,
+			});
+			const paidSubscriber = await createTestSubscriber(userUtilRepository, { current_tier_id: paidTier.id });
+			const paidMinimumTierSub = await createTestSubscriber(userUtilRepository, { current_tier_id: minimumTier.id });
+			const material = await createMaterial({});
+
+			await materialUtilRepository.connection
+				.insertInto('material_tier')
+				.values([
+					{ material_id: material.id, tier_id: giftTier.id },
+					{ material_id: material.id, tier_id: minimumTier.id },
+				])
+				.execute();
+			await createTestActiveGift(userUtilRepository, {
+				giftedTo: subscriber.id,
+				tierId: giftTier.id,
+				giftedBy: admin.id,
+			});
+
+			for (const userId of [paidSubscriber.id, subscriber.id, paidMinimumTierSub.id]) {
+				const res = await materialTestSdk.getMaterials({
+					params: {},
+					userMeta: { userId, isAuth: true, isWrongAccessJwt: false },
+				});
+
+				expect(res.status).to.equal(HttpStatus.OK);
+				if (res.status !== HttpStatus.OK) throw new Error();
+				const responseMaterial = res.body.find(item => item.id === material.id);
+				expect(responseMaterial?.minimal_tier_id).to.equal(minimumTier.id);
+			}
 		});
 
 		it('Subscriber cannot reveal restricted materials using subject_id filter', async () => {
