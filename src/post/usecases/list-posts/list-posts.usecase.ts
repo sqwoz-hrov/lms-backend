@@ -41,6 +41,7 @@ export class ListPostsUsecase implements UsecaseInterface {
 
 			const base: PostResponseDto = {
 				...post,
+				slug: post.slug ?? undefined,
 				video_id: post.video_id ?? undefined,
 				locked_preview: undefined,
 				minimal_tier_id: minimumTier?.id,

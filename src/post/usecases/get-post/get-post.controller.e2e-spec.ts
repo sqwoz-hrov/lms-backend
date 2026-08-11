@@ -130,6 +130,25 @@ describe('[E2E] Get post by id usecase', () => {
 		expect(res.body.markdown_content).to.equal(created.markdown.content_text);
 	});
 
+	it('Authenticated users can get a slug-enabled post by UUID or slug', async () => {
+		const user = await createTestUser(userUtilRepository);
+		const created = await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'Пост со ссылкой', slug: 'post-so-ssylkoy' },
+		});
+
+		for (const identifier of [created.post.id, created.post.slug!]) {
+			const res = await postTestSdk.getPostById({
+				params: { id: identifier },
+				userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status !== HttpStatus.OK) throw new Error('Request failed');
+			expect(res.body.id).to.equal(created.post.id);
+			expect(res.body.slug).to.equal(created.post.slug);
+		}
+	});
+
 	describe('Subscriber access', () => {
 		let subscriber: TestSubscriber;
 		let otherTierId: string;

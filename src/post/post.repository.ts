@@ -51,6 +51,10 @@ export class PostRepository {
 		return await this.connection.selectFrom('post').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
+	async findBySlug(slug: string): Promise<Post | undefined> {
+		return await this.connection.selectFrom('post').selectAll().where('slug', '=', slug).limit(1).executeTakeFirst();
+	}
+
 	async findByIdWithContent(id: string): Promise<PostWithContent | undefined> {
 		const row = await this.connection
 			.selectFrom('post')
@@ -58,6 +62,28 @@ export class PostRepository {
 			.selectAll('post')
 			.select(eb => [eb.ref('markdown_content.content_text').as('markdown_content')])
 			.where('post.id', '=', id)
+			.limit(1)
+			.executeTakeFirst();
+
+		if (!row) {
+			return undefined;
+		}
+
+		const { markdown_content, ...post } = row;
+
+		return {
+			...post,
+			markdown_content: markdown_content ?? '',
+		};
+	}
+
+	async findBySlugWithContent(slug: string): Promise<PostWithContent | undefined> {
+		const row = await this.connection
+			.selectFrom('post')
+			.innerJoin('markdown_content', 'markdown_content.id', 'post.markdown_content_id')
+			.selectAll('post')
+			.select(eb => [eb.ref('markdown_content.content_text').as('markdown_content')])
+			.where('post.slug', '=', slug)
 			.limit(1)
 			.executeTakeFirst();
 
