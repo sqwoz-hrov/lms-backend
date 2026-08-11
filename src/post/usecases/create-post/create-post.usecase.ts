@@ -23,12 +23,11 @@ export class CreatePostUsecase implements UsecaseInterface {
 
 		const markdown = await this.markdownContentService.uploadMarkdownContent(markdown_content);
 
-		const post = await this.postRepository
-			.save({
-				...postData,
-				slug: slug ?? null,
-				markdown_content_id: markdown.id,
-			});
+		const post = await this.postRepository.save({
+			...postData,
+			slug: slug ?? null,
+			markdown_content_id: markdown.id,
+		});
 
 		return {
 			...post,
