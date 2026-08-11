@@ -13,6 +13,11 @@ export class BasePostDto {
 	@IsNotEmpty()
 	title: string;
 
+	@ApiPropertyOptional()
+	@IsString()
+	@IsOptional()
+	slug?: string;
+
 	@ApiProperty()
 	@IsUUID()
 	@IsNotEmpty()

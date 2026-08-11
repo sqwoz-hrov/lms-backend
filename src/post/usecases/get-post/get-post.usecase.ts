@@ -4,13 +4,22 @@ import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { PostResponseDto } from '../../dto/base-post.dto';
 import { PostRepository } from '../../post.repository';
 import { PostWithContent } from '../../post.entity';
+import { isUuid } from '../../utils/post-slug.util';
 
 @Injectable()
 export class GetPostUsecase implements UsecaseInterface {
 	constructor(private readonly postRepository: PostRepository) {}
 
-	async execute({ id, user }: { id: string; user: UserWithSubscriptionTier }): Promise<PostResponseDto> {
-		const post = await this.postRepository.findByIdWithContent(id);
+	async execute({
+		identifier,
+		user,
+	}: {
+		identifier: string;
+		user: UserWithSubscriptionTier;
+	}): Promise<PostResponseDto> {
+		const post = isUuid(identifier)
+			? await this.postRepository.findByIdWithContent(identifier)
+			: await this.postRepository.findBySlugWithContent(identifier);
 
 		if (!post) {
 			throw new NotFoundException('Пост не найден');
@@ -22,6 +31,7 @@ export class GetPostUsecase implements UsecaseInterface {
 
 		const base: PostResponseDto = {
 			...post,
+			slug: post.slug ?? undefined,
 			video_id: post.video_id ?? undefined,
 			markdown_content: post.markdown_content,
 			locked_preview: undefined,
