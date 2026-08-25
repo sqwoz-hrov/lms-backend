@@ -48,6 +48,9 @@ export class SubscriptionBillingService {
 			failed: 0,
 			downgradedToFreeTier: 0,
 		};
+		this.logger.log(
+			`Billing cycle invoked runDate=${runDate.toISOString()} enabled=${this.config.enabled} aborted=${signal.aborted} batchSize=${this.config.batchSize} retryWindowDays=${this.config.retryWindowDays}`,
+		);
 
 		if (!this.config.enabled) {
 			this.logger.debug('Subscription billing disabled, skipping run');
@@ -66,7 +69,11 @@ export class SubscriptionBillingService {
 			}
 
 			summary.processed += 1;
+			this.logger.debug(`Processing billable subscription subscriptionId=${candidate.id} userId=${candidate.user_id}`);
 			const outcome = await this.chargeSubscriberPaymentMethod(candidate, runDate);
+			this.logger.log(
+				`Billing candidate processed subscriptionId=${candidate.id} userId=${candidate.user_id} outcome=${outcome}`,
+			);
 			switch (outcome) {
 				case 'charged':
 					summary.charged += 1;
@@ -83,7 +90,9 @@ export class SubscriptionBillingService {
 			}
 		}
 
+		this.logger.debug('Loading free tier before processing downgrade candidates');
 		const freeTier = await this.subscriptionRepository.getFreeTier();
+		this.logger.debug(`Loaded free tier tierId=${freeTier.id}`);
 
 		// this data set should not cross with the billableSubscriptions, otherwise it'll double up the 'processed' numbers
 		for await (const downgradeCandidatesBatch of this.fetchDowngradeCandidateSubscriptions({ runDate, signal })) {
@@ -92,8 +101,7 @@ export class SubscriptionBillingService {
 				break;
 			}
 
-			// downgrade and
-			// mark
+			this.logger.log(`Processing downgrade candidate batch size=${downgradeCandidatesBatch.length}`);
 			const { downgradedCount } = await this.subscriptionService.batchDowngradeToFreeTier({
 				freeTier,
 				existingSubs: downgradeCandidatesBatch,
@@ -101,8 +109,14 @@ export class SubscriptionBillingService {
 
 			summary.downgradedToFreeTier += downgradedCount;
 			summary.processed += downgradeCandidatesBatch.length;
+			this.logger.log(
+				`Downgrade candidate batch processed size=${downgradeCandidatesBatch.length} downgradedCount=${downgradedCount}`,
+			);
 		}
 
+		this.logger.log(
+			`Billing cycle completed runDate=${runDate.toISOString()} processed=${summary.processed} charged=${summary.charged} skipped=${summary.skipped} failed=${summary.failed} downgradedToFreeTier=${summary.downgradedToFreeTier} aborted=${signal.aborted}`,
+		);
 		return summary;
 	}
 
@@ -116,6 +130,9 @@ export class SubscriptionBillingService {
 			runDate,
 			paymentMethodId: candidate.billing_payment_method_id,
 		};
+		this.logger.debug(
+			`Charge attempt started attemptId=${context.attemptId} subscriptionId=${candidate.id} userId=${candidate.user_id} runDate=${runDate.toISOString()}`,
+		);
 
 		const prepared = await this.prepareAttempt(candidate, context);
 
@@ -125,6 +142,9 @@ export class SubscriptionBillingService {
 		}
 
 		try {
+			this.logger.log(
+				`Requesting recurring charge attemptId=${context.attemptId} subscriptionId=${prepared.subscription.id} userId=${prepared.subscription.user_id} amountRubles=${prepared.subscription.price_on_purchase_rubles}`,
+			);
 			const payment = await this.yookassaClient.chargeSavedPaymentMethod({
 				amountRubles: prepared.subscription.price_on_purchase_rubles,
 				description: this.config.description,
@@ -135,8 +155,14 @@ export class SubscriptionBillingService {
 					current_tier_id: prepared.subscription.next_tier_id,
 				},
 			});
+			this.logger.log(
+				`Recurring charge accepted attemptId=${context.attemptId} subscriptionId=${prepared.subscription.id} paymentId=${payment.id} createdAt=${payment.created_at}`,
+			);
 
 			await this.recordSuccess(prepared.subscription, context, payment);
+			this.logger.debug(
+				`Charge attempt completed attemptId=${context.attemptId} subscriptionId=${prepared.subscription.id} outcome=charged`,
+			);
 
 			return 'charged';
 		} catch (error) {
@@ -163,26 +189,41 @@ export class SubscriptionBillingService {
 		const { runDate, signal } = params;
 		let cursor: BillableSubscriptionCursor | undefined;
 		const seenSubscriptions = new Set<string>();
+		this.logger.debug(
+			`Downgrade candidate scan started runDate=${runDate.toISOString()} batchSize=${this.config.batchSize}`,
+		);
 
 		while (!signal.aborted) {
+			this.logger.debug(
+				`Fetching downgrade candidate batch cursorId=${cursor?.id ?? 'none'} cursorPeriodEnd=${cursor?.currentPeriodEnd?.toISOString() ?? 'none'}`,
+			);
 			const batch = await this.subscriptionRepository.findDowngradeCandidateSubscriptions({
 				runDate,
 				retryWindowDays: this.config.retryWindowDays,
 				limit: this.config.batchSize,
 				cursor,
 			});
+			this.logger.debug(`Fetched downgrade candidate batch size=${batch.length}`);
 
-			if (signal.aborted || batch.length === 0) {
+			if (signal.aborted) {
+				this.logger.warn('Downgrade candidate scan aborted after fetching a batch');
+				return;
+			}
+
+			if (batch.length === 0) {
+				this.logger.debug('Downgrade candidate scan completed: repository returned no candidates');
 				return;
 			}
 			const filteredBatch: DowngradeCandidateSubscriptionRow[] = [];
 
 			for (const candidate of batch) {
 				if (signal.aborted) {
+					this.logger.warn('Downgrade candidate scan aborted while filtering a batch');
 					return;
 				}
 
 				if (seenSubscriptions.has(candidate.id)) {
+					this.logger.warn(`Duplicate downgrade candidate skipped subscriptionId=${candidate.id}`);
 					continue;
 				}
 
@@ -190,6 +231,7 @@ export class SubscriptionBillingService {
 				filteredBatch.push(candidate);
 			}
 
+			this.logger.debug(`Yielding downgrade candidate batch size=${filteredBatch.length}`);
 			yield filteredBatch;
 
 			const lastCandidate = batch[batch.length - 1];
@@ -201,9 +243,12 @@ export class SubscriptionBillingService {
 			}
 
 			if (batch.length < this.config.batchSize) {
+				this.logger.debug('Downgrade candidate scan completed: final partial batch processed');
 				return;
 			}
 		}
+
+		this.logger.warn('Downgrade candidate scan stopped because the billing run was aborted');
 	}
 
 	private async *fetchBillableSubscriptions(params: {
@@ -213,29 +258,45 @@ export class SubscriptionBillingService {
 		const { runDate, signal } = params;
 		let cursor: BillableSubscriptionCursor | undefined;
 		const seenSubscriptions = new Set<string>();
+		this.logger.debug(
+			`Billable subscription scan started runDate=${runDate.toISOString()} batchSize=${this.config.batchSize}`,
+		);
 
 		while (!signal.aborted) {
+			this.logger.debug(
+				`Fetching billable subscription batch cursorId=${cursor?.id ?? 'none'} cursorPeriodEnd=${cursor?.currentPeriodEnd?.toISOString() ?? 'none'}`,
+			);
 			const batch = await this.subscriptionRepository.findBillableSubscriptions({
 				runDate,
 				retryWindowDays: this.config.retryWindowDays,
 				limit: this.config.batchSize,
 				cursor,
 			});
+			this.logger.debug(`Fetched billable subscription batch size=${batch.length}`);
 
-			if (signal.aborted || batch.length === 0) {
+			if (signal.aborted) {
+				this.logger.warn('Billable subscription scan aborted after fetching a batch');
+				return;
+			}
+
+			if (batch.length === 0) {
+				this.logger.debug('Billable subscription scan completed: repository returned no candidates');
 				return;
 			}
 
 			for (const candidate of batch) {
 				if (signal.aborted) {
+					this.logger.warn('Billable subscription scan aborted while yielding a batch');
 					return;
 				}
 
 				if (seenSubscriptions.has(candidate.id)) {
+					this.logger.warn(`Duplicate billable subscription skipped subscriptionId=${candidate.id}`);
 					continue;
 				}
 
 				seenSubscriptions.add(candidate.id);
+				this.logger.debug(`Yielding billable subscription subscriptionId=${candidate.id} userId=${candidate.user_id}`);
 				yield candidate;
 			}
 
@@ -248,27 +309,42 @@ export class SubscriptionBillingService {
 			}
 
 			if (batch.length < this.config.batchSize) {
+				this.logger.debug('Billable subscription scan completed: final partial batch processed');
 				return;
 			}
 		}
+
+		this.logger.warn('Billable subscription scan stopped because the billing run was aborted');
 	}
 
 	private async prepareAttempt(
 		candidate: BillableSubscriptionRow,
 		context: BillingAttemptContext,
 	): Promise<PreparedBillingAttempt> {
+		this.logger.debug(
+			`Preparing billing attempt attemptId=${context.attemptId} subscriptionId=${candidate.id} userId=${candidate.user_id}`,
+		);
 		return await this.subscriptionRepository.transaction(async (trx: SubscriptionTransaction) => {
 			// TODO: batch-up this part
+			this.logger.debug(
+				`Locking subscription for billing attempt attemptId=${context.attemptId} userId=${candidate.user_id}`,
+			);
 			const subscriptionAggregation = await this.subscriptionRepository.lockSubscriptionByUserId(
 				candidate.user_id,
 				trx,
 			);
 
 			if (!subscriptionAggregation) {
+				this.logger.warn(
+					`Billing attempt preparation skipped attemptId=${context.attemptId} subscriptionId=${candidate.id} reason=subscription-missing`,
+				);
 				return { status: 'skip', reason: 'subscription-missing' } as const;
 			}
 
 			if (!isDueNow(subscriptionAggregation, context.runDate, this.config.retryWindowDays)) {
+				this.logger.debug(
+					`Billing attempt preparation skipped attemptId=${context.attemptId} subscriptionId=${candidate.id} reason=not-due`,
+				);
 				return { status: 'skip', reason: 'not-due' } as const;
 			}
 
@@ -276,6 +352,9 @@ export class SubscriptionBillingService {
 
 			const { subscription: locked } = subscriptionAggregation.currentPaidSubscription;
 			const newPrice = currentPaidSubscription.nextTier.price_rubles;
+			this.logger.debug(
+				`Subscription locked for billing attempt attemptId=${context.attemptId} subscriptionId=${locked.id} amountRubles=${newPrice}`,
+			);
 
 			// only increase this if we don't skip
 			await this.subscriptionRepository.update(
@@ -284,6 +363,9 @@ export class SubscriptionBillingService {
 					last_billing_attempt: context.attemptTime,
 				},
 				trx,
+			);
+			this.logger.debug(
+				`Updated last billing attempt attemptId=${context.attemptId} subscriptionId=${locked.id} attemptedAt=${context.attemptTime.toISOString()}`,
 			);
 
 			await this.subscriptionRepository.insertPaymentEvent(
@@ -301,6 +383,9 @@ export class SubscriptionBillingService {
 				},
 				trx,
 			);
+			this.logger.debug(
+				`Billing attempt prepared attemptId=${context.attemptId} subscriptionId=${locked.id} userId=${locked.user_id}`,
+			);
 
 			return { status: 'ready', subscription: { ...locked, price_on_purchase_rubles: newPrice } } as const;
 		});
@@ -311,6 +396,9 @@ export class SubscriptionBillingService {
 		context: BillingAttemptContext,
 		payment: PaymentRecord,
 	): Promise<void> {
+		this.logger.debug(
+			`Recording successful charge request attemptId=${context.attemptId} subscriptionId=${subscription.id} paymentId=${payment.id}`,
+		);
 		await this.subscriptionRepository.insertPaymentEvent({
 			user_id: subscription.user_id,
 			subscription_id: subscription.id,
@@ -323,6 +411,9 @@ export class SubscriptionBillingService {
 				attempted_at: context.attemptTime.toISOString(),
 			},
 		});
+		this.logger.debug(
+			`Successful charge request recorded attemptId=${context.attemptId} subscriptionId=${subscription.id} paymentId=${payment.id}`,
+		);
 	}
 
 	private async recordFailure(
@@ -330,6 +421,9 @@ export class SubscriptionBillingService {
 		context: BillingAttemptContext,
 		error: string,
 	): Promise<void> {
+		this.logger.debug(
+			`Recording failed charge request attemptId=${context.attemptId} subscriptionId=${subscription.id}`,
+		);
 		await this.subscriptionRepository.insertPaymentEvent({
 			user_id: subscription.user_id,
 			subscription_id: subscription.id,
@@ -340,6 +434,9 @@ export class SubscriptionBillingService {
 				attempted_at: context.attemptTime.toISOString(),
 			},
 		});
+		this.logger.debug(
+			`Failed charge request recorded attemptId=${context.attemptId} subscriptionId=${subscription.id}`,
+		);
 	}
 }
 
