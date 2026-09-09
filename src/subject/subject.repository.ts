@@ -2,16 +2,21 @@ import { Kysely } from 'kysely';
 import { Inject } from '@nestjs/common';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { NewSubject, Subject, SubjectAggregation, SubjectUpdate, SubjectWithSubscriptionTiers } from './subject.entity';
+import { SubscriptionTierTable } from '../subscription-tier/subscription-tier.entity';
 
 type SubjectJoinRow = Subject & {
-	subject_tier__tier_id: string | null;
+	minimal_tier_id: string | null;
+};
+
+type SubjectRepositoryDatabase = SubjectAggregation & {
+	subscription_tier: SubscriptionTierTable;
 };
 
 export class SubjectRepository {
-	private readonly connection: Kysely<SubjectAggregation>;
+	private readonly connection: Kysely<SubjectRepositoryDatabase>;
 
 	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
-		this.connection = dbProvider.getDatabase<SubjectAggregation>();
+		this.connection = dbProvider.getDatabase<SubjectRepositoryDatabase>();
 	}
 
 	async save(data: NewSubject): Promise<Subject> {
@@ -39,16 +44,26 @@ export class SubjectRepository {
 		return await this.connection.selectFrom('subject').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
-	async find(
-		filter: Partial<Subject> & { subscription_tier_id?: string } = {},
-	): Promise<SubjectWithSubscriptionTiers[]> {
-		const { subscription_tier_id, ...subjectFilters } = filter;
+	async find(filter: Partial<Subject> & { current_tier_power?: number } = {}): Promise<SubjectWithSubscriptionTiers[]> {
+		const { current_tier_power, ...subjectFilters } = filter;
 
 		let query = this.connection
 			.selectFrom('subject')
-			.leftJoin('subject_tier', 'subject_tier.subject_id', 'subject.id')
+			.leftJoinLateral(
+				eb =>
+					eb
+						.selectFrom('subject_tier')
+						.innerJoin('subscription_tier', 'subscription_tier.id', 'subject_tier.tier_id')
+						.select(['subject_tier.tier_id as tier_id', 'subscription_tier.power as tier_power'])
+						.whereRef('subject_tier.subject_id', '=', 'subject.id')
+						.orderBy('subscription_tier.power', 'asc')
+						.orderBy('subject_tier.tier_id', 'asc')
+						.limit(1)
+						.as('minimum_tier'),
+				join => join.onTrue(),
+			)
 			.selectAll('subject')
-			.select(['subject_tier.tier_id as subject_tier__tier_id']);
+			.select(['minimum_tier.tier_id as minimal_tier_id']);
 
 		for (const key in subjectFilters) {
 			const value = subjectFilters[key as keyof typeof subjectFilters];
@@ -57,59 +72,24 @@ export class SubjectRepository {
 			}
 		}
 
-		if (subscription_tier_id) {
-			const tierId = subscription_tier_id;
-			query = query.where(eb =>
-				eb.exists(
-					eb
-						.selectFrom('subject_tier')
-						.select('subject_tier.subject_id')
-						.whereRef('subject_tier.subject_id', '=', 'subject.id')
-						.where('subject_tier.tier_id', '=', tierId),
-				),
-			);
+		if (current_tier_power !== undefined) {
+			query = query.where('minimum_tier.tier_power', '<=', current_tier_power);
 		}
 
 		const rows = (await query.execute()) as SubjectJoinRow[];
 
-		const subjectOrder: string[] = [];
-		const subjectsById = new Map<string, SubjectWithSubscriptionTiers>();
-
-		for (const row of rows) {
-			const { subject_tier__tier_id, ...subjectFields } = row;
-
-			let subject = subjectsById.get(subjectFields.id);
-
-			if (!subject) {
-				subject = {
-					...subjectFields,
-					subscription_tier_ids: [],
-				};
-				subjectsById.set(subject.id, subject);
-				subjectOrder.push(subject.id);
-			}
-
-			if (subject_tier__tier_id !== null) {
-				const tierIds = subject.subscription_tier_ids ?? (subject.subscription_tier_ids = []);
-				if (!tierIds.includes(subject_tier__tier_id)) {
-					tierIds.push(subject_tier__tier_id);
-				}
-			}
-		}
-
-		return subjectOrder.map(id => subjectsById.get(id)!);
+		return rows.map(({ minimal_tier_id, ...subject }) => ({
+			...subject,
+			minimal_tier_id: minimal_tier_id ?? undefined,
+		}));
 	}
 
-	async openForTiers(subjectId: string, tierIds: string[]): Promise<void> {
+	async setMinimumTier(subjectId: string, minimalTierId: string): Promise<void> {
 		await this.connection.deleteFrom('subject_tier').where('subject_id', '=', subjectId).execute();
-
-		if (!tierIds.length) {
-			return;
-		}
 
 		await this.connection
 			.insertInto('subject_tier')
-			.values(tierIds.map(tierId => ({ subject_id: subjectId, tier_id: tierId })))
+			.values({ subject_id: subjectId, tier_id: minimalTierId })
 			.onConflict(oc => oc.columns(['subject_id', 'tier_id']).doNothing())
 			.execute();
 	}

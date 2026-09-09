@@ -49,7 +49,7 @@ describe('[E2E] Charge subscription usecase', () => {
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
-				subscription_tier_id: tier.id,
+				current_tier_id: tier.id,
 			},
 			userMeta: { isAuth: false },
 		});
@@ -63,7 +63,7 @@ describe('[E2E] Charge subscription usecase', () => {
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
-				subscription_tier_id: tier.id,
+				current_tier_id: tier.id,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -81,7 +81,7 @@ describe('[E2E] Charge subscription usecase', () => {
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
-				subscription_tier_id: tier.id,
+				current_tier_id: tier.id,
 			},
 			userMeta: {
 				userId: user.id,
@@ -99,7 +99,31 @@ describe('[E2E] Charge subscription usecase', () => {
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
-				subscription_tier_id: missingTierId,
+				current_tier_id: missingTierId,
+			},
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.NOT_FOUND);
+		if (res.status !== HttpStatus.NOT_FOUND) throw new Error();
+		expect(res.body.description).to.equal('Subscription tier not found');
+	});
+
+	it('Returns 404 when subscription tier is archived', async () => {
+		const subscriber = await createTestSubscriber(usersRepo);
+		const archivedTier = await createTestSubscriptionTier(usersRepo, {
+			tier: 'archived-charge-tier',
+			is_archived: true,
+			price_rubles: 2990,
+		});
+
+		const res = await paymentSdk.chargeSubscription({
+			params: {
+				current_tier_id: archivedTier.id,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -119,7 +143,7 @@ describe('[E2E] Charge subscription usecase', () => {
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
-				subscription_tier_id: tier.id,
+				current_tier_id: tier.id,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -146,7 +170,7 @@ describe('[E2E] Charge subscription usecase', () => {
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
-				subscription_tier_id: freeTier.id,
+				current_tier_id: freeTier.id,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -176,7 +200,7 @@ describe('[E2E] Charge subscription usecase', () => {
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
-				subscription_tier_id: cheaperTier.id,
+				current_tier_id: cheaperTier.id,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -197,7 +221,7 @@ describe('[E2E] Charge subscription usecase', () => {
 			tier: 'already-purchased-tier',
 			price_rubles: 1990,
 		});
-		const subscriber = await createTestSubscriber(usersRepo, { subscription_tier_id: activeTier.id });
+		const subscriber = await createTestSubscriber(usersRepo, { current_tier_id: activeTier.id });
 
 		await subscriptionRepo.addActivePaymentMethod({
 			userId: subscriber.id,
@@ -206,7 +230,7 @@ describe('[E2E] Charge subscription usecase', () => {
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
-				subscription_tier_id: subscriber.subscription_tier.id,
+				current_tier_id: subscriber.subscription_tier.id,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -234,7 +258,7 @@ describe('[E2E] Charge subscription usecase', () => {
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
-				subscription_tier_id: targetTier.id,
+				current_tier_id: targetTier.id,
 			},
 			userMeta: {
 				userId: subscriber.id,

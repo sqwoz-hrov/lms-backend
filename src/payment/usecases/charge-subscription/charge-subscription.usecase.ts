@@ -16,12 +16,12 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 	) {}
 
 	async execute(params: {
-		subscription_tier_id: string;
+		current_tier_id: string;
 		user: UserWithSubscriptionTier;
 	}): Promise<ChargeSubscriptionResponseDto> {
-		const { subscription_tier_id, user } = params;
+		const { current_tier_id, user } = params;
 
-		const targetTier = await this.subscriptionTierRepository.findById(subscription_tier_id);
+		const targetTier = await this.subscriptionTierRepository.findActiveById(current_tier_id);
 
 		if (!targetTier) {
 			throw new NotFoundException('Subscription tier not found');
@@ -55,7 +55,7 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 			description: `Оплата подписки (${targetTier.tier})`,
 			paymentMethodId: paymentMethod.payment_method_id,
 			metadata: {
-				subscription_tier_id: targetTier.id,
+				current_tier_id: targetTier.id,
 				user_id: user.id,
 			},
 		});

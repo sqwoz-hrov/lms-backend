@@ -232,8 +232,7 @@ describe('[E2E] Restart interview transcription usecase', () => {
 			tier: 'free',
 		});
 		const owner = await createTestSubscriber(usersRepo, {
-			subscription_tier_id: freeTier.id,
-			is_billable: false,
+			current_tier_id: freeTier.id,
 		});
 
 		const videos = await Promise.all(

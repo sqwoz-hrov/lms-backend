@@ -4,57 +4,68 @@ import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { PostResponseDto } from '../../dto/base-post.dto';
 import { PostRepository } from '../../post.repository';
 import { PostWithContent } from '../../post.entity';
+import { isUuid } from '../../utils/post-slug.util';
 
 @Injectable()
 export class GetPostUsecase implements UsecaseInterface {
 	constructor(private readonly postRepository: PostRepository) {}
 
-	async execute({ id, user }: { id: string; user: UserWithSubscriptionTier }): Promise<PostResponseDto> {
-		const post = await this.postRepository.findByIdWithContent(id);
+	async execute({
+		identifier,
+		user,
+	}: {
+		identifier: string;
+		user: UserWithSubscriptionTier;
+	}): Promise<PostResponseDto> {
+		const post = isUuid(identifier)
+			? await this.postRepository.findByIdWithContent(identifier)
+			: await this.postRepository.findBySlugWithContent(identifier);
 
 		if (!post) {
 			throw new NotFoundException('Пост не найден');
 		}
 
-		const postTierMap = await this.postRepository.findTierIdsForPosts([post.id]);
-		const allowedTierIds = postTierMap[post.id] ?? [];
+		// TODO: this is an absurd code but yeah whatever
+		const minimumTierMap = await this.postRepository.findMinimumTiersForPosts([post.id]);
+		const minimumTier = minimumTierMap[post.id];
 
 		const base: PostResponseDto = {
 			...post,
+			slug: post.slug ?? undefined,
 			video_id: post.video_id ?? undefined,
 			markdown_content: post.markdown_content,
 			locked_preview: undefined,
-			subscription_tier_ids: allowedTierIds,
+			minimal_tier_id: minimumTier?.id,
 		};
 
 		if (user.role !== 'subscriber') {
 			return base;
 		}
 
-		const subscriberTierId = user.subscription?.subscription_tier_id;
+		const subscriberTierPower = user.subscription_tier?.power;
 
 		return {
 			...base,
 			...(this.buildSubscriberView({
 				post,
-				allowedTierIds,
-				subscriberTierId,
+				minimumTierPower: minimumTier?.power,
+				subscriberTierPower,
 			}) as Record<string, unknown>),
 		};
 	}
 
 	private buildSubscriberView({
 		post,
-		allowedTierIds,
-		subscriberTierId,
+		minimumTierPower,
+		subscriberTierPower,
 	}: {
 		post: PostWithContent;
-		allowedTierIds: string[];
-		subscriberTierId?: string;
+		minimumTierPower?: number;
+		subscriberTierPower?: number;
 	}): Partial<PostResponseDto> {
 		const hasVideo = Boolean(post.video_id);
-		const isPublic = allowedTierIds.length === 0;
-		const hasAccess = isPublic || (!!subscriberTierId && allowedTierIds.includes(subscriberTierId));
+		const isPublic = minimumTierPower === undefined;
+		const hasAccess = isPublic || (typeof subscriberTierPower === 'number' && subscriberTierPower >= minimumTierPower);
 
 		if (hasAccess) {
 			return {

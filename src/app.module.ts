@@ -39,6 +39,7 @@ import { InterviewTranscriptionModule } from './interview-transcription/intervie
 import { SseModule } from './sse/sse.module';
 import { InterviewTranscriptionReportModule } from './interview-transcription-report/interview-transcription-report.module';
 import { LimitsModule } from './limits/limits.module';
+import { GiftModule } from './gift/gift.module';
 
 @Module({
 	imports: [
@@ -84,6 +85,7 @@ import { LimitsModule } from './limits/limits.module';
 		SseModule,
 		InterviewTranscriptionReportModule,
 		LimitsModule,
+		GiftModule,
 	],
 	controllers: [],
 	providers: [],

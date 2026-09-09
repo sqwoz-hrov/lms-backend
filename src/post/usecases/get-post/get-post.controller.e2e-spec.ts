@@ -4,6 +4,7 @@ import { expect } from 'chai';
 import { randomUUID } from 'node:crypto';
 import { createTestPost } from '../../../../test/fixtures/post.fixture';
 import {
+	createTestActiveGift,
 	createTestAdmin,
 	createTestSubscriber,
 	createTestSubscriptionTier,
@@ -20,6 +21,7 @@ import { PostsTestRepository } from '../../test-utils/test.repo';
 import { PostsTestSdk } from '../../test-utils/test.sdk';
 import { createTestVideoRecord } from '../../../../test/fixtures/video-db.fixture';
 import { VideosTestRepository } from '../../../video/test-utils/test.repo';
+import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
 
 describe('[E2E] Get post by id usecase', () => {
 	let app: INestApplication;
@@ -28,6 +30,7 @@ describe('[E2E] Get post by id usecase', () => {
 	let postUtilRepository: PostsTestRepository;
 	let markdownUtilRepository: MarkDownContentTestRepository;
 	let videoUtilRepository: VideosTestRepository;
+	let giftUtilRepository: GiftTestRepository;
 	let postTestSdk: PostsTestSdk;
 
 	before(function (this: ISharedContext) {
@@ -37,6 +40,7 @@ describe('[E2E] Get post by id usecase', () => {
 		postUtilRepository = new PostsTestRepository(kysely);
 		markdownUtilRepository = new MarkDownContentTestRepository(kysely);
 		videoUtilRepository = new VideosTestRepository(kysely);
+		giftUtilRepository = new GiftTestRepository(kysely);
 
 		postTestSdk = new PostsTestSdk(
 			new TestHttpClient(
@@ -50,6 +54,7 @@ describe('[E2E] Get post by id usecase', () => {
 	});
 
 	afterEach(async () => {
+		await giftUtilRepository.clearAll();
 		await userUtilRepository.clearAll();
 		await postUtilRepository.clearAll();
 		await markdownUtilRepository.clearAll();
@@ -125,6 +130,25 @@ describe('[E2E] Get post by id usecase', () => {
 		expect(res.body.markdown_content).to.equal(created.markdown.content_text);
 	});
 
+	it('Authenticated users can get a slug-enabled post by UUID or slug', async () => {
+		const user = await createTestUser(userUtilRepository);
+		const created = await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'Пост со ссылкой', slug: 'post-so-ssylkoy' },
+		});
+
+		for (const identifier of [created.post.id, created.post.slug!]) {
+			const res = await postTestSdk.getPostById({
+				params: { id: identifier },
+				userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.OK);
+			if (res.status !== HttpStatus.OK) throw new Error('Request failed');
+			expect(res.body.id).to.equal(created.post.id);
+			expect(res.body.slug).to.equal(created.post.slug);
+		}
+	});
+
 	describe('Subscriber access', () => {
 		let subscriber: TestSubscriber;
 		let otherTierId: string;
@@ -142,7 +166,7 @@ describe('[E2E] Get post by id usecase', () => {
 				.insertInto('post_tier')
 				.values({
 					post_id: created.post.id,
-					tier_id: subscriber.subscription.subscription_tier_id,
+					tier_id: subscriber.subscription.current_tier_id,
 				})
 				.execute();
 
@@ -163,6 +187,49 @@ describe('[E2E] Get post by id usecase', () => {
 			expect(res.body.markdown_content).to.equal(created.markdown.content_text);
 			expect(res.body.locked_preview).to.equal(undefined);
 			expect(res.body.video_id).to.equal(created.post.video_id ?? undefined);
+		});
+
+		it('Higher or equal paid and gifted tiers receive a post with a lower minimum tier', async () => {
+			const minimumTier = await createTestSubscriptionTier(userUtilRepository, {
+				tier: 'Minimum Post Tier',
+				power: subscriber.subscription_tier.power + 10,
+			});
+			const paidTier = await createTestSubscriptionTier(userUtilRepository, {
+				tier: 'Higher Paid Post Tier',
+				power: minimumTier.power + 10,
+			});
+			const giftTier = await createTestSubscriptionTier(userUtilRepository, {
+				tier: 'Higher Gift Post Tier',
+				power: paidTier.power + 10,
+			});
+			const paidSubscriber = await createTestSubscriber(userUtilRepository, { current_tier_id: paidTier.id });
+			const minimumTierPaidSub = await createTestSubscriber(userUtilRepository, { current_tier_id: minimumTier.id });
+			const created = await createTestPost(postUtilRepository, markdownUtilRepository);
+
+			await postUtilRepository.db
+				.insertInto('post_tier')
+				.values([
+					{ post_id: created.post.id, tier_id: giftTier.id },
+					{ post_id: created.post.id, tier_id: minimumTier.id },
+				])
+				.execute();
+			await createTestActiveGift(userUtilRepository, {
+				giftedTo: subscriber.id,
+				tierId: giftTier.id,
+			});
+
+			for (const userId of [paidSubscriber.id, subscriber.id, minimumTierPaidSub.id]) {
+				const res = await postTestSdk.getPostById({
+					params: { id: created.post.id },
+					userMeta: { userId, isAuth: true, isWrongAccessJwt: false },
+				});
+
+				expect(res.status).to.equal(HttpStatus.OK);
+				if (res.status !== HttpStatus.OK) throw new Error('Request failed');
+				expect(res.body.markdown_content).to.equal(created.markdown.content_text);
+				expect(res.body.locked_preview).to.equal(undefined);
+				expect(res.body.minimal_tier_id).to.equal(minimumTier.id);
+			}
 		});
 
 		it('Subscriber receives locked preview when not allowed', async () => {

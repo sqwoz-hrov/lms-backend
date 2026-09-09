@@ -133,9 +133,8 @@ describe('[E2E] Admin signup usecase', () => {
 		expect(res.body.telegram_username).to.equal(user.telegram_username);
 		expect(res.body.name).to.equal(user.name);
 		expect(res.body.id).to.be.a('string');
-		expect(res.body.is_billable).to.equal(false);
 		expect(res.body.active_until).to.equal(null);
-		expect(res.body.subscription_tier_id).to.equal(null);
+		expect(res.body.current_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 		expect(res.body.is_archived).to.equal(false);
 		expect(res.body.finished_registration).to.equal(false);
@@ -168,9 +167,8 @@ describe('[E2E] Admin signup usecase', () => {
 		expect(res.body.telegram_username).to.equal(user.telegram_username);
 		expect(res.body.name).to.equal(user.name);
 		expect(res.body.id).to.be.a('string');
-		expect(res.body.is_billable).to.equal(false);
 		expect(res.body.active_until).to.equal(null);
-		expect(res.body.subscription_tier_id).to.equal(null);
+		expect(res.body.current_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 		expect(res.body.is_archived).to.equal(false);
 		expect(res.body.finished_registration).to.equal(false);
@@ -185,8 +183,7 @@ describe('[E2E] Admin signup usecase', () => {
 			name: createName(),
 			telegram_username: randomWord(),
 			email: createEmail(),
-			is_billable: true,
-			subscription_tier_id: subscriptionTier.id,
+			current_tier_id: subscriptionTier.id,
 			active_until: new Date('2040-01-01T00:00:00.000Z').toISOString(),
 		};
 
@@ -205,9 +202,8 @@ describe('[E2E] Admin signup usecase', () => {
 		expect(res.body.role).to.equal(user.role);
 		expect(res.body.name).to.equal(user.name);
 		expect(res.body.telegram_username).to.equal(user.telegram_username);
-		expect(res.body.is_billable).to.equal(false);
 		expect(res.body.active_until).to.equal(null);
-		expect(res.body.subscription_tier_id).to.equal(null);
+		expect(res.body.current_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 	});
 
@@ -219,9 +215,8 @@ describe('[E2E] Admin signup usecase', () => {
 			name: createName(),
 			email: createEmail(),
 			telegram_username: randomWord(),
-			subscription_tier_id: subscriptionTier.id,
+			current_tier_id: subscriptionTier.id,
 			active_until: new Date('2032-01-01T00:00:00.000Z').toISOString(),
-			is_billable: true,
 		};
 
 		const res = await userTestSdk.adminSignUp({

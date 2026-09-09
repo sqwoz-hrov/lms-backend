@@ -4,7 +4,7 @@ import { JournalRecordsTestRepository } from '../../src/journal-record/test-util
 import { MarkDownContent } from '../../src/markdown-content/markdown-content.entity';
 import { MarkDownContentTestRepository } from '../../src/markdown-content/test-utils/test.repo';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { User } from '../../src/user/user.entity';
+import { NonSubscriberUser } from '../../src/user/user.entity';
 import { randomWord } from './common.fixture';
 import { createTestMarkdownContent } from './markdown-content.fixture';
 import { createTestUser } from './user.fixture';
@@ -25,7 +25,7 @@ export const createTestJournalRecord = async (
 	userRepository: UsersTestRepository,
 	markdownContentRepository: MarkDownContentTestRepository,
 	journalRecordRepository: JournalRecordsTestRepository,
-	userOverrides: Partial<User> = {},
+	userOverrides: Partial<NonSubscriberUser> = {},
 	markdownContentOverrides: Partial<MarkDownContent> = {},
 	journalRecordOverrides: Partial<JournalRecord> = {},
 ): Promise<JournalRecord> => {

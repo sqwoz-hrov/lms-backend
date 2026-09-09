@@ -13,6 +13,11 @@ export class BasePostDto {
 	@IsNotEmpty()
 	title: string;
 
+	@ApiPropertyOptional()
+	@IsString()
+	@IsOptional()
+	slug?: string;
+
 	@ApiProperty()
 	@IsUUID()
 	@IsNotEmpty()
@@ -41,10 +46,10 @@ export class LockedPostPreviewDto {
 }
 
 export class PostResponseDto extends BasePostDto {
-	@ApiPropertyOptional({ type: [String] })
-	@IsString({ each: true })
+	@ApiPropertyOptional({ format: 'uuid' })
+	@IsUUID()
 	@IsOptional()
-	subscription_tier_ids?: string[];
+	minimal_tier_id?: string;
 
 	@ApiPropertyOptional({ type: () => LockedPostPreviewDto })
 	@ValidateNested()

@@ -5,6 +5,14 @@ import { MarkDownContentAggregation } from '../markdown-content/markdown-content
 import { NewPost, Post, PostAggregation, PostUpdate, PostWithContent } from './post.entity';
 import { CursorPaginationInput } from '../common/utils/pagination.util';
 import { PostCursorPayload } from './utils/post-cursor.util';
+import { SubscriptionTier, SubscriptionTierTable } from '../subscription-tier/subscription-tier.entity';
+
+export type MinimumPostTier = Pick<SubscriptionTier, 'id' | 'power'>;
+
+type PostRepositoryDatabase = PostAggregation &
+	MarkDownContentAggregation & {
+		subscription_tier: SubscriptionTierTable;
+	};
 
 type PaginatedPostsParams = {
 	pagination?: CursorPaginationInput<PostCursorPayload>;
@@ -12,10 +20,10 @@ type PaginatedPostsParams = {
 };
 
 export class PostRepository {
-	private readonly connection: Kysely<PostAggregation & MarkDownContentAggregation>;
+	private readonly connection: Kysely<PostRepositoryDatabase>;
 
 	constructor(@Inject(DatabaseProvider) dbProvider: DatabaseProvider) {
-		this.connection = dbProvider.getDatabase<PostAggregation & MarkDownContentAggregation>();
+		this.connection = dbProvider.getDatabase<PostRepositoryDatabase>();
 	}
 
 	async save(data: NewPost): Promise<Post> {
@@ -43,6 +51,10 @@ export class PostRepository {
 		return await this.connection.selectFrom('post').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
 	}
 
+	async findBySlug(slug: string): Promise<Post | undefined> {
+		return await this.connection.selectFrom('post').selectAll().where('slug', '=', slug).limit(1).executeTakeFirst();
+	}
+
 	async findByIdWithContent(id: string): Promise<PostWithContent | undefined> {
 		const row = await this.connection
 			.selectFrom('post')
@@ -50,6 +62,28 @@ export class PostRepository {
 			.selectAll('post')
 			.select(eb => [eb.ref('markdown_content.content_text').as('markdown_content')])
 			.where('post.id', '=', id)
+			.limit(1)
+			.executeTakeFirst();
+
+		if (!row) {
+			return undefined;
+		}
+
+		const { markdown_content, ...post } = row;
+
+		return {
+			...post,
+			markdown_content: markdown_content ?? '',
+		};
+	}
+
+	async findBySlugWithContent(slug: string): Promise<PostWithContent | undefined> {
+		const row = await this.connection
+			.selectFrom('post')
+			.innerJoin('markdown_content', 'markdown_content.id', 'post.markdown_content_id')
+			.selectAll('post')
+			.select(eb => [eb.ref('markdown_content.content_text').as('markdown_content')])
+			.where('post.slug', '=', slug)
 			.limit(1)
 			.executeTakeFirst();
 
@@ -114,37 +148,38 @@ export class PostRepository {
 		}));
 	}
 
-	async findTierIdsForPosts(postIds: readonly string[]): Promise<Record<string, string[]>> {
+	async findMinimumTiersForPosts(postIds: readonly string[]): Promise<Record<string, MinimumPostTier>> {
 		if (postIds.length === 0) {
 			return {};
 		}
 
 		const rows = await this.connection
 			.selectFrom('post_tier')
-			.select(['post_tier.post_id as post_id', 'post_tier.tier_id as tier_id'])
+			.innerJoin('subscription_tier', 'subscription_tier.id', 'post_tier.tier_id')
+			.select([
+				'post_tier.post_id as post_id',
+				'subscription_tier.id as tier_id',
+				'subscription_tier.power as tier_power',
+			])
 			.where('post_tier.post_id', 'in', Array.from(postIds))
+			.distinctOn('post_tier.post_id')
+			.orderBy('post_tier.post_id')
+			.orderBy('subscription_tier.power', 'asc')
+			.orderBy('subscription_tier.id', 'asc')
 			.execute();
 
-		return rows.reduce<Record<string, string[]>>((acc, row) => {
-			if (!acc[row.post_id]) {
-				acc[row.post_id] = [];
-			}
-
-			acc[row.post_id].push(row.tier_id);
+		return rows.reduce<Record<string, MinimumPostTier>>((acc, row) => {
+			acc[row.post_id] = { id: row.tier_id, power: row.tier_power };
 			return acc;
 		}, {});
 	}
 
-	async openForTiers(postId: string, tierIds: string[]): Promise<void> {
+	async setMinimumTier(postId: string, minimalTierId: string): Promise<void> {
 		await this.connection.deleteFrom('post_tier').where('post_id', '=', postId).execute();
-
-		if (!tierIds.length) {
-			return;
-		}
 
 		await this.connection
 			.insertInto('post_tier')
-			.values(tierIds.map(subscriptionTierId => ({ post_id: postId, tier_id: subscriptionTierId })))
+			.values({ post_id: postId, tier_id: minimalTierId })
 			.onConflict(oc => oc.columns(['post_id', 'tier_id']).doNothing())
 			.execute();
 	}

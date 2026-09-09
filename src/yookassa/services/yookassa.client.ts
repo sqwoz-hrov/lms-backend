@@ -96,6 +96,7 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 			}
 		}
 
+		// TODO: alerts on 4xx/5xx
 		if (!res.ok) {
 			this.logger.error(`YooKassa ${verb} ${path} failed (${res.status}): ${txt}`);
 			throw new Error('YooKassa request failed');

@@ -70,7 +70,7 @@ describe('[E2E] Get users usecase', () => {
 		const userTwo = await createTestUser(utilRepository);
 		const subscriptionTier = await createTestSubscriptionTier(utilRepository);
 		const subscriber = await createTestSubscriber(utilRepository, {
-			subscription_tier_id: subscriptionTier.id,
+			current_tier_id: subscriptionTier.id,
 			active_until: new Date('2033-01-01T00:00:00.000Z'),
 		});
 
@@ -92,12 +92,11 @@ describe('[E2E] Get users usecase', () => {
 
 		const returnedSubscriber = res.body.find(user => user.id === subscriber.id);
 		expect(returnedSubscriber).to.be.an('object');
-		expect(returnedSubscriber?.subscription_tier_id).to.equal(subscriber.subscription.subscription_tier_id);
+		expect(returnedSubscriber?.current_tier_id).to.equal(subscriber.subscription.current_tier_id);
 		const expectedActiveUntil = subscriber.subscription.current_period_end
 			? subscriber.subscription.current_period_end.toISOString()
 			: null;
 		expect(returnedSubscriber?.active_until).to.equal(expectedActiveUntil);
-		expect(returnedSubscriber?.is_billable).to.equal(!subscriber.subscription.is_gifted);
 		expect(returnedSubscriber?.subscription_tier).to.deep.equal({
 			id: subscriptionTier.id,
 			tier: subscriptionTier.tier,
@@ -114,7 +113,7 @@ describe('[E2E] Get users usecase', () => {
 		const userTwo = await createTestUser(utilRepository);
 		const subscriberTier = await createTestSubscriptionTier(utilRepository);
 		await createTestSubscriber(utilRepository, {
-			subscription_tier_id: subscriberTier.id,
+			current_tier_id: subscriberTier.id,
 			active_until: new Date('2035-01-01T00:00:00.000Z'),
 		});
 
@@ -143,7 +142,7 @@ describe('[E2E] Get users usecase', () => {
 		const anotherUser = await createTestUser(utilRepository);
 		const subscriberTier = await createTestSubscriptionTier(utilRepository);
 		const subscriber = await createTestSubscriber(utilRepository, {
-			subscription_tier_id: subscriberTier.id,
+			current_tier_id: subscriberTier.id,
 			active_until: new Date('2040-01-01T00:00:00.000Z'),
 		});
 
@@ -223,7 +222,7 @@ describe('[E2E] Get users usecase', () => {
 		await createTestUser(utilRepository);
 		const subscriptionTier = await createTestSubscriptionTier(utilRepository);
 		const subscriber = await createTestSubscriber(utilRepository, {
-			subscription_tier_id: subscriptionTier.id,
+			current_tier_id: subscriptionTier.id,
 			active_until: new Date('2034-05-01T00:00:00.000Z'),
 		});
 
@@ -240,9 +239,8 @@ describe('[E2E] Get users usecase', () => {
 		expect(res.body).to.be.an('array').with.lengthOf(1);
 		expect(res.body[0].id).to.equal(subscriber.id);
 		expect(res.body[0].role).to.equal('subscriber');
-		expect(res.body[0].subscription_tier_id).to.equal(subscriber.subscription.subscription_tier_id);
+		expect(res.body[0].current_tier_id).to.equal(subscriber.subscription.current_tier_id);
 		expect(res.body[0].subscription_tier?.id).to.equal(subscriptionTier.id);
-		expect(res.body[0].is_billable).to.equal(!subscriber.subscription.is_gifted);
 		const ownActiveUntil = subscriber.subscription.current_period_end
 			? subscriber.subscription.current_period_end.toISOString()
 			: null;

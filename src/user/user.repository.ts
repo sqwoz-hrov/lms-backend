@@ -1,28 +1,30 @@
-import { Kysely } from 'kysely';
+import { Kysely, NotNull, sql, Transaction } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import { Subscription } from '../subscription/subscription.entity';
 import {
 	NewUser,
-	SubscriptionTier,
+	SubscriptionGift,
 	User,
 	UserAggregation,
+	UserAndSubscriptionEntity,
 	UserRole,
 	UserSettings,
 	UserWithNullableSubscriptionTier,
 } from './user.entity';
 import { Inject, NotFoundException } from '@nestjs/common';
-
-type PrefixedValues<T, Prefix extends string> = {
-	[K in keyof T as `${Prefix}${K & string}`]: T[K] | null;
-};
+import { PrefixedValuesNullable } from '../common/kysely-types/prefixed-values';
+import { SubscriptionTierWithoutPrivateFields } from '../subscription/subscription.repository';
 
 type UserJoinRow = User &
-	PrefixedValues<Subscription, 'subscription__'> &
-	PrefixedValues<SubscriptionTier, 'subscription_tier__'>;
+	PrefixedValuesNullable<Subscription, 'subscription__'> &
+	PrefixedValuesNullable<{ is_gifted: boolean | null }, 'subscription__'> &
+	PrefixedValuesNullable<SubscriptionTierWithoutPrivateFields, 'subscription_tier__'>;
 
 type FindUsersFilters = {
 	roles?: UserRole[];
 };
+
+export type UserSubscriptionTransaction = Transaction<UserAndSubscriptionEntity>;
 
 export class UserRepository {
 	private readonly connection: Kysely<UserAggregation>;
@@ -31,30 +33,70 @@ export class UserRepository {
 		this.connection = dbProvider.getDatabase<UserAggregation>();
 	}
 
+	async transaction<T>(handler: (trx: UserSubscriptionTransaction) => Promise<T>): Promise<T> {
+		// TODO: singluar database type so that transactions will make sense. And then like a
+		// connection getter that narrows types down for a given repo. Or go with aggregates
+		return await (this.connection as unknown as Kysely<UserAndSubscriptionEntity>).transaction().execute(handler);
+	}
+
 	public async findAll(filters: FindUsersFilters = {}): Promise<UserWithNullableSubscriptionTier[]> {
 		let query = this.connection
-			.selectFrom('user')
-			.leftJoin('subscription', 'subscription.user_id', 'user.id')
-			.leftJoin('subscription_tier', 'subscription_tier.id', 'subscription.subscription_tier_id')
+			.with('current_subscription', qb =>
+				qb
+					.selectFrom('subscription as s')
+					.leftJoinLateral(
+						eb =>
+							eb
+								.selectFrom('gift')
+								.selectAll()
+								.where('gift.activated_at', 'is not', null)
+								.$narrowType<{ activated_at: NotNull }>()
+								// this abomination checks if gift is active or not. Btw, we could use virtual computed columns from pg 18
+								.whereRef('gifted_to', '=', 's.user_id')
+								.where(
+									sql`(gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval)`,
+									'>=',
+									sql`now()::timestamptz`,
+								)
+								.limit(1)
+								.as('g'),
+						join => join.onTrue(),
+					)
+					.select([
+						sql<boolean>`(g.id IS NOT NULL)`.as('is_gifted'),
+						sql<string>`COALESCE(g.tier_id, s.current_tier_id)`.as('tier_id'),
+						sql<Date | null>`COALESCE(g.activated_at::timestamptz, NULL)`.as('gift_activated_at'),
+						sql<number | null>`COALESCE(g.duration_days::smallint, NULL)`.as('duration_days'),
+					])
+					.selectAll('s'),
+			)
+			.selectFrom('current_subscription as cs')
+			// this will inaccurate details about price that person will be paying if gift is active but it's not important since we'll not bill that amount
+			.innerJoin('subscription_tier as st', 'cs.tier_id', 'st.id')
+			.rightJoin('user', 'user.id', 'cs.user_id')
 			.selectAll('user')
 			.select([
-				'subscription.id as subscription__id',
-				'subscription.user_id as subscription__user_id',
-				'subscription.subscription_tier_id as subscription__subscription_tier_id',
-				'subscription.price_on_purchase_rubles as subscription__price_on_purchase_rubles',
-				'subscription.is_gifted as subscription__is_gifted',
-				'subscription.grace_period_size as subscription__grace_period_size',
-				'subscription.billing_period_days as subscription__billing_period_days',
-				'subscription.current_period_end as subscription__current_period_end',
-				'subscription.last_billing_attempt as subscription__last_billing_attempt',
-				'subscription.created_at as subscription__created_at',
-				'subscription.updated_at as subscription__updated_at',
-				'subscription_tier.id as subscription_tier__id',
-				'subscription_tier.tier as subscription_tier__tier',
-				'subscription_tier.power as subscription_tier__power',
-				'subscription_tier.permissions as subscription_tier__permissions',
-				'subscription_tier.price_rubles as subscription_tier__price_rubles',
-			]);
+				'cs.id as subscription__id',
+				'cs.user_id as subscription__user_id',
+				// this overrides tier id from gift if gift is active
+				'cs.tier_id as subscription__current_tier_id',
+				'cs.next_tier_id as subscription__next_tier_id',
+				// price on purchase will be equal to current tier price since we'll add soft deletion
+				'cs.price_on_purchase_rubles as subscription__price_on_purchase_rubles',
+				'cs.is_gifted as subscription__is_gifted',
+				'cs.grace_period_size as subscription__grace_period_size',
+				'cs.billing_period_days as subscription__billing_period_days',
+				'cs.current_period_end as subscription__current_period_end',
+				'cs.last_billing_attempt as subscription__last_billing_attempt',
+				'cs.created_at as subscription__created_at',
+				'cs.updated_at as subscription__updated_at',
+				'st.id as subscription_tier__id',
+				'st.tier as subscription_tier__tier',
+				'st.power as subscription_tier__power',
+				'st.permissions as subscription_tier__permissions',
+				'st.price_rubles as subscription_tier__price_rubles',
+			])
+			.limit(20);
 
 		if (filters.roles?.length) {
 			query = query.where('user.role', 'in', filters.roles);
@@ -71,33 +113,70 @@ export class UserRepository {
 		return user;
 	}
 
+	// TODO: tests :/
 	public async findByIdWithSubscriptionTier(id: string): Promise<UserWithNullableSubscriptionTier | undefined> {
-		const row = await this.connection
-			.selectFrom('user')
-			.leftJoin('subscription', 'subscription.user_id', 'user.id')
-			.leftJoin('subscription_tier', 'subscription_tier.id', 'subscription.subscription_tier_id')
+		const query = this.connection
+			.with('current_subscription', qb =>
+				qb
+					.selectFrom('subscription as s')
+					.leftJoinLateral(
+						eb =>
+							eb
+								.selectFrom('gift')
+								.selectAll()
+								.where('gift.activated_at', 'is not', null)
+								.$narrowType<{ activated_at: NotNull }>()
+								// this abomination checks if gift is active or not. Btw, we could use virtual computed columns from pg 18
+								.whereRef('gifted_to', '=', 's.user_id')
+								.where(
+									sql`(gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval)`,
+									'>=',
+									sql`now()::timestamptz`,
+								)
+								.limit(1)
+								.as('g'),
+						join => join.onTrue(),
+					)
+					.where('s.user_id', '=', id)
+					.select([
+						sql<boolean>`(g.id IS NOT NULL)`.as('is_gifted'),
+						sql<string>`COALESCE(g.tier_id, s.current_tier_id)`.as('tier_id'),
+						sql<Date | null>`COALESCE(g.activated_at::timestamptz, NULL)`.as('gift_activated_at'),
+						sql<number | null>`COALESCE(g.duration_days::smallint, NULL)`.as('duration_days'),
+					])
+					.selectAll('s'),
+			)
+			.selectFrom('current_subscription as cs')
+			// this will inaccurate details about price that person will be paying if gift is active but it's not important since we'll not bill that amount
+			// TODO: test cases
+			.innerJoin('subscription_tier as st', 'cs.tier_id', 'st.id')
+			.rightJoin('user', 'user.id', 'cs.user_id')
 			.selectAll('user')
 			.select([
-				'subscription.id as subscription__id',
-				'subscription.user_id as subscription__user_id',
-				'subscription.subscription_tier_id as subscription__subscription_tier_id',
-				'subscription.price_on_purchase_rubles as subscription__price_on_purchase_rubles',
-				'subscription.is_gifted as subscription__is_gifted',
-				'subscription.grace_period_size as subscription__grace_period_size',
-				'subscription.billing_period_days as subscription__billing_period_days',
-				'subscription.current_period_end as subscription__current_period_end',
-				'subscription.last_billing_attempt as subscription__last_billing_attempt',
-				'subscription.created_at as subscription__created_at',
-				'subscription.updated_at as subscription__updated_at',
-				'subscription_tier.id as subscription_tier__id',
-				'subscription_tier.tier as subscription_tier__tier',
-				'subscription_tier.power as subscription_tier__power',
-				'subscription_tier.permissions as subscription_tier__permissions',
-				'subscription_tier.price_rubles as subscription_tier__price_rubles',
+				'cs.id as subscription__id',
+				'cs.user_id as subscription__user_id',
+				// this overrides tier id from gift if gift is active
+				'cs.tier_id as subscription__current_tier_id',
+				'cs.next_tier_id as subscription__next_tier_id',
+				// price on purchase will be equal to current tier price since we'll add soft deletion
+				'cs.price_on_purchase_rubles as subscription__price_on_purchase_rubles',
+				'cs.is_gifted as subscription__is_gifted',
+				'cs.grace_period_size as subscription__grace_period_size',
+				'cs.billing_period_days as subscription__billing_period_days',
+				'cs.current_period_end as subscription__current_period_end',
+				'cs.last_billing_attempt as subscription__last_billing_attempt',
+				'cs.created_at as subscription__created_at',
+				'cs.updated_at as subscription__updated_at',
+				'st.id as subscription_tier__id',
+				'st.tier as subscription_tier__tier',
+				'st.power as subscription_tier__power',
+				'st.permissions as subscription_tier__permissions',
+				'st.price_rubles as subscription_tier__price_rubles',
 			])
 			.where('user.id', '=', id)
-			.limit(1)
-			.executeTakeFirst();
+			.limit(1);
+
+		const row = await query.executeTakeFirst();
 
 		if (!row) {
 			return undefined;
@@ -163,7 +242,8 @@ export class UserRepository {
 		const {
 			subscription__id,
 			subscription__user_id,
-			subscription__subscription_tier_id,
+			subscription__current_tier_id,
+			subscription__next_tier_id,
 			subscription__price_on_purchase_rubles,
 			subscription__is_gifted,
 			subscription__grace_period_size,
@@ -180,11 +260,12 @@ export class UserRepository {
 			...user
 		} = row;
 
-		let subscription: Subscription | null = null;
+		let subscription: (Subscription & SubscriptionGift) | null = null;
 		if (
 			subscription__id !== null &&
 			subscription__user_id !== null &&
-			subscription__subscription_tier_id !== null &&
+			subscription__current_tier_id !== null &&
+			subscription__next_tier_id !== null &&
 			subscription__price_on_purchase_rubles !== null &&
 			subscription__is_gifted !== null &&
 			subscription__grace_period_size !== null &&
@@ -195,7 +276,8 @@ export class UserRepository {
 			subscription = {
 				id: subscription__id,
 				user_id: subscription__user_id,
-				subscription_tier_id: subscription__subscription_tier_id,
+				current_tier_id: subscription__current_tier_id,
+				next_tier_id: subscription__next_tier_id,
 				price_on_purchase_rubles: subscription__price_on_purchase_rubles,
 				is_gifted: subscription__is_gifted,
 				grace_period_size: subscription__grace_period_size,
@@ -207,7 +289,7 @@ export class UserRepository {
 			};
 		}
 
-		const subscriptionTier: SubscriptionTier | null =
+		const subscriptionTier: SubscriptionTierWithoutPrivateFields | null =
 			subscription_tier__id !== null &&
 			subscription_tier__tier !== null &&
 			subscription_tier__power !== null &&
@@ -223,11 +305,12 @@ export class UserRepository {
 
 		const baseUser: User = user;
 
-		const result: UserWithNullableSubscriptionTier = {
+		// TODO: somehow move the db constraint into the typings as well
+		const result = {
 			...baseUser,
 			subscription,
 			subscription_tier: subscriptionTier,
-		};
+		} as unknown as UserWithNullableSubscriptionTier;
 
 		return result;
 	}

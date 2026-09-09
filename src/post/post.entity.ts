@@ -5,6 +5,7 @@ import { Timestamp } from '../common/kysely-types/timestamp';
 export interface PostTable {
 	id: Generated<string>;
 	title: string;
+	slug: string | null;
 	markdown_content_id: string;
 	video_id: string | null;
 	created_at: Generated<Timestamp>;

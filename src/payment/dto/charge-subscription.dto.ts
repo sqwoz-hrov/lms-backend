@@ -8,7 +8,7 @@ export class ChargeSubscriptionDto {
 		description: 'Целевой идентификатор тарифа подписки, для которого нужно создать оплату',
 	})
 	@IsUUID()
-	subscription_tier_id: string;
+	current_tier_id: string;
 }
 
 export class ChargeSubscriptionResponseDto {

@@ -121,8 +121,7 @@ describe('[E2E] Get limits usecase', () => {
 			tier: 'paid',
 		});
 		const subscriber = await createTestSubscriber(usersRepo, {
-			subscription_tier_id: paidTier.id,
-			is_billable: true,
+			current_tier_id: paidTier.id,
 		});
 		await limitsFixture.insertUsageRecords({ userId: subscriber.id, count: 5 });
 
@@ -150,8 +149,7 @@ describe('[E2E] Get limits usecase', () => {
 			tier: 'free',
 		});
 		const subscriber = await createTestSubscriber(usersRepo, {
-			subscription_tier_id: freeTier.id,
-			is_billable: false,
+			current_tier_id: freeTier.id,
 		});
 		const threshold = Math.max(limitsConfig.interviewTranscriptionDaily, limitsConfig.interviewTranscriptionHourly);
 		await limitsFixture.insertUsageRecords({ userId: subscriber.id, count: threshold });
