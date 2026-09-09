@@ -222,7 +222,7 @@ describe('[E2E] Gift subscription usecase', () => {
 
 			expect(persisted.current_tier_id).to.equal(freeTier.id);
 			expect(persisted.next_tier_id).to.equal(existingSubscription.next_tier_id);
-			expect(persisted.billing_period_days).to.equal(30);
+			expect(persisted.billing_period_days).to.equal(0);
 			expect(persisted.price_on_purchase_rubles).to.equal(existingSubscription.price_on_purchase_rubles);
 			expect(persisted.grace_period_size).to.equal(existingSubscription.grace_period_size);
 

@@ -261,6 +261,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const expectedEnd = addDays(currentPeriodEnd, billingPeriodDays);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(updatedSubscription.billing_period_days).to.equal(billingPeriodDays);
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		expect(updatedSubscription.current_tier_id).to.equal(subscription.current_tier_id);
 		expect(updatedSubscription.next_tier_id).to.equal(subscription.next_tier_id);
@@ -319,6 +320,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			'Subscription missing after webhook',
 		);
 		expect(subscriptionAfterFirstCall.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(subscriptionAfterFirstCall.billing_period_days).to.equal(billingPeriodDays);
 		expect(subscriptionAfterFirstCall.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 
 		const redeliveryAt = addDays(occurredAt, 10);
@@ -339,6 +341,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			'Subscription missing after webhook',
 		);
 		expect(subscriptionAfterSecondCall.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(subscriptionAfterSecondCall.billing_period_days).to.equal(billingPeriodDays);
 		expect(subscriptionAfterSecondCall.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 
 		expect(subscriptionAfterSecondCall.current_period_end?.getTime()).to.equal(
@@ -398,6 +401,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const expectedEnd = addDays(now, 30);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(updatedSubscription.billing_period_days).to.equal(30);
+		expect(subscription.billing_period_days).to.equal(updatedSubscription.billing_period_days);
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
 		expect(updatedSubscription.current_tier_id).to.equal(subscription.current_tier_id);
 		expect(updatedSubscription.next_tier_id).to.equal(subscription.next_tier_id);
@@ -502,6 +507,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const expectedEnd = addDays(currentPeriodEnd, 30);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(updatedSubscription.billing_period_days).to.equal(30);
+		expect(subscription.billing_period_days).to.equal(updatedSubscription.billing_period_days);
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		expect(updatedSubscription.current_tier_id).to.equal(standardTier.id);
 		expect(updatedSubscription.next_tier_id).to.equal(standardTier.id);
@@ -558,6 +565,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 		const expectedEnd = addDays(currentPeriodEnd, 30);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(expectedEnd.getTime());
+		expect(updatedSubscription.billing_period_days).to.equal(30);
+		expect(subscription.billing_period_days).to.equal(updatedSubscription.billing_period_days);
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(occurredAt.getTime());
 		expect(updatedSubscription.current_tier_id).to.equal(vipTier.id);
 		expect(updatedSubscription.next_tier_id).to.equal(vipTier.id);
@@ -627,6 +636,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const updatedSubscription = await findSubscriptionOrFail(subscription.id);
 		expect(updatedSubscription.current_tier_id).to.equal(vipTier.id);
 		expect(updatedSubscription.next_tier_id).to.equal(vipTier.id);
+		expect(updatedSubscription.billing_period_days).to.equal(30);
+		expect(subscription.billing_period_days).to.equal(updatedSubscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(addDays(currentPeriodEnd, 30).getTime());
 
 		const stashedGift = await giftRepo.getByFields({ giftedBy: user.id, giftedTo: user.id, tierId: giftTier.id });
@@ -684,6 +695,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const updatedSubscription = await findSubscriptionOrFail(subscription.id);
 		expect(updatedSubscription.current_tier_id).to.equal(paidTier.id);
 		expect(updatedSubscription.next_tier_id).to.equal(paidTier.id);
+		expect(updatedSubscription.billing_period_days).to.equal(30);
+		expect(subscription.billing_period_days).to.equal(updatedSubscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(addDays(currentPeriodEnd, 30).getTime());
 
 		const stashedGift = await giftRepo.getByFields({ giftedBy: user.id, giftedTo: user.id, tierId: paidTier.id });
@@ -723,6 +736,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			},
 			paymentMethodId: 'pm-gift-low',
 		});
+		expect(subscription.billing_period_days).to.eq(0);
 
 		const activatedAt = addDays(new Date(), -5);
 		const gift = await giftRepo.insertGift({
@@ -751,6 +765,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const updatedSubscription = await findSubscriptionOrFail(subscription.id);
 		expect(updatedSubscription.current_tier_id).to.equal(vipTier.id);
 		expect(updatedSubscription.next_tier_id).to.equal(vipTier.id);
+		expect(updatedSubscription.billing_period_days).to.equal(30);
+		expect(subscription.billing_period_days).to.not.equal(updatedSubscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(addDays(occurredAt, 30).getTime());
 
 		const stashedGift = await giftRepo.getByFields({ giftedBy: user.id, giftedTo: user.id, tierId: giftTier.id });
@@ -815,6 +831,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const updatedSubscription = await findSubscriptionOrFail(subscription.id);
 		expect(updatedSubscription.current_tier_id).to.equal(tier1.id);
 		expect(updatedSubscription.next_tier_id).to.equal(tier1.id);
+		expect(updatedSubscription.billing_period_days).to.equal(30);
+		expect(subscription.billing_period_days).to.equal(updatedSubscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(
 			addDays(currentPeriodEnd, 30 + giftDurationDays - 2).getTime(),
 		);
@@ -875,6 +893,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			'Subscription missing after payment failure',
 		);
 		expect(updatedSubscription.current_tier_id).to.equal(premiumTier.id);
+		expect(updatedSubscription.billing_period_days).to.equal(subscription.billing_period_days);
+		expect(subscription.billing_period_days).to.equal(updatedSubscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(currentPeriodEnd.getTime());
 		expect(updatedSubscription.last_billing_attempt?.getTime()).to.equal(now.getTime());
 

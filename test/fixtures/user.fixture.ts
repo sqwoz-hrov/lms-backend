@@ -170,7 +170,7 @@ export const createTestSubscriber = async (
 			next_tier_id: resolvedTierId,
 			price_on_purchase_rubles: 1500,
 			grace_period_size: 3,
-			billing_period_days: 30,
+			billing_period_days: subscriptionTier.power === 0 ? 0 : 30,
 			current_period_end: currentPeriodEnd,
 			last_billing_attempt: null,
 		})

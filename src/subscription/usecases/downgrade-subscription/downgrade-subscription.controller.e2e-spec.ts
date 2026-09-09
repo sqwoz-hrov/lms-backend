@@ -117,6 +117,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 		expect(response.body.nextTierId).to.equal(standardTier.id);
 		expect(response.body.priceOnPurchaseRubles).to.equal(standardTier.price_rubles);
 		expect(response.body.billingPeriodDays).to.equal(existingSubscription.billing_period_days);
+		expect(response.body.billingPeriodDays).to.be.greaterThan(0);
 		expect(response.body.currentPeriodEnd).to.equal(existingSubscription.current_period_end?.toISOString());
 		expect(response.body.lastBillingAttempt).to.equal(lastAttempt.toISOString());
 		expect(response.body.gracePeriodSize).to.equal(existingSubscription.grace_period_size);
@@ -131,6 +132,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 		expect(persisted.next_tier_id).to.equal(standardTier.id);
 		expect(persisted.price_on_purchase_rubles).to.equal(standardTier.price_rubles);
 		expect(persisted.billing_period_days).to.equal(existingSubscription.billing_period_days);
+		expect(persisted.billing_period_days).to.be.greaterThan(0);
 		expect(persisted.current_period_end?.getTime()).to.equal(activeUntil.getTime());
 		expect(persisted.last_billing_attempt?.getTime()).to.equal(lastAttempt.getTime());
 	});
@@ -172,6 +174,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 		expect(response.body.currentTierId).to.equal(existingSubscription.current_tier_id);
 		// next tier is set to the downgraded one
 		expect(response.body.nextTierId).to.equal(freeTier.id);
+		expect(response.body.billingPeriodDays).to.be.greaterThan(0);
 
 		const persisted = await subscriptionRepo.findById(existingSubscription.id);
 		expect(persisted).to.not.be.a('undefined');
@@ -181,6 +184,7 @@ describe('[E2E] Downgrade subscription usecase', () => {
 
 		expect(persisted.current_tier_id).to.equal(existingSubscription.current_tier_id);
 		expect(persisted.next_tier_id).to.equal(freeTier.id);
+		expect(persisted.billing_period_days).to.be.greaterThan(0);
 	});
 
 	it('lets user downgrade despite having active higher-power gift and only lowers next tier', async () => {
@@ -228,11 +232,13 @@ describe('[E2E] Downgrade subscription usecase', () => {
 
 		expect(response.body.currentTierId).to.equal(existingSubscription.current_tier_id);
 		expect(response.body.nextTierId).to.equal(freeTier.id);
+		expect(response.body.billingPeriodDays).to.be.greaterThan(0);
 
 		const userWithSubscription = await userRepository.findByIdWithSubscriptionTier(subscriber.id);
 		expect(userWithSubscription?.subscription?.current_tier_id).to.equal(giftedTier.id);
 		expect(userWithSubscription?.subscription_tier?.id).to.equal(giftedTier.id);
 		expect(userWithSubscription?.subscription?.next_tier_id).to.equal(freeTier.id);
+		expect(userWithSubscription?.subscription?.billing_period_days).to.be.greaterThan(0);
 	});
 
 	it('rejects attempts to upgrade subscription via downgrade endpoint', async () => {

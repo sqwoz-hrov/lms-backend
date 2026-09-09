@@ -420,6 +420,7 @@ describe('SubscriptionBillingService integration', () => {
 		const sub = await subscriptionTestRepo.findById(subscriber.subscription.id);
 		expect(sub?.current_tier_id).to.equal(freeTier.id);
 		expect(sub?.next_tier_id).to.equal(freeTier.id);
+		expect(sub?.billing_period_days).to.equal(0);
 
 		const userWithSubAfter = await usersRepo.findByIdWithSubscriptionTier(subscriber.id);
 		expect(userWithSubAfter?.subscription?.is_gifted).to.be.false;
@@ -528,6 +529,7 @@ describe('SubscriptionBillingService integration', () => {
 		expect(userWithSubAfterSecond?.subscription?.is_gifted).to.be.false;
 		expect(userWithSubAfterSecond?.subscription?.current_tier_id).to.equal(nextTier.id);
 		expect(userWithSubAfterSecond?.subscription?.next_tier_id).to.equal(nextTier.id);
+		expect(userWithSubAfterSecond?.subscription?.billing_period_days).to.be.greaterThan(0);
 		// we probably don't update the thing here, we just charge for the next tier
 		// should make sure to update in webhook processing
 		expect(userWithSubAfterSecond?.subscription?.price_on_purchase_rubles).to.equal(nextTier.price_rubles);

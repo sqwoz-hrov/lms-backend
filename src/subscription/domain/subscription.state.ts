@@ -41,13 +41,14 @@ export class SubscriptionStateService {
 		const { subscription, event, freeTier } = params;
 		const { currentActiveGiftSubscription, currentPaidSubscription } = subscription;
 
+		const occurredAt = event.occurredAt;
+		const base = this.maxDate(currentPaidSubscription.subscription.current_period_end, occurredAt);
+		const periodDays = this.normalizePeriodDays(
+			currentPaidSubscription.subscription.billing_period_days || this.defaultBillingPeriodDays,
+		);
+
 		switch (event.type) {
 			case 'payment.succeeded': {
-				const occurredAt = event.occurredAt;
-				const base = this.maxDate(currentPaidSubscription.subscription.current_period_end, occurredAt);
-				const periodDays = this.normalizePeriodDays(
-					currentPaidSubscription.subscription.billing_period_days || this.defaultBillingPeriodDays,
-				);
 
 				const giftedSubDays = this.normalizeGiftDays(currentActiveGiftSubscription?.gift.giftedDaysLeft);
 				const giftedSubPower = currentActiveGiftSubscription?.currentTier.giftedTierPower ?? 0;
@@ -62,6 +63,7 @@ export class SubscriptionStateService {
 					const updated: SubscriptionState = {
 						...currentPaidSubscription.subscription,
 						price_on_purchase_rubles: parseAmount(event.meta.paidAmount.value),
+						billing_period_days: periodDays,
 						grace_period_size: this.defaultGracePeriodSize,
 						current_period_end: nextEnd,
 						last_billing_attempt: occurredAt,
@@ -70,6 +72,7 @@ export class SubscriptionStateService {
 					if (targetTierId !== currentPaidSubscription.subscription.current_tier_id) {
 						const switched: SubscriptionState = {
 							...updated,
+							billing_period_days: periodDays,
 							price_on_purchase_rubles: parseAmount(event.meta.paidAmount.value),
 							current_tier_id: targetTierId,
 							next_tier_id: targetTierId,
@@ -91,6 +94,7 @@ export class SubscriptionStateService {
 
 					const updated: SubscriptionState = {
 						...currentPaidSubscription.subscription,
+						billing_period_days: periodDays,
 						grace_period_size: this.defaultGracePeriodSize,
 						current_period_end: nextEnd,
 						last_billing_attempt: occurredAt,
@@ -101,6 +105,7 @@ export class SubscriptionStateService {
 						const switched: SubscriptionState = {
 							...updated,
 							current_tier_id: targetTierId,
+							billing_period_days: periodDays,
 							next_tier_id: targetTierId,
 							price_on_purchase_rubles: parseAmount(event.meta.paidAmount.value),
 						};
@@ -112,7 +117,6 @@ export class SubscriptionStateService {
 				}
 			}
 			case 'payment.canceled': {
-				const occurredAt = params.event.occurredAt;
 				const withinGrace = this.isWithinGracePeriod(currentPaidSubscription.subscription, occurredAt);
 
 				if (!withinGrace) {
@@ -128,6 +132,7 @@ export class SubscriptionStateService {
 
 				const updated: SubscriptionState = {
 					...currentPaidSubscription.subscription,
+					billing_period_days: periodDays,
 					last_billing_attempt: occurredAt,
 				};
 
