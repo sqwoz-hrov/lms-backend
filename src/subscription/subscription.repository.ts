@@ -464,7 +464,6 @@ export class SubscriptionRepository {
 		params: FindDowngradeCandidateSubscriptionsParams,
 	): Promise<DowngradeCandidateSubscriptionRow[]> {
 		const executor = this.getExecutor(params.trx);
-		const retryAfter = new Date(params.runDate.getTime() - params.retryWindowDays * MS_IN_DAY);
 		const doNotChargeAfter = getStartOfDayUtc(params.runDate);
 
 		/*
@@ -494,9 +493,6 @@ export class SubscriptionRepository {
 					'<',
 					doNotChargeAfter,
 				),
-			)
-			.where(eb =>
-				eb('subscription.last_billing_attempt', 'is', null).or('subscription.last_billing_attempt', '<=', retryAfter),
 			);
 
 		if (params.cursor) {

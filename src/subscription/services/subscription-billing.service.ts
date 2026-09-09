@@ -95,7 +95,7 @@ export class SubscriptionBillingService {
 		this.logger.debug(`Loaded free tier tierId=${freeTier.id}`);
 
 		// this data set should not cross with the billableSubscriptions, otherwise it'll double up the 'processed' numbers
-		for await (const downgradeCandidatesBatch of this.fetchDowngradeCandidateSubscriptions({ runDate, signal })) {
+		for await (const downgradeCandidatesBatch of this.fetchNonBillableDowngradeCandidateSubscriptions({ runDate, signal })) {
 			if (signal.aborted) {
 				this.logger.warn('Subscription billing run aborted, stopping processing loop');
 				break;
@@ -182,7 +182,7 @@ export class SubscriptionBillingService {
 	// - next_tier_id is free tier
 	// - no active payment methods
 	// the billables that have failed will be processed in webhook processing code
-	private async *fetchDowngradeCandidateSubscriptions(params: {
+	private async *fetchNonBillableDowngradeCandidateSubscriptions(params: {
 		runDate: Date;
 		signal: AbortSignal;
 	}): AsyncGenerator<DowngradeCandidateSubscriptionRow[]> {

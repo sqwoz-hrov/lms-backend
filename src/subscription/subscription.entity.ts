@@ -13,6 +13,7 @@ export interface SubscriptionTable {
 	grace_period_size: ColumnType<number, number | undefined>;
 	billing_period_days: number;
 	current_period_end: ColumnType<Date | null, Date | string | null | undefined>;
+	// семантически  это  НЕ дата наступления недавнего фейла / успеха по платежу. Это именно когда МЫ пытались забиллить - по сути аналог таймштампа в эвенте billing.charge-request* / billing.attempt-prepared
 	last_billing_attempt: ColumnType<Date | null, Date | string | null | undefined>;
 	created_at: Generated<Timestamp>;
 	updated_at: Generated<Timestamp>;
