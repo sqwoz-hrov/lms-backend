@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { randomUUID } from 'crypto';
+import { randomUUID as v4 } from 'crypto';
 import { subscriptionBillingConfig } from '../../config/subscription-billing.config';
 import { YOOKASSA_CLIENT } from '../../yookassa/constants';
 import { YookassaClientPort } from '../../yookassa/services/yookassa-client.interface';
@@ -125,7 +125,7 @@ export class SubscriptionBillingService {
 		runDate: Date,
 	): Promise<BillingOutcome> {
 		const context: BillingAttemptContext = {
-			attemptId: randomUUID(),
+			attemptId: v4(),
 			attemptTime: new Date(),
 			runDate,
 			paymentMethodId: candidate.billing_payment_method_id,
@@ -149,7 +149,7 @@ export class SubscriptionBillingService {
 				amountRubles: prepared.subscription.price_on_purchase_rubles,
 				description: this.config.description,
 				paymentMethodId: candidate.billing_payment_method_id,
-				idempotenceKey: `subscription-billing-${prepared.subscription.id}-${context.attemptId}`,
+				idempotenceKey: `subscription-billing-${context.attemptId}`,
 				metadata: {
 					user_id: prepared.subscription.user_id,
 					current_tier_id: prepared.subscription.next_tier_id,
