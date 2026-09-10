@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { yookassaConfig } from '../../config/yookassa.config';
+import { yookassaRequestErrorsTotal } from '../infra/metrics';
 import {
 	ChargeSavedPaymentParams,
 	CreatePaymentMethodParams,
@@ -96,9 +97,16 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 			}
 		}
 
-		// TODO: alerts on 4xx/5xx
+		if (res.status >= 400) {
+			yookassaRequestErrorsTotal.inc({
+				error_code: res.status.toString(),
+				request_path: `/${path}`,
+				request_method: verb,
+			});
+		}
+
 		if (!res.ok) {
-			this.logger.error(`YooKassa ${verb} ${path} failed (${res.status}): ${txt}`);
+			this.logger.error(`YooKassa ${verb} /${path} failed (${res.status}): ${txt}`);
 			throw new Error('YooKassa request failed');
 		}
 
@@ -144,6 +152,8 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 	}
 
 	async getPaymentMethod(params: GetPaymentMethodParams): Promise<YookassaPaymentMethod> {
-		return await this.req<YookassaPaymentMethod>('GET', `payment_methods/${params.paymentMethodId}`);
+		return await this.req<YookassaPaymentMethod>('GET', `payment_methods/${params.paymentMethodId}`, {
+			metricsPath: 'payment_methods/:paymentMethodId',
+		});
 	}
 }
