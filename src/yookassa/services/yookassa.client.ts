@@ -69,6 +69,7 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 		const headers: Record<string, string> = { Authorization: `Basic ${this.basicAuthToken}` };
 		if (body !== undefined) headers['Content-Type'] = 'application/json';
 		if (verb === 'POST' || verb === 'PUT' || verb === 'PATCH')
+			// TODO: this is a design flaw, kinda critical for POSTs we need to rememember the idempotence keys
 			headers['Idempotence-Key'] = idempotenceKey ?? randomUUID();
 
 		const sanitizedHeaders = this.sanitizeHeaders(headers);
@@ -152,8 +153,6 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 	}
 
 	async getPaymentMethod(params: GetPaymentMethodParams): Promise<YookassaPaymentMethod> {
-		return await this.req<YookassaPaymentMethod>('GET', `payment_methods/${params.paymentMethodId}`, {
-			metricsPath: 'payment_methods/:paymentMethodId',
-		});
+		return await this.req<YookassaPaymentMethod>('GET', `payment_methods/${params.paymentMethodId}`);
 	}
 }
