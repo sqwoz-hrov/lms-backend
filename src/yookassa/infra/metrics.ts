@@ -1,5 +1,5 @@
-import { Counter } from "prom-client";
-import { registry } from "../../common/metrics/metrics";
+import { Counter } from 'prom-client';
+import { registry } from '../../common/metrics/metrics';
 
 export const yookassaRequestErrorsTotal = new Counter({
 	name: 'lms_backend_yookassa_request_errors_total',

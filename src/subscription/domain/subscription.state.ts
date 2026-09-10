@@ -49,7 +49,6 @@ export class SubscriptionStateService {
 
 		switch (event.type) {
 			case 'payment.succeeded': {
-
 				const giftedSubDays = this.normalizeGiftDays(currentActiveGiftSubscription?.gift.giftedDaysLeft);
 				const giftedSubPower = currentActiveGiftSubscription?.currentTier.giftedTierPower ?? 0;
 
