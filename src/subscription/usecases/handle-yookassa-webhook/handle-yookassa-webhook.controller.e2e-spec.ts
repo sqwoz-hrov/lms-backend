@@ -882,7 +882,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 					current_tier_id: subscription.current_tier_id,
 				},
 				created_at: now.toISOString(),
-				canceled_at: now.toISOString(),
 			},
 		};
 
@@ -938,7 +937,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 					current_tier_id: subscription.current_tier_id,
 				},
 				created_at: canceledAt.toISOString(),
-				canceled_at: createdAt.toISOString(),
 			},
 		};
 
@@ -1005,7 +1003,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 					current_tier_id: premiumTier.id,
 				},
 				created_at: canceledAt.toISOString(),
-				canceled_at: createdAt.toISOString(),
 			},
 		};
 
@@ -1069,7 +1066,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 					current_tier_id: subscription.current_tier_id,
 				},
 				created_at: canceledAt.toISOString(),
-				canceled_at: createdAt.toISOString(),
 			},
 		};
 

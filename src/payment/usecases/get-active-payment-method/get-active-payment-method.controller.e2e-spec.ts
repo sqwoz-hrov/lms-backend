@@ -177,7 +177,6 @@ describe('[E2E] Get active payment method usecase', () => {
 					current_tier_id: subscriber.subscription.current_tier_id,
 				},
 				created_at: new Date('2026-01-01T00:00:00.000Z').toISOString(),
-				canceled_at: new Date('2026-01-01T00:00:00.000Z').toISOString(),
 				payment_method: {
 					id: 'pm-get-problems',
 					type: 'bank_card',

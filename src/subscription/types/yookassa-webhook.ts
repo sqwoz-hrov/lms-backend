@@ -90,7 +90,6 @@ const paymentCanceledObjectSchema = paymentBaseSchema
 	.extend({
 		status: z.literal('canceled'),
 		paid: z.boolean(),
-		canceled_at: z.string(),
 		cancellation_details: z
 			.object({
 				party: z.string().optional(),

@@ -83,7 +83,6 @@ describe('[E2E] List payment history usecase', () => {
 				current_tier_id: params.currentTierId,
 			},
 			created_at: params.createdAt.toISOString(),
-			canceled_at: params.createdAt.toISOString(),
 			payment_method: {
 				id: params.paymentMethodId,
 				type: 'bank_card',
