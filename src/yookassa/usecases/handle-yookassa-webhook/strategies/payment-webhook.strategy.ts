@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Switch } from '../../../../common/utils/safe-guard';
-import { SubscriptionRepository } from '../../../subscription.repository';
-import { EventMetadata, PaymentWebhookEvent } from '../../../types/yookassa-webhook';
+import { SubscriptionRepository } from '../../../../subscription/subscription.repository';
+import { EventMetadata, PaymentWebhookEvent } from '../../../../subscription/types/yookassa-webhook';
 import { PaymentWebhookPayload, WebhookRouteParams } from './webhook-router';
-import { SubscriptionStateService } from '../../../domain/subscription.state';
+import { SubscriptionStateService } from '../../../../subscription/domain/subscription.state';
 import { GiftRepository } from '../../../../gift/gift.repository';
 
 @Injectable()

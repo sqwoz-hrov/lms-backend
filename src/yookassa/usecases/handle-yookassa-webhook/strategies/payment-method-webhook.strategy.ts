@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SubscriptionRepository } from '../../../subscription.repository';
-import { YookassaPaymentMethodActiveWebhook } from '../../../types/yookassa-webhook';
+import { SubscriptionRepository } from '../../../../subscription/subscription.repository';
+import { YookassaPaymentMethodActiveWebhook } from '../../../../subscription/types/yookassa-webhook';
 import { WebhookRouteParams } from './webhook-router';
 
 @Injectable()

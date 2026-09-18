@@ -7,21 +7,21 @@ import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
-import { NewSubscription } from '../../subscription.entity';
-import { SubscriptionTestRepository } from '../../test-utils/test.repo';
-import { SubscriptionTestSdk } from '../../test-utils/test.sdk';
+import { NewSubscription } from '../../../subscription/subscription.entity';
+import { SubscriptionTestRepository } from '../../../subscription/test-utils/test.repo';
+import { SubscriptionTestSdk } from '../../../subscription/test-utils/test.sdk';
 import {
 	YookassaPaymentCanceledWebhook,
 	YookassaPaymentMethodActiveWebhook,
 	YookassaPaymentSucceededWebhook,
 	YookassaWebhookPayload,
-} from '../../types/yookassa-webhook';
+} from '../../../subscription/types/yookassa-webhook';
 import { randomUUID } from 'crypto';
 import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
 import { UserRepository } from '../../../user/user.repository';
-import { expectSubscriptionIsFree } from '../../test-utils/utils';
+import { expectSubscriptionIsFree } from '../../../subscription/test-utils/utils';
 import * as sinon from 'sinon';
-import { SubscriptionTierWithoutPrivateFields } from '../../subscription.repository';
+import { SubscriptionTierWithoutPrivateFields } from '../../../subscription/subscription.repository';
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
@@ -901,7 +901,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	});
 
 	it('stores cancellation event and downgrades subscription to free tier outside grace period', async () => {
-		const createdAt = new Date('2025-01-20T07:00:00.000Z');
 		const canceledAt = new Date('2025-01-20T08:00:00.000Z');
 
 		const {
@@ -955,7 +954,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	});
 
 	it('stores cancellation event and downgrades paid subscription to free tier outside grace period but gifted sub stays same', async () => {
-		const createdAt = new Date('2025-01-20T07:00:00.000Z');
 		const canceledAt = new Date('2025-01-20T08:00:00.000Z');
 		const giftDurationDays = 10;
 
@@ -1030,7 +1028,6 @@ describe('[E2E] Handle YooKassa webhook', () => {
 
 	it('does not downgrade subscription to free tier if payment failed within grace period', async () => {
 		const freeTier = await createTestSubscriptionTier(usersUtilRepository, { tier: 'free', power: 0 });
-		const createdAt = new Date('2025-01-20T07:00:00.000Z');
 		const canceledAt = new Date('2025-03-12T12:00:00.000Z');
 
 		const {

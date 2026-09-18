@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
-import { SubscriptionRepository } from '../../subscription.repository';
+import { SubscriptionRepository } from '../../../subscription/subscription.repository';
 import { WebhookRouteContext, YookassaWebhookRouter } from './strategies/webhook-router';
-import { SUPPORTED_EVENTS } from '../../types/yookassa-webhook';
+import { SUPPORTED_EVENTS } from '../../../subscription/types/yookassa-webhook';
 
 const SUPPORTED_EVENTS_SET = new Set<string>(SUPPORTED_EVENTS);
 

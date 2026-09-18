@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { Switch } from '../../../../common/utils/safe-guard';
-import { SubscriptionTransaction } from '../../../subscription.repository';
+import { SubscriptionTransaction } from '../../../../subscription/subscription.repository';
 import {
 	YookassaPaymentCanceledWebhook,
 	YookassaPaymentSucceededWebhook,
@@ -9,7 +9,7 @@ import {
 	yookassaPaymentCanceledWebhookSchema,
 	yookassaPaymentMethodActiveWebhookSchema,
 	yookassaPaymentSucceededWebhookSchema,
-} from '../../../types/yookassa-webhook';
+} from '../../../../subscription/types/yookassa-webhook';
 import { PaymentMethodWebhookHandlerStrategy } from './payment-method-webhook.strategy';
 import { PaymentWebhookHandlerStrategy } from './payment-webhook.strategy';
 
