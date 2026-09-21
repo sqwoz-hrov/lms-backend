@@ -9,9 +9,14 @@ describe('YookassaWebhookGuard', () => {
 		object: { id: 'method-id', type: 'bank_card', status: 'active', saved: true },
 	});
 
-	it('checks signatures but skips the sender IP check for the fake client', () => {
+	it('does not skip the sender IP check client from localhost', () => {
 		const guard = new YookassaWebhookGuard();
-		expect(guard.canActivate(contextFor(payload(), '127.0.0.1'))).to.equal(true);
+		expect(() => guard.canActivate(contextFor(payload(), '127.0.0.1'))).to.throw(UnauthorizedException);
+	});
+
+	it('does not skip the sender IP check client from localhost 2', () => {
+		const guard = new YookassaWebhookGuard();
+		expect(() => guard.canActivate(contextFor(payload(), '0.0.0.0'))).to.throw(UnauthorizedException);
 	});
 
 	it('accepts current YooKassa IPv4 and IPv6 ranges for the real client', () => {
