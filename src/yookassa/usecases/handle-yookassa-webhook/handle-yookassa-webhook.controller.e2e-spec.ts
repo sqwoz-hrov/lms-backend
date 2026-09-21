@@ -18,6 +18,7 @@ import {
 } from '../../../subscription/types/yookassa-webhook';
 import { randomUUID } from 'crypto';
 import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
+import { GiftRepository } from '../../../gift/gift.repository';
 import { UserRepository } from '../../../user/user.repository';
 import { expectSubscriptionIsFree } from '../../../subscription/test-utils/utils';
 import * as sinon from 'sinon';
@@ -41,6 +42,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 	let userRepository: UserRepository;
 	let subscriptionRepo: SubscriptionTestRepository;
 	let giftRepo: GiftTestRepository;
+	let giftRepository: GiftRepository;
 	let subscriptionSdk: SubscriptionTestSdk;
 	let freeTier: SubscriptionTierWithoutPrivateFields;
 
@@ -51,6 +53,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		userRepository = new UserRepository(dbProvider);
 		subscriptionRepo = new SubscriptionTestRepository(dbProvider);
 		giftRepo = new GiftTestRepository(dbProvider);
+		giftRepository = app.get(GiftRepository);
 
 		subscriptionSdk = new SubscriptionTestSdk(
 			new TestHttpClient(
@@ -778,7 +781,8 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		await expectStoredEvent(payload, { subscriptionId: subscription.id });
 	});
 
-	it('when user has a current gifted sub with tier 2 but next_tier_id is 1 after the webhook is processed his current_tier_id should be pointing to tier 1 but user view shows active tier 2 gift and billing date includes gift remainder plus paid period', async () => {
+	// inaccuracy
+	it('when use is on free tier with gifted sub of tier 2 but after the webhook for tier 1 is processed his current_tier_id should be pointing to tier 1 but user view shows active tier 2 gift and billing date includes gift remainder plus paid period', async () => {
 		const tier1 = await createTestSubscriptionTier(usersUtilRepository, {
 			tier: 'tier-1-gift',
 			power: 1,
@@ -789,16 +793,21 @@ describe('[E2E] Handle YooKassa webhook', () => {
 			power: 2,
 			price_rubles: 2000,
 		});
-		const currentPeriodEnd = new Date('2025-09-01T00:00:00.000Z');
+		const freeTier = await createTestSubscriptionTier(usersUtilRepository, {
+			tier: 'free',
+			power: 0,
+			price_rubles: 2000,
+		});
 		const giftDurationDays = 10;
 
 		const { user, subscription } = await givenSubscription({
 			subscriptionOverrides: {
-				current_tier_id: tier1.id,
-				next_tier_id: tier1.id,
-				price_on_purchase_rubles: tier1.price_rubles,
-				billing_period_days: 30,
-				current_period_end: currentPeriodEnd,
+				current_tier_id: freeTier.id,
+				next_tier_id: freeTier.id,
+				price_on_purchase_rubles: freeTier.price_rubles,
+				billing_period_days: 0,
+				current_period_end: null,
+				last_billing_attempt: null,
 			},
 			paymentMethodId: 'pm-next-tier-1-with-gift',
 		});
@@ -806,7 +815,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		const now = new Date();
 		const twoDaysAgo = addDays(now, -2);
 
-		await giftRepo.insertGift({
+		const gift = await giftRepo.insertGift({
 			gifted_by: user.id,
 			gifted_to: user.id,
 			tier_id: tier2.id,
@@ -822,7 +831,7 @@ describe('[E2E] Handle YooKassa webhook', () => {
 				paid: true,
 				amount: { value: '1000.00', currency: 'RUB' },
 				metadata: { user_id: user.id, current_tier_id: tier1.id },
-				created_at: new Date('2025-08-15T12:00:00.000Z').toISOString(),
+				created_at: now.toISOString(),
 			},
 		};
 
@@ -832,16 +841,29 @@ describe('[E2E] Handle YooKassa webhook', () => {
 		expect(updatedSubscription.current_tier_id).to.equal(tier1.id);
 		expect(updatedSubscription.next_tier_id).to.equal(tier1.id);
 		expect(updatedSubscription.billing_period_days).to.equal(30);
-		expect(subscription.billing_period_days).to.equal(updatedSubscription.billing_period_days);
 		expect(updatedSubscription.current_period_end?.getTime()).to.equal(
-			addDays(currentPeriodEnd, 30 + giftDurationDays - 2).getTime(),
+			addDays(now, 30 + giftDurationDays - 2).getTime(),
 		);
 
 		const userWithSubscription = await userRepository.findByIdWithSubscriptionTier(user.id);
+		expect(userWithSubscription?.subscription?.is_gifted).to.equal(true);
 		expect(userWithSubscription?.subscription?.current_tier_id).to.equal(tier2.id);
 		expect(userWithSubscription?.subscription_tier?.id).to.equal(tier2.id);
 		expect(userWithSubscription?.subscription?.current_period_end?.getTime()).to.equal(
-			addDays(currentPeriodEnd, 30 + giftDurationDays - 2).getTime(),
+			addDays(now, 30 + giftDurationDays - 2).getTime(),
+		);
+
+		await giftRepository.resetGift(gift.id, {
+			activated_at: addDays(new Date(), -giftDurationDays - 1),
+			duration_days: giftDurationDays,
+		});
+
+		const userAfterGiftExpires = await userRepository.findByIdWithSubscriptionTier(user.id);
+		expect(userAfterGiftExpires?.subscription?.is_gifted).to.equal(false);
+		expect(userAfterGiftExpires?.subscription?.current_tier_id).to.equal(tier1.id);
+		expect(userAfterGiftExpires?.subscription_tier?.id).to.equal(tier1.id);
+		expect(userAfterGiftExpires?.subscription?.current_period_end?.getTime()).to.equal(
+			updatedSubscription.current_period_end?.getTime(),
 		);
 
 		await expectStoredEvent(payload, { subscriptionId: subscription.id });

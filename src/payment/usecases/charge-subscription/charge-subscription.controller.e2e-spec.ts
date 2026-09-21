@@ -3,6 +3,8 @@ import { ConfigType } from '@nestjs/config';
 import { expect } from 'chai';
 import { randomUUID } from 'crypto';
 import {
+	createTestActiveGift,
+	createTestAdmin,
 	createTestSubscriber,
 	createTestSubscriptionTier,
 	createTestUser,
@@ -11,7 +13,9 @@ import { ISharedContext } from '../../../../test/setup/test.app-setup';
 import { TestHttpClient } from '../../../../test/test.http-client';
 import { jwtConfig } from '../../../config';
 import { DatabaseProvider } from '../../../infra/db/db.provider';
+import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
 import { SubscriptionTestRepository } from '../../../subscription/test-utils/test.repo';
+import { UserRepository } from '../../../user/user.repository';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { PaymentTestSdk } from '../../test-utils/test.sdk';
 
@@ -19,14 +23,18 @@ describe('[E2E] Charge subscription usecase', () => {
 	let app: INestApplication;
 
 	let usersRepo: UsersTestRepository;
+	let userRepository: UserRepository;
 	let subscriptionRepo: SubscriptionTestRepository;
+	let giftRepo: GiftTestRepository;
 	let paymentSdk: PaymentTestSdk;
 
 	before(function (this: ISharedContext) {
 		app = this.app;
 		const dbProvider = app.get(DatabaseProvider);
 		usersRepo = new UsersTestRepository(dbProvider);
+		userRepository = new UserRepository(dbProvider);
 		subscriptionRepo = new SubscriptionTestRepository(dbProvider);
+		giftRepo = new GiftTestRepository(dbProvider);
 
 		paymentSdk = new PaymentTestSdk(
 			new TestHttpClient(
@@ -40,6 +48,7 @@ describe('[E2E] Charge subscription usecase', () => {
 	});
 
 	afterEach(async () => {
+		await giftRepo.clearAll();
 		await subscriptionRepo.clearAll();
 		await usersRepo.clearAll();
 	});
@@ -214,6 +223,56 @@ describe('[E2E] Charge subscription usecase', () => {
 		expect(res.body.description).to.equal(
 			`Cannot downgrade subscription tier from "${subscriber.subscription_tier.tier}" to "${cheaperTier.tier}"`,
 		);
+	});
+
+	it('Charges for a paid tier below the active gifted tier and keeps the gift active', async () => {
+		const baseTier = await createTestSubscriptionTier(usersRepo, {
+			tier: 'gifted-purchase-base',
+			price_rubles: 0,
+			power: 0,
+		});
+		const targetTier = await createTestSubscriptionTier(usersRepo, {
+			tier: 'gifted-purchase-paid',
+			price_rubles: 1490,
+			power: 1,
+		});
+		const giftedTier = await createTestSubscriptionTier(usersRepo, {
+			tier: 'gifted-purchase-premium',
+			price_rubles: 2990,
+			power: 2,
+		});
+		const admin = await createTestAdmin(usersRepo);
+		const subscriber = await createTestSubscriber(usersRepo, { current_tier_id: baseTier.id });
+
+		await createTestActiveGift(usersRepo, {
+			giftedTo: subscriber.id,
+			giftedBy: admin.id,
+			tierId: giftedTier.id,
+		});
+		await subscriptionRepo.addActivePaymentMethod({
+			userId: subscriber.id,
+			paymentMethodId: 'pm-gifted-lower-tier',
+		});
+
+		const res = await paymentSdk.chargeSubscription({
+			params: {
+				current_tier_id: targetTier.id,
+			},
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+		});
+
+		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status !== HttpStatus.CREATED) throw new Error();
+		expect(res.body.amountRubles).to.equal(targetTier.price_rubles);
+		expect(res.body.paid).to.equal(true);
+
+		const subscriberWithGift = await userRepository.findByIdWithSubscriptionTier(subscriber.id);
+		expect(subscriberWithGift?.subscription?.is_gifted).to.equal(true);
+		expect(subscriberWithGift?.subscription_tier?.id).to.equal(giftedTier.id);
 	});
 
 	it('Returns 400 when trying to charge for a subscription tier that is already purchased', async () => {
