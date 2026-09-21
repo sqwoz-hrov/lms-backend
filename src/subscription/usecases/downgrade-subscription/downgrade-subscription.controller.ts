@@ -15,7 +15,7 @@ export class DowngradeSubscriptionController {
 	@Roles('subscriber')
 	@Route({
 		summary: 'Понизить тариф подписки пользователя',
-		description: 'Подписчик понижает свой тариф без списания средств',
+		description: 'Подписчик понижает свой тариф без списания средств, следующий уровень тарифа будет ниже',
 		responseType: SubscriptionResponseDto,
 	})
 	@Post('downgrade')

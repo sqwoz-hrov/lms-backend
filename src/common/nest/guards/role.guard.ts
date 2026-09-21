@@ -52,6 +52,7 @@ export class RoleGuard implements CanActivate {
 			throw new UnauthorizedException('Subscriber has no subscription');
 		}
 
+		// TODO: use this data everywhere when possible
 		request['user'] = user;
 
 		const allowedRoles = this.reflector.getAllAndOverride<string[]>('roles', [

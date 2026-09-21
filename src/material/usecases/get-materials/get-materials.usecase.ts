@@ -32,18 +32,18 @@ export class GetMaterialsUsecase implements UsecaseInterface {
 		}
 
 		const isSubscriber = user.role === 'subscriber';
-		let subscriptionTierId: string | undefined;
+		let subscriptionTierPower: number | undefined;
 
 		if (isSubscriber) {
-			subscriptionTierId = user.subscription?.subscription_tier_id ?? undefined;
+			subscriptionTierPower = user.subscription_tier?.power;
 			filters.is_archived = false;
 			delete filters.student_user_id;
 
-			if (!subscriptionTierId) {
+			if (subscriptionTierPower === undefined) {
 				return [];
 			}
 		}
 
-		return this.materialRepository.find({ ...filters, subscription_tier_id: subscriptionTierId });
+		return this.materialRepository.find({ ...filters, current_tier_power: subscriptionTierPower });
 	}
 }

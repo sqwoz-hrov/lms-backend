@@ -45,6 +45,7 @@ import { setupValidation } from '../../src/validation';
 import { setupRawBodyParsing } from '../../src/raw-body';
 import { startAllContainers } from './test.start-all-containers';
 import { SilentLogger } from '../test.silent-logger';
+import { GiftModule } from '../../src/gift/gift.module';
 
 export interface ISharedContext extends Mocha.Context {
 	app: INestApplication;
@@ -63,6 +64,7 @@ export const mochaHooks = {
 		const shouldUseSilentLogger = !hasNoSilentFlag;
 
 		const testingModuleBuilder = Test.createTestingModule({
+			// TODO: move to some export array or something, idk
 			imports: [
 				ConfigModule.forRoot({
 					load: [
@@ -104,6 +106,7 @@ export const mochaHooks = {
 				SseModule,
 				InterviewTranscriptionModule.forRoot({ useFakeVmOrchestrator: true }),
 				InterviewTranscriptionReportModule,
+				GiftModule,
 			],
 		});
 

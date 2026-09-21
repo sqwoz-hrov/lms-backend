@@ -27,7 +27,7 @@ export class ChargeSubscriptionController {
 
 		return await this.chargeSubscriptionUsecase.execute({
 			user,
-			subscription_tier_id: dto.subscription_tier_id,
+			current_tier_id: dto.current_tier_id,
 		});
 	}
 }

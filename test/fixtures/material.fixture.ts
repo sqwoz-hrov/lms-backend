@@ -6,7 +6,7 @@ import { MaterialsTestRepository } from '../../src/material/test-utils/test.repo
 import { Subject } from '../../src/subject/subject.entity';
 import { SubjectsTestRepository } from '../../src/subject/test-utils/test.repo';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { User } from '../../src/user/user.entity';
+import { NonSubscriberUser } from '../../src/user/user.entity';
 import { randomWord } from './common.fixture';
 import { createTestMarkdownContent } from './markdown-content.fixture';
 import { createTestSubject } from './subject.fixture';
@@ -31,7 +31,7 @@ export const createTestMaterial = async (
 	subjectRepository: SubjectsTestRepository,
 	materialRepository: MaterialsTestRepository,
 	overrides: {
-		user?: Partial<User>;
+		user?: Partial<NonSubscriberUser>;
 		markdown?: Partial<MarkDownContent>;
 		subject?: Partial<Subject>;
 		material?: Partial<Material>;

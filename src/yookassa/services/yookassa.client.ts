@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { yookassaConfig } from '../../config/yookassa.config';
+import { yookassaRequestErrorsTotal } from '../infra/metrics';
 import {
 	ChargeSavedPaymentParams,
 	CreatePaymentMethodParams,
@@ -68,6 +69,7 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 		const headers: Record<string, string> = { Authorization: `Basic ${this.basicAuthToken}` };
 		if (body !== undefined) headers['Content-Type'] = 'application/json';
 		if (verb === 'POST' || verb === 'PUT' || verb === 'PATCH')
+			// TODO: this is a design flaw, kinda critical for POSTs we need to rememember the idempotence keys
 			headers['Idempotence-Key'] = idempotenceKey ?? randomUUID();
 
 		const sanitizedHeaders = this.sanitizeHeaders(headers);
@@ -96,8 +98,16 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 			}
 		}
 
+		if (res.status >= 400) {
+			yookassaRequestErrorsTotal.inc({
+				error_code: res.status.toString(),
+				request_path: `/${path}`,
+				request_method: verb,
+			});
+		}
+
 		if (!res.ok) {
-			this.logger.error(`YooKassa ${verb} ${path} failed (${res.status}): ${txt}`);
+			this.logger.error(`YooKassa ${verb} /${path} failed (${res.status}): ${txt}`);
 			throw new Error('YooKassa request failed');
 		}
 

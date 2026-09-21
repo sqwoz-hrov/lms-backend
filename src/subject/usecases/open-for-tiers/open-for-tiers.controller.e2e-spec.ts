@@ -43,7 +43,7 @@ describe('[E2E] Open subject for tiers usecase', () => {
 
 		const res = await subjectTestSdk.openSubjectForTiers({
 			subjectId: subject.id,
-			params: { tier_ids: [tier.id] },
+			params: { minimal_tier_id: tier.id },
 			userMeta: { isAuth: false },
 		});
 
@@ -57,22 +57,27 @@ describe('[E2E] Open subject for tiers usecase', () => {
 
 		const res = await subjectTestSdk.openSubjectForTiers({
 			subjectId: subject.id,
-			params: { tier_ids: [tier.id] },
+			params: { minimal_tier_id: tier.id },
 			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('Admin links subject to provided tiers', async () => {
+	it('Admin replaces existing tiers with one minimum tier', async () => {
 		const admin = await createTestAdmin(userUtilRepository);
 		const subject = await createTestSubject(subjectUtilRepository);
-		const tier1 = await createTestSubscriptionTier(userUtilRepository);
-		const tier2 = await createTestSubscriptionTier(userUtilRepository);
+		const oldTier = await createTestSubscriptionTier(userUtilRepository);
+		const minimumTier = await createTestSubscriptionTier(userUtilRepository);
+
+		await subjectUtilRepository.connection
+			.insertInto('subject_tier')
+			.values({ subject_id: subject.id, tier_id: oldTier.id })
+			.execute();
 
 		const res = await subjectTestSdk.openSubjectForTiers({
 			subjectId: subject.id,
-			params: { tier_ids: [tier1.id, tier2.id] },
+			params: { minimal_tier_id: minimumTier.id },
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
@@ -81,8 +86,6 @@ describe('[E2E] Open subject for tiers usecase', () => {
 
 		const rows = await subjectUtilRepository.connection.selectFrom('subject_tier').selectAll().execute();
 
-		expect(rows).to.have.length(2);
-		expect(rows.map(row => row.tier_id)).to.have.members([tier1.id, tier2.id]);
-		expect(rows.every(row => row.subject_id === subject.id)).to.equal(true);
+		expect(rows).to.deep.equal([{ subject_id: subject.id, tier_id: minimumTier.id }]);
 	});
 });

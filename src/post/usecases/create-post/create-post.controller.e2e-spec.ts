@@ -119,6 +119,63 @@ describe('[E2E] Create post usecase', () => {
 		expect(res.body.title).to.equal(dto.title);
 		expect(res.body.markdown_content).to.equal(dto.markdown_content);
 		expect(res.body.video_id).to.equal(undefined);
+		expect(res.body.slug).to.equal(undefined);
 		expect(res.body.markdown_content_id).to.be.a('string');
+	});
+
+	it('Admin can generate a deterministic slug from Russian letters and numbers', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+		const dto = createTestPostDto({
+			title: 'Урок 12: Работа с API',
+			generate_slug: true,
+		});
+
+		const res = await postTestSdk.createPost({
+			params: dto,
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+		});
+
+		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status !== HttpStatus.CREATED) throw new Error('Failed to create post');
+		expect(res.body.slug).to.equal('urok-12-rabota-s-api');
+	});
+
+	for (const { title, caseName } of [
+		{ title: '🎉 !!!', caseName: 'an empty normalized slug' },
+		{ title: 'New', caseName: 'the reserved "new" slug' },
+		{ title: '550e8400-e29b-41d4-a716-446655440000', caseName: 'a UUID-like slug' },
+	]) {
+		it(`Rejects slug generation for ${caseName}`, async () => {
+			const admin = await createTestAdmin(userUtilRepository);
+
+			const res = await postTestSdk.createPost({
+				params: createTestPostDto({ title, generate_slug: true }),
+				userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+			});
+
+			expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+			if (res.status !== HttpStatus.BAD_REQUEST) throw new Error('Expected slug validation to fail');
+			expect(res.body.description).to.equal('Невозможно создать постоянную ссылку из этого названия');
+		});
+	}
+
+	it('Rejects a duplicate normalized slug with a distinct message', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+		const userMeta = { userId: admin.id, isAuth: true as const, isWrongAccessJwt: false };
+
+		const first = await postTestSdk.createPost({
+			params: createTestPostDto({ title: 'Новый пост 12', generate_slug: true }),
+			userMeta,
+		});
+		expect(first.status).to.equal(HttpStatus.CREATED);
+
+		const duplicate = await postTestSdk.createPost({
+			params: createTestPostDto({ title: 'Новый, пост 12!', generate_slug: true }),
+			userMeta,
+		});
+
+		expect(duplicate.status).to.equal(HttpStatus.CONFLICT);
+		if (duplicate.status !== HttpStatus.CONFLICT) throw new Error('Expected a slug conflict');
+		expect(duplicate.body.description).to.equal('Пост с такой постоянной ссылкой уже существует');
 	});
 });

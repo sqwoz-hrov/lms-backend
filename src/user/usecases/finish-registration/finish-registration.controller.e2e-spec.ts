@@ -115,9 +115,11 @@ describe('[E2E] Finish registration usecase', () => {
 			.limit(1)
 			.executeTakeFirst();
 
-		expect(subscription?.subscription_tier_id).to.equal(freeTierId);
-		expect(subscription?.is_gifted).to.equal(true);
+		expect(subscription?.current_tier_id).to.equal(freeTierId);
+		expect(subscription?.next_tier_id).to.equal(freeTierId);
 		expect(subscription?.price_on_purchase_rubles).to.equal(0);
+		expect(subscription?.billing_period_days).to.equal(0);
+		expect(subscription?.grace_period_size).to.equal(0);
 		expect(subscription?.current_period_end).to.equal(null);
 		expect(subscription?.last_billing_attempt).to.equal(null);
 	});

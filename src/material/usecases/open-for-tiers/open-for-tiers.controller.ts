@@ -20,7 +20,7 @@ export class OpenMaterialForTiersController {
 	async open(@Param('id') materialId: string, @Body() dto: OpenMaterialForTiersDto): Promise<void> {
 		await this.openMaterialForTiersUsecase.execute({
 			materialId,
-			tierIds: dto.tier_ids,
+			minimalTierId: dto.minimal_tier_id,
 		});
 	}
 }

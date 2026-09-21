@@ -16,12 +16,12 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 	) {}
 
 	async execute(params: {
-		subscription_tier_id: string;
+		current_tier_id: string;
 		user: UserWithSubscriptionTier;
 	}): Promise<ChargeSubscriptionResponseDto> {
-		const { subscription_tier_id, user } = params;
+		const { current_tier_id, user } = params;
 
-		const targetTier = await this.subscriptionTierRepository.findById(subscription_tier_id);
+		const targetTier = await this.subscriptionTierRepository.findActiveById(current_tier_id);
 
 		if (!targetTier) {
 			throw new NotFoundException('Subscription tier not found');
@@ -36,7 +36,7 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 			throw new BadRequestException('Subscription tier already purchased');
 		}
 
-		if (targetTier.power < currentTier.power) {
+		if (targetTier.power < currentTier.power && !user.subscription.is_gifted) {
 			throw new BadRequestException(
 				`Cannot downgrade subscription tier from "${currentTier.tier}" to "${targetTier.tier}"`,
 			);
@@ -55,7 +55,7 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 			description: `Оплата подписки (${targetTier.tier})`,
 			paymentMethodId: paymentMethod.payment_method_id,
 			metadata: {
-				subscription_tier_id: targetTier.id,
+				current_tier_id: targetTier.id,
 				user_id: user.id,
 			},
 		});

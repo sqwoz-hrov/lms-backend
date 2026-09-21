@@ -12,6 +12,13 @@ export interface PaginationTuning {
 	maxLimit?: number;
 }
 
+export interface ResolvedOffsetPagination {
+	limit: number;
+	offset: number;
+	page: number;
+	pageSize: number;
+}
+
 const coerceLimit = (limit: number, fallback: number) => {
 	const normalized = Number.isFinite(limit) ? Math.floor(limit) : NaN;
 	return normalized > 0 ? normalized : fallback;
@@ -35,13 +42,27 @@ const resolveOffset = (input: OffsetPaginationInput, limit: number) => {
 	return (page - 1) * limit;
 };
 
+export const resolveOffsetPagination = (
+	input: OffsetPaginationInput = {},
+	tuning?: PaginationTuning,
+): ResolvedOffsetPagination => {
+	const limit = resolveLimit(input, tuning);
+	const offset = resolveOffset(input, limit);
+
+	return {
+		limit,
+		offset,
+		page: Math.floor(offset / limit) + 1,
+		pageSize: limit,
+	};
+};
+
 export const applyOffsetPagination = <DB, TB extends keyof DB, O>(
 	query: SelectQueryBuilder<DB, TB, O>,
 	input: OffsetPaginationInput = {},
 	tuning?: PaginationTuning,
 ) => {
-	const limit = resolveLimit(input, tuning);
-	const offset = resolveOffset(input, limit);
+	const { limit, offset } = resolveOffsetPagination(input, tuning);
 	return query.limit(limit).offset(offset);
 };
 

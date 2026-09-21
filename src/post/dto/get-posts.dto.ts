@@ -35,5 +35,5 @@ export class GetPostsDto {
 	})
 	@IsUUID()
 	@IsOptional()
-	subscription_tier_id?: string;
+	current_tier_id?: string;
 }

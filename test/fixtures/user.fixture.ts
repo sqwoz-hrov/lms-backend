@@ -1,6 +1,9 @@
+import { SubscriptionTier } from '../../src/subscription-tier/subscription-tier.entity';
 import { Subscription } from '../../src/subscription/subscription.entity';
+import { SubscriptionTierWithoutPrivateFields } from '../../src/subscription/subscription.repository';
+import { Gift } from '../../src/gift/gift.entity';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { SubscriptionTier, User, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
+import { User, UserRole, UserWithNullableSubscriptionTier } from '../../src/user/user.entity';
 import { randomNumericId, randomWord } from './common.fixture';
 
 export const createName = () => {
@@ -18,7 +21,7 @@ export const createEmail = () => {
 export const createTestSubscriptionTier = async (
 	userRepository: UsersTestRepository,
 	overrides: Partial<SubscriptionTier> = {},
-): Promise<SubscriptionTier> => {
+): Promise<SubscriptionTierWithoutPrivateFields> => {
 	const { power: overridePower, ...restOverrides } = overrides;
 	const tierName = restOverrides.tier ?? `tier-${randomWord()}`;
 
@@ -39,14 +42,45 @@ export const createTestSubscriptionTier = async (
 			price_rubles: 1000,
 			...restOverrides,
 		})
-		.returningAll()
+		.returning(['id', 'permissions', 'power', 'price_rubles', 'tier'])
 		.executeTakeFirstOrThrow();
 };
 
-export const createTestUser = async (
+type TestUserOverridesWithoutRole = Omit<Partial<User>, 'role'> & {
+	role?: undefined;
+};
+
+type TestUserOverridesWithRole<Role extends UserRole> = Omit<Partial<User>, 'role'> & {
+	role: Role;
+};
+
+type TestUserOverridesMaybeRole<Role extends UserRole> = Omit<Partial<User>, 'role'> & {
+	role?: Role;
+};
+
+export type CreateTestUserOverrides<Role extends UserRole = UserRole> = TestUserOverridesMaybeRole<Role>;
+
+export function createTestUser(userRepository: UsersTestRepository): Promise<User & { role: 'user' }>;
+
+export function createTestUser(
 	userRepository: UsersTestRepository,
-	overrides: Partial<User> = {},
-): Promise<User> => {
+	overrides: TestUserOverridesWithoutRole,
+): Promise<User & { role: 'user' }>;
+
+export function createTestUser<Role extends UserRole>(
+	userRepository: UsersTestRepository,
+	overrides: TestUserOverridesWithRole<Role>,
+): Promise<User & { role: Role }>;
+
+export function createTestUser<Role extends UserRole>(
+	userRepository: UsersTestRepository,
+	overrides: TestUserOverridesMaybeRole<Role>,
+): Promise<User & { role: Role | 'user' }>;
+
+export async function createTestUser(
+	userRepository: UsersTestRepository,
+	overrides: CreateTestUserOverrides = {},
+): Promise<User> {
 	return userRepository.connection
 		.insertInto('user')
 		.values({
@@ -60,12 +94,12 @@ export const createTestUser = async (
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
-};
+}
 
 export const createTestAdmin = async (
 	userRepository: UsersTestRepository,
 	overrides: Partial<User & { role: 'admin' }> = {},
-): Promise<User> => {
+): Promise<User & { role: 'admin' }> => {
 	return userRepository.connection
 		.insertInto('user')
 		.values({
@@ -78,28 +112,31 @@ export const createTestAdmin = async (
 			...overrides,
 		})
 		.returningAll()
+		.$narrowType<{ role: 'admin' }>()
 		.executeTakeFirstOrThrow();
 };
 
 type SubscriberFixtureOverrides = Partial<User> & {
-	subscription_tier_id?: string | null;
+	current_tier_id?: string | null;
 	active_until?: Date | null;
-	is_billable?: boolean;
 };
 
 export const createTestSubscriber = async (
 	userRepository: UsersTestRepository,
 	overrides: SubscriberFixtureOverrides = {},
-): Promise<UserWithNullableSubscriptionTier & { subscription: Subscription; subscription_tier: SubscriptionTier }> => {
-	const { subscription_tier_id, active_until, is_billable, is_archived, ...userOverrides } = overrides;
+): Promise<
+	UserWithNullableSubscriptionTier & {
+		subscription: Subscription;
+		subscription_tier: SubscriptionTierWithoutPrivateFields;
+	}
+> => {
+	const { current_tier_id, active_until, is_archived, ...userOverrides } = overrides;
 
-	const billable = is_billable ?? true;
-
-	const subscriptionTier = subscription_tier_id
+	const subscriptionTier = current_tier_id
 		? await userRepository.connection
 				.selectFrom('subscription_tier')
-				.selectAll()
-				.where('id', '=', subscription_tier_id)
+				.select(['id', 'permissions', 'power', 'price_rubles', 'tier'])
+				.where('id', '=', current_tier_id)
 				.limit(1)
 				.executeTakeFirstOrThrow()
 		: await createTestSubscriptionTier(userRepository);
@@ -122,18 +159,19 @@ export const createTestSubscriber = async (
 			...userOverrides,
 		})
 		.returningAll()
+		.$narrowType<{ role: 'subscriber' }>()
 		.executeTakeFirstOrThrow();
 
 	const subscription = await userRepository.connection
 		.insertInto('subscription')
 		.values({
 			user_id: user.id,
-			subscription_tier_id: resolvedTierId,
-			price_on_purchase_rubles: billable ? 1500 : 0,
-			is_gifted: !billable,
+			current_tier_id: resolvedTierId,
+			next_tier_id: resolvedTierId,
+			price_on_purchase_rubles: 1500,
 			grace_period_size: 3,
-			billing_period_days: billable ? 30 : 0,
-			current_period_end: billable ? currentPeriodEnd : null,
+			billing_period_days: subscriptionTier.power === 0 ? 0 : 30,
+			current_period_end: currentPeriodEnd,
 			last_billing_attempt: null,
 		})
 		.returningAll()
@@ -141,9 +179,36 @@ export const createTestSubscriber = async (
 
 	return {
 		...user,
-		subscription,
+		subscription: { ...subscription, is_gifted: false },
 		subscription_tier: subscriptionTier,
 	};
 };
 
 export type TestSubscriber = Awaited<ReturnType<typeof createTestSubscriber>>;
+
+export const createTestActiveGift = async (
+	userRepository: UsersTestRepository,
+	{
+		giftedTo,
+		tierId,
+		giftedBy,
+	}: {
+		giftedTo: string;
+		tierId: string;
+		giftedBy?: string;
+	},
+): Promise<Gift> => {
+	const resolvedGiftedBy = giftedBy ?? (await createTestAdmin(userRepository)).id;
+
+	return userRepository.connection
+		.insertInto('gift')
+		.values({
+			gifted_to: giftedTo,
+			gifted_by: resolvedGiftedBy,
+			tier_id: tierId,
+			activated_at: new Date(),
+			duration_days: 30,
+		})
+		.returningAll()
+		.executeTakeFirstOrThrow();
+};

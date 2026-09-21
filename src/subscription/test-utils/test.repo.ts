@@ -1,14 +1,7 @@
 import { Kysely, sql } from 'kysely';
 import { DatabaseProvider } from '../../infra/db/db.provider';
-import {
-	NewSubscription,
-	PaymentEvent,
-	PaymentEventTable,
-	Subscription,
-	PaymentMethod,
-	PaymentMethodTable,
-	SubscriptionTable,
-} from '../subscription.entity';
+import { NewSubscription, Subscription, SubscriptionTable, SubscriptionUpdate } from '../subscription.entity';
+import { PaymentEventTable, PaymentMethodTable, PaymentEvent, PaymentMethod } from '../../payment/payment.entity';
 
 type SubscriptionTestDb = {
 	subscription: SubscriptionTable;
@@ -42,6 +35,18 @@ export class SubscriptionTestRepository {
 			.executeTakeFirst();
 	}
 
+	async update(id: string, data: SubscriptionUpdate): Promise<Subscription | undefined> {
+		return await this.connection
+			.updateTable('subscription')
+			.set({
+				...data,
+				updated_at: sql`now()`,
+			})
+			.where('id', '=', id)
+			.returningAll()
+			.executeTakeFirst();
+	}
+
 	async findPaymentEvents(filter?: { subscriptionId?: string }): Promise<PaymentEvent[]> {
 		let query = this.connection.selectFrom('payment_event').selectAll().orderBy('created_at', 'desc');
 		if (filter?.subscriptionId) {
@@ -54,28 +59,36 @@ export class SubscriptionTestRepository {
 		userId: string;
 		paymentMethodId: string;
 		status?: PaymentMethod['status'];
-	}): Promise<void> {
+	}): Promise<PaymentMethod | undefined> {
 		await this.connection
 			.deleteFrom('payment_method')
 			.where('payment_method_id', '=', params.paymentMethodId)
 			.execute();
 
-		await this.connection
+		const res = await this.connection
 			.insertInto('payment_method')
 			.values({
 				user_id: params.userId,
 				payment_method_id: params.paymentMethodId,
 				status: params.status ?? 'active',
 			})
+			.returningAll()
 			.execute();
+		return res.at(0);
 	}
 
-	async addActivePaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<void> {
-		await this.addPaymentMethod({ ...params, status: 'active' });
+	async addActivePaymentMethod(params: {
+		userId: string;
+		paymentMethodId: string;
+	}): Promise<PaymentMethod | undefined> {
+		return await this.addPaymentMethod({ ...params, status: 'active' });
 	}
 
-	async addPendingPaymentMethod(params: { userId: string; paymentMethodId: string }): Promise<void> {
-		await this.addPaymentMethod({ ...params, status: 'pending' });
+	async addPendingPaymentMethod(params: {
+		userId: string;
+		paymentMethodId: string;
+	}): Promise<PaymentMethod | undefined> {
+		return await this.addPaymentMethod({ ...params, status: 'pending' });
 	}
 
 	async findPaymentMethod(userId: string): Promise<PaymentMethod | undefined> {

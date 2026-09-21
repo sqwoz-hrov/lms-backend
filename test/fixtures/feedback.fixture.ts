@@ -8,7 +8,7 @@ import { InterviewsTestRepository } from '../../src/interview/test-utils/test.re
 import { MarkDownContent } from '../../src/markdown-content/markdown-content.entity';
 import { MarkDownContentTestRepository } from '../../src/markdown-content/test-utils/test.repo';
 import { UsersTestRepository } from '../../src/user/test-utils/test.repo';
-import { User } from '../../src/user/user.entity';
+import { NonSubscriberUser } from '../../src/user/user.entity';
 import { randomWord } from './common.fixture';
 import { InterviewAggregateBuilder } from './interview.fixture';
 import { createTestMarkdownContent } from './markdown-content.fixture';
@@ -31,7 +31,7 @@ export class FeedbackAggregateBuilder {
 	}
 
 	async createFeedback(overrides: {
-		user?: Partial<User>;
+		user?: Partial<NonSubscriberUser>;
 		hrConnection?: Partial<HrConnection>;
 		interview?: Partial<Interview>;
 		feedback?: Partial<Feedback>;

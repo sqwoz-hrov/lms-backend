@@ -3,25 +3,25 @@ import { Subscription } from '../subscription.entity';
 
 export class SubscriptionResponseDto {
 	@ApiProperty()
-	id: string;
+	id!: string;
 
 	@ApiProperty()
-	userId: string;
+	userId!: string;
 
 	@ApiProperty()
-	subscriptionTierId: string;
+	currentTierId!: string;
 
 	@ApiProperty()
-	priceOnPurchaseRubles: number;
+	nextTierId!: string;
 
 	@ApiProperty()
-	isGifted: boolean;
+	priceOnPurchaseRubles!: number;
 
 	@ApiProperty()
-	gracePeriodSize: number;
+	gracePeriodSize!: number;
 
 	@ApiProperty()
-	billingPeriodDays: number;
+	billingPeriodDays!: number;
 
 	@ApiProperty({ nullable: true })
 	paymentMethodId: string | null = null;
@@ -33,18 +33,18 @@ export class SubscriptionResponseDto {
 	lastBillingAttempt: string | null = null;
 
 	@ApiProperty({ type: String })
-	createdAt: string;
+	createdAt!: string;
 
 	@ApiProperty({ type: String })
-	updatedAt: string;
+	updatedAt!: string;
 
 	static fromEntity(entity: Subscription, extras?: { paymentMethodId?: string | null }): SubscriptionResponseDto {
 		const dto = new SubscriptionResponseDto();
 		dto.id = entity.id;
 		dto.userId = entity.user_id;
-		dto.subscriptionTierId = entity.subscription_tier_id;
+		dto.currentTierId = entity.current_tier_id;
+		dto.nextTierId = entity.next_tier_id;
 		dto.priceOnPurchaseRubles = entity.price_on_purchase_rubles;
-		dto.isGifted = entity.is_gifted;
 		dto.gracePeriodSize = entity.grace_period_size;
 		dto.billingPeriodDays = entity.billing_period_days;
 		dto.paymentMethodId = extras?.paymentMethodId ?? null;
