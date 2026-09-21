@@ -36,7 +36,7 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 			throw new BadRequestException('Subscription tier already purchased');
 		}
 
-		if (targetTier.power < currentTier.power) {
+		if (targetTier.power < currentTier.power && !user.subscription.is_gifted) {
 			throw new BadRequestException(
 				`Cannot downgrade subscription tier from "${currentTier.tier}" to "${targetTier.tier}"`,
 			);
