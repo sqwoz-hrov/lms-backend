@@ -67,6 +67,9 @@ describe('[E2E] Add payment method usecase', () => {
 			throw new Error();
 		}
 		expect(createPaymentMethodParams.type).to.equal('bank_card');
+		expect(createPaymentMethodParams.idempotenceKey).to.match(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+		);
 
 		const storedPaymentMethod = await subscriptionRepo.findPaymentMethod(subscriber.id);
 		expect(storedPaymentMethod).to.not.be.a('undefined');

@@ -17,9 +17,10 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 
 	async execute(params: {
 		current_tier_id: string;
+		idempotenceKey: string;
 		user: UserWithSubscriptionTier;
 	}): Promise<ChargeSubscriptionResponseDto> {
-		const { current_tier_id, user } = params;
+		const { current_tier_id, idempotenceKey, user } = params;
 
 		const targetTier = await this.subscriptionTierRepository.findActiveById(current_tier_id);
 
@@ -58,6 +59,7 @@ export class ChargeSubscriptionUsecase implements UsecaseInterface {
 				current_tier_id: targetTier.id,
 				user_id: user.id,
 			},
+			idempotenceKey,
 		});
 
 		return ChargeSubscriptionResponseDto.fromYookassa(payment);
