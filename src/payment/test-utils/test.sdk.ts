@@ -1,5 +1,6 @@
 import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
+import { randomUUID } from 'crypto';
 import { ChargeSubscriptionDto, ChargeSubscriptionResponseDto } from '../dto/charge-subscription.dto';
 import { GetPaymentHistoryDto } from '../dto/get-payment-history.dto';
 import { PaymentHistoryResponseDto } from '../dto/payment-history-response.dto';
@@ -8,11 +9,20 @@ import { PaymentMethodConfirmationResponseDto } from '../dto/payment-method-conf
 export class PaymentTestSdk implements ValidateSDK<PaymentTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
 
-	async chargeSubscription({ params, userMeta }: { params: ChargeSubscriptionDto; userMeta: UserMeta }) {
+	async chargeSubscription({
+		params,
+		userMeta,
+		idempotenceKey = randomUUID(),
+	}: {
+		params: ChargeSubscriptionDto;
+		userMeta: UserMeta;
+		idempotenceKey?: string | null;
+	}) {
 		return await this.testClient.request<ChargeSubscriptionResponseDto>({
 			path: '/payments/charge',
 			method: 'POST',
 			body: params,
+			headers: { 'Idempotence-Key': idempotenceKey },
 			userMeta,
 		});
 	}

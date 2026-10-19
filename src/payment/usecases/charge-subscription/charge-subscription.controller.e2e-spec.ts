@@ -17,6 +17,8 @@ import { GiftTestRepository } from '../../../gift/test-utils/test.repo';
 import { SubscriptionTestRepository } from '../../../subscription/test-utils/test.repo';
 import { UserRepository } from '../../../user/user.repository';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
+import { YOOKASSA_CLIENT } from '../../../yookassa/constants';
+import { FakeYookassaClient } from '../../../yookassa/services/fake-yookassa.client';
 import { PaymentTestSdk } from '../../test-utils/test.sdk';
 
 describe('[E2E] Charge subscription usecase', () => {
@@ -27,6 +29,7 @@ describe('[E2E] Charge subscription usecase', () => {
 	let subscriptionRepo: SubscriptionTestRepository;
 	let giftRepo: GiftTestRepository;
 	let paymentSdk: PaymentTestSdk;
+	let fakeYookassaClient: FakeYookassaClient;
 
 	before(function (this: ISharedContext) {
 		app = this.app;
@@ -35,6 +38,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		userRepository = new UserRepository(dbProvider);
 		subscriptionRepo = new SubscriptionTestRepository(dbProvider);
 		giftRepo = new GiftTestRepository(dbProvider);
+		fakeYookassaClient = app.get(YOOKASSA_CLIENT);
 
 		paymentSdk = new PaymentTestSdk(
 			new TestHttpClient(
@@ -51,6 +55,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		await giftRepo.clearAll();
 		await subscriptionRepo.clearAll();
 		await usersRepo.clearAll();
+		fakeYookassaClient.clearLastCharge();
 	});
 
 	it('Unauthenticated gets 401', async () => {
@@ -100,6 +105,25 @@ describe('[E2E] Charge subscription usecase', () => {
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
+	});
+
+	it('Returns 400 when the idempotence key is missing', async () => {
+		const subscriber = await createTestSubscriber(usersRepo);
+		const tier = await createTestSubscriptionTier(usersRepo);
+
+		const res = await paymentSdk.chargeSubscription({
+			params: {
+				current_tier_id: tier.id,
+			},
+			userMeta: {
+				userId: subscriber.id,
+				isAuth: true,
+				isWrongAccessJwt: false,
+			},
+			idempotenceKey: null,
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
 	});
 
 	it('Returns 404 when subscription tier is missing', async () => {
@@ -305,6 +329,7 @@ describe('[E2E] Charge subscription usecase', () => {
 
 	it('Subscriber is charged with saved payment method for new subscription', async () => {
 		const subscriber = await createTestSubscriber(usersRepo);
+		const idempotenceKey = randomUUID();
 		const targetTier = await createTestSubscriptionTier(usersRepo, {
 			tier: 'premium',
 			price_rubles: 2590,
@@ -324,6 +349,7 @@ describe('[E2E] Charge subscription usecase', () => {
 				isAuth: true,
 				isWrongAccessJwt: false,
 			},
+			idempotenceKey,
 		});
 
 		expect(res.status).to.equal(HttpStatus.CREATED);
@@ -335,5 +361,6 @@ describe('[E2E] Charge subscription usecase', () => {
 		if (res.body.confirmationUrl !== undefined) {
 			expect(res.body.confirmationUrl).to.be.a('string');
 		}
+		expect(fakeYookassaClient.getLastChargeParams()?.idempotenceKey).to.equal(idempotenceKey);
 	});
 });

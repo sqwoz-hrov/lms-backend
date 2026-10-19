@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
 import { PaymentMethodConfirmationResponseDto } from '../../dto/payment-method-confirmation-response.dto';
@@ -17,6 +18,8 @@ export class AddPaymentMethodUsecase implements UsecaseInterface {
 	async execute({ user }: { user: UserWithSubscriptionTier }): Promise<PaymentMethodConfirmationResponseDto> {
 		const response = await this.yookassaPaymentMethodClient.createPaymentMethod({
 			type: 'bank_card',
+			// I mean it's not ideal but it's fine
+			idempotenceKey: randomUUID(),
 		});
 
 		await this.subscriptionRepository.upsertPaymentMethod({

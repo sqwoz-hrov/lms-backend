@@ -1,6 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { randomUUID } from 'crypto';
 import { yookassaConfig } from '../../config/yookassa.config';
 import { yookassaRequestErrorsTotal } from '../infra/metrics';
 import {
@@ -14,6 +13,14 @@ import {
 	YookassaPaymentResponse,
 } from './yookassa-client.interface';
 import { YookassaPaymentMethod } from '../../subscription/types/yookassa-webhook';
+
+type YookassaRequestVerb = 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH';
+type YookassaRequestOptions = {
+	body?: unknown;
+};
+type YookassaIdempotentRequestOptions = YookassaRequestOptions & {
+	idempotenceKey: string;
+};
 
 @Injectable()
 export class YookassaClient implements YookassaClientPort, YookassaClientPaymentMethodPort {
@@ -57,20 +64,26 @@ export class YookassaClient implements YookassaClientPort, YookassaClientPayment
 	}
 
 	private async req<T>(
-		verb: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH',
+		verb: 'POST' | 'PATCH' | 'DELETE',
 		path: string,
-		opts: {
-			body?: unknown;
-			idempotenceKey?: string;
-		} = {},
+		opts: YookassaIdempotentRequestOptions,
+	): Promise<T>;
+	private async req<T>(verb: 'GET' | 'PUT', path: string, opts?: YookassaRequestOptions): Promise<T>;
+	private async req<T>(
+		verb: YookassaRequestVerb,
+		path: string,
+		opts: YookassaRequestOptions & { idempotenceKey?: string } = {},
 	): Promise<T> {
 		const { body, idempotenceKey } = opts;
 		const url = new URL(path, `${this.baseUrl}/`).toString();
 		const headers: Record<string, string> = { Authorization: `Basic ${this.basicAuthToken}` };
 		if (body !== undefined) headers['Content-Type'] = 'application/json';
-		if (verb === 'POST' || verb === 'PUT' || verb === 'PATCH')
-			// TODO: this is a design flaw, kinda critical for POSTs we need to rememember the idempotence keys
-			headers['Idempotence-Key'] = idempotenceKey ?? randomUUID();
+		if (verb === 'POST' || verb === 'PATCH' || verb === 'DELETE') {
+			if (!idempotenceKey) {
+				throw new Error(`Idempotence key is required for YooKassa ${verb} requests`);
+			}
+			headers['Idempotence-Key'] = idempotenceKey;
+		}
 
 		const sanitizedHeaders = this.sanitizeHeaders(headers);
 		this.logger.debug(

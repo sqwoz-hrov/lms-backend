@@ -17,6 +17,7 @@ import { YookassaPaymentMethod } from '../../subscription/types/yookassa-webhook
 export class FakeYookassaClient implements YookassaClientPort, YookassaClientPaymentMethodPort {
 	private readonly webhooks = new Map<string, YookassaWebhook>();
 	private readonly paymentMethods = new Map<string, YookassaPaymentMethod>();
+	private lastChargeParams: ChargeSavedPaymentParams | undefined;
 	private lastCreatedPaymentMethod:
 		| { params: CreatePaymentMethodParams; response: CreatePaymentMethodResponse }
 		| undefined;
@@ -29,6 +30,7 @@ export class FakeYookassaClient implements YookassaClientPort, YookassaClientPay
 	}
 
 	chargeSavedPaymentMethod(params: ChargeSavedPaymentParams): Promise<YookassaPaymentResponse> {
+		this.lastChargeParams = params;
 		const paymentId = `fake-payment-${randomUUID()}`;
 		const confirmationUrl = `https://fake-payments.local/payments/${paymentId}`;
 		return Promise.resolve({
@@ -89,5 +91,13 @@ export class FakeYookassaClient implements YookassaClientPort, YookassaClientPay
 
 	clearLastCreatedPaymentMethod(): void {
 		this.lastCreatedPaymentMethod = undefined;
+	}
+
+	getLastChargeParams(): ChargeSavedPaymentParams | undefined {
+		return this.lastChargeParams;
+	}
+
+	clearLastCharge(): void {
+		this.lastChargeParams = undefined;
 	}
 }

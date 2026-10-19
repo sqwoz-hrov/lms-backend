@@ -40,7 +40,7 @@ export interface ChargeSavedPaymentParams {
 	description: string;
 	paymentMethodId: string;
 	metadata: EventMetadata;
-	idempotenceKey?: string;
+	idempotenceKey: string;
 }
 
 export interface GetPaymentMethodParams {
@@ -50,7 +50,7 @@ export interface GetPaymentMethodParams {
 export interface CreatePaymentMethodParams {
 	type: YookassaPaymentMethodType;
 	returnUrl?: string;
-	idempotenceKey?: string;
+	idempotenceKey: string;
 }
 
 export interface YookassaPaymentMethodConfirmation {
