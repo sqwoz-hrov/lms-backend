@@ -1,6 +1,8 @@
 import { ColumnType, Insertable, Selectable, Updateable } from 'kysely';
 import { Subscription, SubscriptionTable } from '../subscription/subscription.entity';
 import { Generated } from '../common/kysely-types/generated';
+import { SubscriptionTier, SubscriptionTierTable } from '../subscription-tier/subscription-tier.entity';
+import { GiftTable } from '../gift/gift.entity';
 
 export type UserRole = 'admin' | 'user' | 'subscriber';
 
@@ -20,18 +22,6 @@ export interface UserSettings {
 	homepage: HomepagePreference;
 }
 
-export interface SubscriptionTierTable {
-	id: Generated<string>;
-	tier: string;
-	power: ColumnType<number, number | undefined, number | undefined>;
-	permissions: ColumnType<string[], string[] | undefined, string[] | undefined>;
-	price_rubles: number;
-}
-
-export type SubscriptionTier = Selectable<SubscriptionTierTable>;
-export type NewSubscriptionTier = Insertable<SubscriptionTierTable>;
-export type SubscriptionTierUpdate = Updateable<SubscriptionTierTable>;
-
 export interface UserTable {
 	id: Generated<string>;
 	role: UserRole;
@@ -45,21 +35,36 @@ export interface UserTable {
 }
 
 export type User = Selectable<UserTable>;
+export type NonSubscriberUser = User & { role: 'admin' | 'user' };
 export type NewUser = Insertable<UserTable>;
 export type UserUpdate = Updateable<UserTable>;
 
 export interface UserAggregation {
 	user: UserTable;
 	subscription: SubscriptionTable;
+	gift: GiftTable;
 	subscription_tier: SubscriptionTierTable;
 }
 
-export type UserWithNullableSubscriptionTier = User & {
-	subscription?: Subscription | null;
-	subscription_tier?: SubscriptionTier | null;
+export type UserAndSubscriptionEntity = Pick<UserAggregation, 'subscription' | 'subscription_tier' | 'user'>;
+
+export type SubscriptionGift = {
+	is_gifted: boolean;
 };
 
+export type UserWithNullableSubscriptionTier =
+	| (User & { role: 'admin' | 'user' } & {
+			subscription?: (Subscription & SubscriptionGift) | null;
+			subscription_tier?: Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'> | null;
+	  })
+	| (User & { role: 'subscriber' } & {
+			subscription: Subscription & SubscriptionGift;
+			subscription_tier: Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'>;
+	  });
+
 export type UserWithSubscriptionTier = User & {
-	subscription: Subscription;
-	subscription_tier: SubscriptionTier;
+	subscription: Subscription & SubscriptionGift;
+	subscription_tier: Omit<SubscriptionTier, 'is_archived' | 'markdown_description_id'>;
 };
+
+export const DELETED_USER_FIELD_FALLBACK = 'USER_DELETED' as const;

@@ -24,8 +24,21 @@ export class MarkdownContentService {
 		return markdownContent;
 	}
 
-	async getMarkdownContent(id: string): Promise<MarkDownContent> {
-		const markdownContent = await this.markdownContentRepository.findById(id);
+	async getMarkdownContent(id: string): Promise<MarkDownContent>;
+	async getMarkdownContent(ids: string[]): Promise<MarkDownContent[]>;
+	async getMarkdownContent(idOrIds: string | string[]): Promise<MarkDownContent | MarkDownContent[]> {
+		if (Array.isArray(idOrIds)) {
+			const ids = [...new Set(idOrIds)];
+			const markdownContents = await this.markdownContentRepository.findByIds(ids);
+
+			if (markdownContents.length !== ids.length) {
+				throw new Error('Markdown content not found');
+			}
+
+			return markdownContents;
+		}
+
+		const markdownContent = await this.markdownContentRepository.findById(idOrIds);
 
 		if (!markdownContent) {
 			throw new Error('Markdown content not found');

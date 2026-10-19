@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class BaseSubjectDto {
 	@ApiProperty()
@@ -19,8 +19,8 @@ export class BaseSubjectDto {
 }
 
 export class SubjectResponseDto extends BaseSubjectDto {
-	@ApiProperty({ required: false, type: [String] })
-	@IsString({ each: true })
+	@ApiProperty({ required: false, format: 'uuid' })
+	@IsUUID()
 	@IsOptional()
-	subscription_tier_ids?: string[];
+	minimal_tier_id?: string;
 }

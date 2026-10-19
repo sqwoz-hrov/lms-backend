@@ -1,5 +1,5 @@
 import { Kysely } from 'kysely';
-import { UserAggregation } from '../user.entity';
+import { UserAggregation, UserUpdate } from '../user.entity';
 import { DatabaseProvider } from '../../infra/db/db.provider';
 
 // use a sqlite driver for unit testing and actual
@@ -18,5 +18,9 @@ export class UsersTestRepository {
 	async clearAll(): Promise<void> {
 		await this._connection.deleteFrom('user').execute();
 		await this._connection.deleteFrom('subscription_tier').execute();
+	}
+
+	async updateUser(userId: string, data: UserUpdate): Promise<void> {
+		await this._connection.updateTable('user').set(data).where('id', '=', userId).execute();
 	}
 }

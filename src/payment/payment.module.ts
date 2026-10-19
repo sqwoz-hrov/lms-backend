@@ -9,6 +9,9 @@ import { DeletePaymentMethodUsecase } from './usecases/delete-payment-method/del
 import { GetActivePaymentMethodController } from './usecases/get-active-payment-method/get-active-payment-method.controller';
 import { GetActivePaymentMethodUsecase } from './usecases/get-active-payment-method/get-active-payment-method.usecase';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { ListPaymentHistoryController } from './usecases/list-payment-history/list-payment-history.controller';
+import { ListPaymentHistoryUsecase } from './usecases/list-payment-history/list-payment-history.usecase';
+import { PaymentHistoryRepository } from './payment-history.repository';
 
 @Module({
 	imports: [SubscriptionTierModule, SubscriptionModule],
@@ -17,12 +20,15 @@ import { SubscriptionModule } from '../subscription/subscription.module';
 		AddPaymentMethodController,
 		DeletePaymentMethodController,
 		GetActivePaymentMethodController,
+		ListPaymentHistoryController,
 	],
 	providers: [
 		ChargeSubscriptionUsecase,
 		AddPaymentMethodUsecase,
 		DeletePaymentMethodUsecase,
 		GetActivePaymentMethodUsecase,
+		ListPaymentHistoryUsecase,
+		PaymentHistoryRepository,
 	],
 })
 export class PaymentModule {}
