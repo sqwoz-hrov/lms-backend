@@ -3,6 +3,10 @@ name: Deploy to Production
 on:
   workflow_dispatch:
 
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Deploy to Production
