@@ -12,7 +12,9 @@ import { SecureYookassaWebhook } from './nest/decorators/secure-yookassa-webhook
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { GiftModule } from '../gift/gift.module';
 
-@Module({})
+@Module({
+	imports: [forwardRef(() => SubscriptionModule), GiftModule],
+})
 export class YookassaModule {
 	static forRoot({ useYookassaAPI }: { useYookassaAPI: boolean }): DynamicModule {
 		const commonProviders = [
@@ -22,7 +24,6 @@ export class YookassaModule {
 			PaymentMethodWebhookHandlerStrategy,
 			YookassaWebhookRouter,
 		];
-		const imports = [forwardRef(() => SubscriptionModule), GiftModule];
 
 		if (useYookassaAPI) {
 			// apply the decorator
@@ -31,7 +32,6 @@ export class YookassaModule {
 			return {
 				module: YookassaModule,
 				global: true,
-				imports,
 				providers: [
 					...commonProviders,
 					{
@@ -47,7 +47,6 @@ export class YookassaModule {
 		return {
 			module: YookassaModule,
 			global: true,
-			imports,
 			providers: [
 				...commonProviders,
 				{
