@@ -164,4 +164,58 @@ describe('[E2E] Update post usecase', () => {
 		expect(res.body.markdown_content).to.equal('# Updated post content');
 		expect(res.body.markdown_content_id).to.equal(markdown.id);
 	});
+
+	it('Admin can generate a slug for an existing post', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+		const { post } = await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'Старое название' },
+		});
+
+		const res = await postTestSdk.updatePost({
+			params: {
+				id: post.id,
+				title: 'Пост номер 42',
+				generate_slug: true,
+			},
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+		});
+
+		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status !== HttpStatus.OK) throw new Error('Failed to update post');
+		expect(res.body.slug).to.equal('post-nomer-42');
+	});
+
+	it('Keeps an existing slug frozen when the title changes', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+		const { post } = await createTestPost(postUtilRepository, markdownUtilRepository, {
+			post: { title: 'Первое название', slug: 'pervoe-nazvanie' },
+		});
+
+		const res = await postTestSdk.updatePost({
+			params: {
+				id: post.id,
+				title: 'Совсем другое название',
+				generate_slug: true,
+			},
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+		});
+
+		expect(res.status).to.equal(HttpStatus.OK);
+		if (res.status !== HttpStatus.OK) throw new Error('Failed to update post');
+		expect(res.body.slug).to.equal('pervoe-nazvanie');
+	});
+
+	it('Rejects an invalid slug when enabling a permanent link on an existing post', async () => {
+		const admin = await createTestAdmin(userUtilRepository);
+		const { post } = await createTestPost(postUtilRepository, markdownUtilRepository);
+
+		const res = await postTestSdk.updatePost({
+			params: { id: post.id, title: 'New', generate_slug: true },
+			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
+		});
+
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		if (res.status !== HttpStatus.BAD_REQUEST) throw new Error('Expected slug validation to fail');
+		expect(res.body.description).to.equal('Невозможно создать постоянную ссылку из этого названия');
+	});
 });

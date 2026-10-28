@@ -58,9 +58,8 @@ describe('[E2E] Public signup usecase', () => {
 		expect(res.body.telegram_username).to.equal(signupPayload.telegram_username);
 		expect(res.body.name).to.equal(signupPayload.name);
 		expect(res.body.id).to.be.a('string');
-		expect(res.body.is_billable).to.equal(false);
 		expect(res.body.active_until).to.equal(null);
-		expect(res.body.subscription_tier_id).to.equal(null);
+		expect(res.body.current_tier_id).to.equal(null);
 		expect(res.body.subscription_tier).to.equal(null);
 		expect(res.body.is_archived).to.equal(false);
 		expect(res.body.finished_registration).to.equal(false);
@@ -105,7 +104,6 @@ describe('[E2E] Public signup usecase', () => {
 			email: createEmail(),
 			telegram_username: randomWord(),
 			role: 'admin',
-			is_billable: true,
 			finished_registration: true,
 		};
 
@@ -120,9 +118,8 @@ describe('[E2E] Public signup usecase', () => {
 		if (res.status !== HttpStatus.CREATED) throw new Error();
 		expect(res.body.email).to.equal(signupPayload.email);
 		expect(res.body.role).to.equal('subscriber');
-		expect(res.body.is_billable).to.equal(false);
 		expect(res.body.finished_registration).to.equal(false);
-		expect(res.body.subscription_tier_id).to.equal(null);
+		expect(res.body.current_tier_id).to.equal(null);
 
 		const user = await utilRepository.connection
 			.selectFrom('user')
@@ -141,7 +138,6 @@ describe('[E2E] Public signup usecase', () => {
 			email: createEmail(),
 			telegram_username: randomWord(),
 			role: 'admin',
-			is_billable: true,
 			finished_registration: true,
 		};
 
@@ -160,9 +156,8 @@ describe('[E2E] Public signup usecase', () => {
 		if (res.status !== HttpStatus.CREATED) throw new Error();
 		expect(res.body.email).to.equal(signupPayload.email);
 		expect(res.body.role).to.equal('subscriber');
-		expect(res.body.is_billable).to.equal(false);
 		expect(res.body.finished_registration).to.equal(false);
-		expect(res.body.subscription_tier_id).to.equal(null);
+		expect(res.body.current_tier_id).to.equal(null);
 
 		const user = await utilRepository.connection
 			.selectFrom('user')

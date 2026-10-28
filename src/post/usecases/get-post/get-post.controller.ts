@@ -18,10 +18,10 @@ export class GetPostController {
 	})
 	@Get(':id')
 	@HttpCode(HttpStatus.OK)
-	@ApiParam({ name: 'id', description: 'ID поста', type: String })
-	async get(@Param('id') id: string, @Req() req: RequestWithUser): Promise<PostResponseDto> {
+	@ApiParam({ name: 'id', description: 'ID или постоянная ссылка поста', type: String })
+	async get(@Param('id') identifier: string, @Req() req: RequestWithUser): Promise<PostResponseDto> {
 		const user = req['user'];
 
-		return this.getPostUsecase.execute({ id, user });
+		return this.getPostUsecase.execute({ identifier, user });
 	}
 }

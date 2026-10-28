@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ObtainGiftController } from './usecases/obtain-gift/obtain-gift.controller';
+import { ObtainGiftUsecase } from './usecases/obtain-gift/obtain-gift.usecase';
+import { GiftModule } from '../gift/gift.module';
 import { ChargeSubscriptionController } from './usecases/charge-subscription/charge-subscription.controller';
 import { ChargeSubscriptionUsecase } from './usecases/charge-subscription/charge-subscription.usecase';
 import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.module';
@@ -9,20 +12,28 @@ import { DeletePaymentMethodUsecase } from './usecases/delete-payment-method/del
 import { GetActivePaymentMethodController } from './usecases/get-active-payment-method/get-active-payment-method.controller';
 import { GetActivePaymentMethodUsecase } from './usecases/get-active-payment-method/get-active-payment-method.usecase';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { ListPaymentHistoryController } from './usecases/list-payment-history/list-payment-history.controller';
+import { ListPaymentHistoryUsecase } from './usecases/list-payment-history/list-payment-history.usecase';
+import { PaymentHistoryRepository } from './payment-history.repository';
 
 @Module({
-	imports: [SubscriptionTierModule, SubscriptionModule],
+	imports: [SubscriptionTierModule, SubscriptionModule, GiftModule],
 	controllers: [
 		ChargeSubscriptionController,
+		ObtainGiftController,
 		AddPaymentMethodController,
 		DeletePaymentMethodController,
 		GetActivePaymentMethodController,
+		ListPaymentHistoryController,
 	],
 	providers: [
 		ChargeSubscriptionUsecase,
+		ObtainGiftUsecase,
 		AddPaymentMethodUsecase,
 		DeletePaymentMethodUsecase,
 		GetActivePaymentMethodUsecase,
+		ListPaymentHistoryUsecase,
+		PaymentHistoryRepository,
 	],
 })
 export class PaymentModule {}

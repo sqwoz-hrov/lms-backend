@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const SUPPORTED_EVENTS = new Set(['payment.succeeded', 'payment.canceled', 'payment_method.active'] as const);
+export const SUPPORTED_EVENTS = ['payment.succeeded', 'payment.canceled', 'payment_method.active'] as const;
 
 export const PAYMENT_METHOD_TYPES = [
 	'bank_card',
@@ -47,7 +47,8 @@ export const paymentMethodMetadataSchema = z
 
 export const eventMetadataSchema = paymentMethodMetadataSchema
 	.extend({
-		subscription_tier_id: z.string(),
+		current_tier_id: z.string(),
+		purchase_mode: z.literal('upgrade_discount').optional(),
 	})
 	.passthrough();
 
@@ -90,7 +91,6 @@ const paymentCanceledObjectSchema = paymentBaseSchema
 	.extend({
 		status: z.literal('canceled'),
 		paid: z.boolean(),
-		canceled_at: z.string(),
 		cancellation_details: z
 			.object({
 				party: z.string().optional(),

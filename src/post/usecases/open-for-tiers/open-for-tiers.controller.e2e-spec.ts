@@ -50,7 +50,7 @@ describe('[E2E] Open post for tiers usecase', () => {
 
 		const res = await postTestSdk.openPostForTiers({
 			postId: post.id,
-			params: { tier_ids: [tier.id] },
+			params: { minimal_tier_id: tier.id },
 			userMeta: { isAuth: false },
 		});
 
@@ -64,22 +64,24 @@ describe('[E2E] Open post for tiers usecase', () => {
 
 		const res = await postTestSdk.openPostForTiers({
 			postId: post.id,
-			params: { tier_ids: [tier.id] },
+			params: { minimal_tier_id: tier.id },
 			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('Admin links post to provided tiers', async () => {
+	it('Admin replaces existing tiers with one minimum tier', async () => {
 		const admin = await createTestAdmin(userUtilRepository);
 		const { post } = await createTestPost(postUtilRepository, markdownUtilRepository);
-		const tier1 = await createTestSubscriptionTier(userUtilRepository);
-		const tier2 = await createTestSubscriptionTier(userUtilRepository);
+		const oldTier = await createTestSubscriptionTier(userUtilRepository);
+		const minimumTier = await createTestSubscriptionTier(userUtilRepository);
+
+		await postUtilRepository.db.insertInto('post_tier').values({ post_id: post.id, tier_id: oldTier.id }).execute();
 
 		const res = await postTestSdk.openPostForTiers({
 			postId: post.id,
-			params: { tier_ids: [tier1.id, tier2.id] },
+			params: { minimal_tier_id: minimumTier.id },
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
@@ -90,8 +92,6 @@ describe('[E2E] Open post for tiers usecase', () => {
 
 		const rows = await postUtilRepository.db.selectFrom('post_tier').selectAll().execute();
 
-		expect(rows).to.have.length(2);
-		expect(rows.map(row => row.tier_id)).to.have.members([tier1.id, tier2.id]);
-		expect(rows.every(row => row.post_id === post.id)).to.equal(true);
+		expect(rows).to.deep.equal([{ post_id: post.id, tier_id: minimumTier.id }]);
 	});
 });

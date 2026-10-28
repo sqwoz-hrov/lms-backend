@@ -26,6 +26,7 @@ export const createTestPost = async (
 	const postValues = {
 		...overrides.post,
 		title: overrides.post?.title ?? randomWord(),
+		slug: overrides.post?.slug ?? null,
 		markdown_content_id: overrides.post?.markdown_content_id ?? markdown.id,
 		video_id: overrides.post?.video_id ?? null,
 	};
