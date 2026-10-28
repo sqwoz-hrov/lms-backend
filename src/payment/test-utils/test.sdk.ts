@@ -2,12 +2,31 @@ import { UserMeta, ValidateSDK } from '../../../test/test.abstract.sdk';
 import { TestHttpClient } from '../../../test/test.http-client';
 import { randomUUID } from 'crypto';
 import { ChargeSubscriptionDto, ChargeSubscriptionResponseDto } from '../dto/charge-subscription.dto';
+import { ObtainGiftDto, ObtainGiftResponseDto } from '../dto/obtain-gift.dto';
 import { GetPaymentHistoryDto } from '../dto/get-payment-history.dto';
 import { PaymentHistoryResponseDto } from '../dto/payment-history-response.dto';
 import { PaymentMethodConfirmationResponseDto } from '../dto/payment-method-confirmation-response.dto';
 
 export class PaymentTestSdk implements ValidateSDK<PaymentTestSdk> {
 	constructor(private readonly testClient: TestHttpClient) {}
+
+	async obtainGift({
+		params,
+		userMeta,
+		idempotenceKey = randomUUID(),
+	}: {
+		params: ObtainGiftDto;
+		userMeta: UserMeta;
+		idempotenceKey?: string | null;
+	}) {
+		return this.testClient.request<ObtainGiftResponseDto>({
+			path: '/payments/obtain-gift',
+			method: 'POST',
+			body: params,
+			headers: { 'Idempotence-Key': idempotenceKey },
+			userMeta,
+		});
+	}
 
 	async chargeSubscription({
 		params,

@@ -19,7 +19,7 @@ This document enumerates the high-level domain agents that compose the `lms-back
 - **Telegram Agent** – runs background Telegram bots (`src/telegram`) and toggles between real API and mocks via `TelegramModule.forRoot`.
 - **HR Connection Agent** – links with HR services/partners (`src/hr-connection`).
 - **Post Agent** – exposes blog-like posts and announcements (`src/post`).
-- **Subscription Agents** – `SubscriptionTierModule`, `SubscriptionModule`, `PaymentModule`, and `YookassaModule` form the billing story, using `yookassa` config, `subscriptionConfig`, and `subscriptionBillingConfig`.
+- **Subscription Agents** – `SubscriptionTierModule`, `SubscriptionModule`, `PaymentModule`, and `YookassaModule` form the billing story, using `yookassa` config, `subscriptionConfig`, and `subscriptionBillingConfig`. Upgrades credit unused paid time as a discount and start a new period; renewals use the tier price. Purchase contracts are documented in `src/subscription/README.md`.
 - **Infrastructure Agent** – `InfraModule` centralizes Redis, database, and other infra wiring via `infra/infra.module.ts`.
 - **SSE Agent** – `SseModule` exposes server-sent events and keeps long-running listeners alive (`src/sse`).
 - **Telegram & Notification Agents** – `SubscriptionModule`, `PaymentModule`, and `TelegramModule` collaborate to notify subscribers about billing events.

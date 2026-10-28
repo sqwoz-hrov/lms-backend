@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ObtainGiftController } from './usecases/obtain-gift/obtain-gift.controller';
+import { ObtainGiftUsecase } from './usecases/obtain-gift/obtain-gift.usecase';
+import { GiftModule } from '../gift/gift.module';
 import { ChargeSubscriptionController } from './usecases/charge-subscription/charge-subscription.controller';
 import { ChargeSubscriptionUsecase } from './usecases/charge-subscription/charge-subscription.usecase';
 import { SubscriptionTierModule } from '../subscription-tier/subscription-tier.module';
@@ -14,9 +17,10 @@ import { ListPaymentHistoryUsecase } from './usecases/list-payment-history/list-
 import { PaymentHistoryRepository } from './payment-history.repository';
 
 @Module({
-	imports: [SubscriptionTierModule, SubscriptionModule],
+	imports: [SubscriptionTierModule, SubscriptionModule, GiftModule],
 	controllers: [
 		ChargeSubscriptionController,
+		ObtainGiftController,
 		AddPaymentMethodController,
 		DeletePaymentMethodController,
 		GetActivePaymentMethodController,
@@ -24,6 +28,7 @@ import { PaymentHistoryRepository } from './payment-history.repository';
 	],
 	providers: [
 		ChargeSubscriptionUsecase,
+		ObtainGiftUsecase,
 		AddPaymentMethodUsecase,
 		DeletePaymentMethodUsecase,
 		GetActivePaymentMethodUsecase,

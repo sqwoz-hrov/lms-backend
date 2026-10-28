@@ -146,10 +146,10 @@ export class SubscriptionBillingService {
 
 		try {
 			this.logger.log(
-				`Requesting recurring charge attemptId=${context.attemptId} subscriptionId=${prepared.subscription.id} userId=${prepared.subscription.user_id} amountRubles=${prepared.subscription.price_on_purchase_rubles}`,
+				`Requesting recurring charge attemptId=${context.attemptId} subscriptionId=${prepared.subscription.id} userId=${prepared.subscription.user_id} amountRubles=${prepared.amountRubles}`,
 			);
 			const payment = await this.yookassaClient.chargeSavedPaymentMethod({
-				amountRubles: prepared.subscription.price_on_purchase_rubles,
+				amountRubles: prepared.amountRubles,
 				description: this.config.description,
 				paymentMethodId: candidate.billing_payment_method_id,
 				idempotenceKey: `subscription-billing-${context.attemptId}`,
@@ -390,7 +390,7 @@ export class SubscriptionBillingService {
 				`Billing attempt prepared attemptId=${context.attemptId} subscriptionId=${locked.id} userId=${locked.user_id}`,
 			);
 
-			return { status: 'ready', subscription: { ...locked, price_on_purchase_rubles: newPrice } } as const;
+			return { status: 'ready', subscription: locked, amountRubles: newPrice } as const;
 		});
 	}
 
@@ -444,7 +444,7 @@ export class SubscriptionBillingService {
 }
 
 type PreparedBillingAttempt =
-	| { status: 'ready'; subscription: Subscription }
+	| { status: 'ready'; subscription: Subscription; amountRubles: number }
 	| { status: 'skip'; reason: 'subscription-missing' | 'not-due' };
 
 type BillingAttemptContext = {

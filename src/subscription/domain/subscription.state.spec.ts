@@ -98,6 +98,37 @@ const expectRepeatedHandlingToBeDeeplyEqual = (service: SubscriptionStateService
 };
 
 describe('SubscriptionStateService', () => {
+	for (const giftedTier of [undefined, { ...premiumTier, power: 3 }, paidTier]) {
+		it(`starts a new period for a discounted upgrade with gift power ${giftedTier?.power ?? 'none'}`, () => {
+			const service = createService();
+			const subscription = buildSubscriptionState({ current_period_end: addDays(BASE_DATE, 15) });
+			const { newSub, newGift } = service.handlePaymentEvent({
+				user: { id: subscription.user_id },
+				freeTier,
+				subscription: buildAggregation(subscription, { giftedTier, giftedDaysLeft: 5 }),
+				event: {
+					type: 'payment.succeeded',
+					occurredAt: BASE_DATE,
+					meta: {
+						current_tier_id: premiumTier.id,
+						user_id: subscription.user_id,
+						targetTierPower: premiumTier.power,
+						paidAmount: { value: '3000', currency: 'RUB' },
+						purchase_mode: 'upgrade_discount',
+					},
+				},
+			});
+			expect(newSub.current_period_end?.getTime()).to.equal(
+				addDays(BASE_DATE, giftedTier && giftedTier.power > premiumTier.power ? 35 : 30).getTime(),
+			);
+			expect(newSub.current_tier_id).to.equal(premiumTier.id);
+			expect(newSub.next_tier_id).to.equal(premiumTier.id);
+			expect(newSub.price_on_purchase_rubles).to.equal(3000);
+			if (giftedTier && giftedTier.power <= premiumTier.power)
+				expect(newGift).to.deep.equal({ activated_at: null, duration_days: 5 });
+		});
+	}
+
 	it('creates free tier subscription fields for new user', () => {
 		const service = createService();
 

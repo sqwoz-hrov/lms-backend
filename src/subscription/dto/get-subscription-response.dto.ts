@@ -13,6 +13,12 @@ class SubscriptionTierSummaryDto {
 }
 
 class CurrentSubscriptionTierDto extends SubscriptionTierSummaryDto {
+	@ApiProperty()
+	priceRubles!: number;
+
+	@ApiProperty()
+	power!: number;
+
 	@ApiProperty({ type: String, nullable: true })
 	until!: string | null;
 }
@@ -31,6 +37,12 @@ class NextPaymentDto {
 }
 
 export class GetSubscriptionResponseDto {
+	@ApiProperty()
+	billingPeriodDays!: number;
+
+	@ApiProperty({ description: 'Остаток суммы успешных оплат после вычета стоимости всех подарков самому себе' })
+	selfGiftAllowanceRubles!: number;
+
 	@ApiProperty({ type: GiftSubscriptionTierDto, nullable: true })
 	currentGiftTier!: GiftSubscriptionTierDto | null;
 
@@ -45,6 +57,8 @@ export class GetSubscriptionResponseDto {
 
 	static fromEntity(entity: FullSubscription): GetSubscriptionResponseDto {
 		const dto = new GetSubscriptionResponseDto();
+		dto.billingPeriodDays = entity.billingPeriodDays;
+		dto.selfGiftAllowanceRubles = entity.selfGiftAllowanceRubles;
 		dto.currentGiftTier = entity.currentGiftTier
 			? {
 					id: entity.currentGiftTier.id,
@@ -55,6 +69,8 @@ export class GetSubscriptionResponseDto {
 			: null;
 		dto.currentTier = {
 			id: entity.currentTier.id,
+			priceRubles: entity.currentTier.priceRubles,
+			power: entity.currentTier.power,
 			name: entity.currentTier.name,
 			until: entity.currentTier.until ? entity.currentTier.until.toISOString() : null,
 			permissions: entity.currentTier.permissions,

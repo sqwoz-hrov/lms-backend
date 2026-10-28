@@ -64,7 +64,14 @@ export class GiftRepository {
 		return status;
 	}
 
-	async create(data: NewGift): Promise<Gift> {
+	async create(data: NewGift, trx?: SubscriptionTransaction): Promise<Gift> {
+		if (trx) {
+			return await trx
+				.insertInto('gift')
+				.values({ ...data })
+				.returningAll()
+				.executeTakeFirstOrThrow();
+		}
 		return await this.connection
 			.insertInto('gift')
 			.values({ ...data })

@@ -53,6 +53,7 @@ export class ChargeSubscriptionController {
 			user,
 			current_tier_id: dto.current_tier_id,
 			idempotenceKey: validatedIdempotenceKey,
+			expectedAmountRubles: dto.expectedAmountRubles,
 		});
 	}
 }

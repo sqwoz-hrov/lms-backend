@@ -103,6 +103,8 @@ describe('[E2E] Get subscription usecase', () => {
 		expect(response.body.currentGiftTier).to.equal(null);
 		expect(response.body.currentTier).to.deep.equal({
 			id: currentTier.id,
+			priceRubles: currentTier.price_rubles,
+			power: currentTier.power,
 			name: currentTier.tier,
 			until: currentPeriodEnd.toISOString(),
 			permissions: currentTier.permissions,
@@ -190,6 +192,8 @@ describe('[E2E] Get subscription usecase', () => {
 		});
 		expect(response.body.currentTier).to.deep.equal({
 			id: currentTier.id,
+			priceRubles: currentTier.price_rubles,
+			power: currentTier.power,
 			name: currentTier.tier,
 			until: currentPeriodEnd.toISOString(),
 			permissions: currentTier.permissions,

@@ -428,6 +428,28 @@ describe('SubscriptionBillingService integration', () => {
 		expect(userWithSubAfter?.subscription?.next_tier_id).to.equal(freeTier.id);
 	});
 
+	it('renews an archived tier at its catalogue price after a discounted or fully credited purchase', async () => {
+		const { subscriber, currentTier } = await seedDueSubscriber({
+			userKey: 'discounted-renewal',
+			currentPriceRubles: 2000,
+			currentTierPower: 1,
+		});
+		await subscriptionTestRepo.update(subscriber.subscription.id, {
+			price_on_purchase_rubles: 0,
+			next_tier_id: currentTier.id,
+		});
+		await usersTestRepo.connection
+			.updateTable('subscription_tier')
+			.set({ is_archived: true })
+			.where('id', '=', currentTier.id)
+			.execute();
+		const yookassa = new RecordingYookassaClient();
+		const summary = await createService({ yookassa }).runBillingCycle({ now: new Date('2024-02-01T00:00:00.000Z') });
+		expect(summary.charged).to.equal(1);
+		expect(yookassa.calls[0].amountRubles).to.equal(2000);
+		expect(yookassa.calls[0].metadata.current_tier_id).to.equal(currentTier.id);
+	});
+
 	it('charge is being made for the next_tier_id tier, not the current_tier_id', async () => {
 		const { currentTier, nextTier } = await seedDueSubscriber({
 			userKey: 'next-tier-charge',

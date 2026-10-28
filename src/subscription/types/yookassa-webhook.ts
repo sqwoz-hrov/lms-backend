@@ -48,6 +48,7 @@ export const paymentMethodMetadataSchema = z
 export const eventMetadataSchema = paymentMethodMetadataSchema
 	.extend({
 		current_tier_id: z.string(),
+		purchase_mode: z.literal('upgrade_discount').optional(),
 	})
 	.passthrough();
 

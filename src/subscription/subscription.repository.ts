@@ -69,7 +69,9 @@ export type SubscriptionTierWithoutPrivateFields = Omit<SubscriptionTier, 'is_ar
 
 export type FullSubscription = {
 	currentGiftTier: (FullSubscriptionTier & { until: Date }) | null;
-	currentTier: FullSubscriptionTier & { until: Subscription['current_period_end'] };
+	currentTier: FullSubscriptionTier & { until: Subscription['current_period_end']; priceRubles: number; power: number };
+	billingPeriodDays: number;
+	selfGiftAllowanceRubles: number;
 	nextTier: FullSubscriptionTier;
 	nextPayment: {
 		amount: SubscriptionTier['price_rubles'];
@@ -88,6 +90,7 @@ export type PaidAndGiftedSubPerUserView = {
 				gift: {
 					giftId: string;
 					giftedDaysLeft: number;
+					until?: Date;
 				};
 				currentTier: {
 					giftedTierId: string;
@@ -247,6 +250,7 @@ export class SubscriptionRepository {
 						.selectFrom('gift')
 						.innerJoin('subscription_tier as st', 'st.id', 'gift.tier_id')
 						.select(['gift.id', 'gift.tier_id as gifted_tier_id', 'st.power as gifted_tier_power'])
+						.select(sql<Date>`gift.activated_at::timestamptz + gift.duration_days * interval '1 day'`.as('gift_until'))
 						.select(_ => [
 							sql<number>`CEIL(EXTRACT(EPOCH FROM((gift.activated_at::timestamptz + (gift.duration_days || ' days')::interval) - now()::timestamptz)) / 86400)`.as(
 								'gifted_days_left',
@@ -280,7 +284,7 @@ export class SubscriptionRepository {
 				'st_next.tier as paid_next_tier_name',
 				'st_next.price_rubles as paid_next_tier_price',
 			])
-			.select(['g.id as gift_id', 'g.gifted_tier_id', 'g.gifted_days_left', 'g.gifted_tier_power'])
+			.select(['g.id as gift_id', 'g.gifted_tier_id', 'g.gifted_days_left', 'g.gifted_tier_power', 'g.gift_until'])
 			.where('s.user_id', '=', userId)
 			.forUpdate('s')
 			.limit(1)
@@ -292,6 +296,7 @@ export class SubscriptionRepository {
 
 		const {
 			gift_id,
+			gift_until,
 			gifted_tier_id,
 			gifted_days_left,
 			gifted_tier_power,
@@ -313,6 +318,7 @@ export class SubscriptionRepository {
 				? {
 						gift: {
 							giftId: gift_id,
+							until: gift_until!,
 							giftedDaysLeft: gifted_days_left && gifted_days_left > 0 ? gifted_days_left : 0,
 						},
 						currentTier: {
@@ -344,6 +350,33 @@ export class SubscriptionRepository {
 		};
 	}
 
+	async getSelfGiftAllowance(userId: string, trx?: SubscriptionTransaction): Promise<number> {
+		const row = await this.getExecutor(trx)
+			.selectFrom('user')
+			.where('user.id', '=', userId)
+			.select(eb => [
+				eb
+					.selectFrom('payment_event')
+					.select(sql<string>`coalesce(sum((event -> 'object' -> 'amount' ->> 'value')::numeric), 0)`.as('total'))
+					.where('user_id', '=', userId)
+					.where(sql<string>`event ->> 'event'`, '=', 'payment.succeeded')
+					.where(sql<string>`event -> 'object' -> 'amount' ->> 'currency'`, '=', 'RUB')
+					.as('paidRubles'),
+				// Count every self-gift once, including used and partially consumed gifts.
+				// Ordinary gifts from other users do not spend this allowance.
+				eb
+					.selectFrom('gift')
+					.innerJoin('subscription_tier as tier', 'tier.id', 'gift.tier_id')
+					.select(sql<string>`coalesce(sum(tier.price_rubles), 0)`.as('total'))
+					.where('gift.gifted_to', '=', userId)
+					.where('gift.gifted_by', '=', userId)
+					.as('selfGiftRubles'),
+			])
+			.limit(1)
+			.executeTakeFirstOrThrow();
+		return Math.max(0, Number(row.paidRubles) - Number(row.selfGiftRubles));
+	}
+
 	async getFullSubscriptionByUser(userId: Subscription['user_id']): Promise<FullSubscription | undefined> {
 		const row = await this.db
 			.selectFrom('subscription as s')
@@ -370,6 +403,9 @@ export class SubscriptionRepository {
 				join => join.onTrue(),
 			)
 			.select([
+				's.billing_period_days',
+				'st_curr.price_rubles as current_tier_price',
+				'st_curr.power as current_tier_power',
 				'st_curr.id as current_tier_id',
 				'st_curr.tier as current_tier_name',
 				'st_curr.permissions as current_tier_permissions',
@@ -393,6 +429,8 @@ export class SubscriptionRepository {
 		}
 
 		return {
+			billingPeriodDays: row.billing_period_days,
+			selfGiftAllowanceRubles: await this.getSelfGiftAllowance(userId),
 			currentGiftTier: row.gift_tier_id
 				? {
 						id: row.gift_tier_id,
@@ -403,6 +441,8 @@ export class SubscriptionRepository {
 				: null,
 			currentTier: {
 				id: row.current_tier_id,
+				priceRubles: row.current_tier_price,
+				power: row.current_tier_power,
 				name: row.current_tier_name,
 				until: row.current_tier_until,
 				permissions: row.current_tier_permissions,

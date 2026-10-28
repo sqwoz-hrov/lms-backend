@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID } from 'class-validator';
+import { IsInt, IsUUID } from 'class-validator';
 import { YookassaPaymentResponse } from '../../yookassa/services/yookassa-client.interface';
 
 export class ChargeSubscriptionDto {
@@ -9,10 +9,14 @@ export class ChargeSubscriptionDto {
 	})
 	@IsUUID()
 	current_tier_id: string;
+
+	@ApiProperty({ description: 'Подтверждённая пользователем сумма; при изменении расчёта возвращается 409' })
+	@IsInt()
+	expectedAmountRubles: number;
 }
 
 export class ChargeSubscriptionResponseDto {
-	@ApiProperty({ description: 'Идентификатор платежа в YooKassa' })
+	@ApiProperty({ description: 'Идентификатор платежа' })
 	paymentId: string;
 
 	@ApiProperty({ description: 'Текущий статус платежа' })
@@ -21,7 +25,7 @@ export class ChargeSubscriptionResponseDto {
 	@ApiProperty({ description: 'Был ли платёж уже оплачен' })
 	paid: boolean;
 
-	@ApiProperty({ description: 'Сумма списания в рублях' })
+	@ApiProperty({ description: 'Сумма списания с учётом скидки' })
 	amountRubles: number;
 
 	@ApiProperty({ description: 'Дата создания платежа' })

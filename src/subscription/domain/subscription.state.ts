@@ -42,7 +42,11 @@ export class SubscriptionStateService {
 		const { currentActiveGiftSubscription, currentPaidSubscription } = subscription;
 
 		const occurredAt = event.occurredAt;
-		const base = this.maxDate(currentPaidSubscription.subscription.current_period_end, occurredAt);
+		// Discounted purchases consume the old paid balance and start a full new period.
+		const base =
+			event.meta.purchase_mode === 'upgrade_discount'
+				? occurredAt
+				: this.maxDate(currentPaidSubscription.subscription.current_period_end, occurredAt);
 		const periodDays = this.normalizePeriodDays(
 			currentPaidSubscription.subscription.billing_period_days || this.defaultBillingPeriodDays,
 		);

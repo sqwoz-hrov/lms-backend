@@ -19,6 +19,7 @@ import { UserRepository } from '../../../user/user.repository';
 import { UsersTestRepository } from '../../../user/test-utils/test.repo';
 import { YOOKASSA_CLIENT } from '../../../yookassa/constants';
 import { FakeYookassaClient } from '../../../yookassa/services/fake-yookassa.client';
+import { HandleYookassaWebhookUsecase } from '../../../yookassa/usecases/handle-yookassa-webhook/handle-yookassa-webhook.usecase';
 import { PaymentTestSdk } from '../../test-utils/test.sdk';
 
 describe('[E2E] Charge subscription usecase', () => {
@@ -64,6 +65,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: tier.id,
+				expectedAmountRubles: tier.price_rubles,
 			},
 			userMeta: { isAuth: false },
 		});
@@ -78,6 +80,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: tier.id,
+				expectedAmountRubles: tier.price_rubles,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -96,6 +99,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: tier.id,
+				expectedAmountRubles: tier.price_rubles,
 			},
 			userMeta: {
 				userId: user.id,
@@ -114,6 +118,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: tier.id,
+				expectedAmountRubles: tier.price_rubles,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -133,6 +138,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: missingTierId,
+				expectedAmountRubles: 0,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -157,6 +163,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: archivedTier.id,
+				expectedAmountRubles: archivedTier.price_rubles,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -171,12 +178,14 @@ describe('[E2E] Charge subscription usecase', () => {
 	});
 
 	it('Returns 404 when payment method is missing', async () => {
-		const subscriber = await createTestSubscriber(usersRepo);
+		const freeTier = await createTestSubscriptionTier(usersRepo, { power: 0, price_rubles: 0 });
+		const subscriber = await createTestSubscriber(usersRepo, { current_tier_id: freeTier.id });
 		const tier = await createTestSubscriptionTier(usersRepo);
 
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: tier.id,
+				expectedAmountRubles: tier.price_rubles,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -204,6 +213,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: freeTier.id,
+				expectedAmountRubles: freeTier.price_rubles,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -234,6 +244,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: cheaperTier.id,
+				expectedAmountRubles: cheaperTier.price_rubles,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -281,6 +292,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: targetTier.id,
+				expectedAmountRubles: targetTier.price_rubles,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -314,6 +326,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: subscriber.subscription_tier.id,
+				expectedAmountRubles: 0,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -328,7 +341,8 @@ describe('[E2E] Charge subscription usecase', () => {
 	});
 
 	it('Subscriber is charged with saved payment method for new subscription', async () => {
-		const subscriber = await createTestSubscriber(usersRepo);
+		const freeTier = await createTestSubscriptionTier(usersRepo, { power: 0, price_rubles: 0 });
+		const subscriber = await createTestSubscriber(usersRepo, { current_tier_id: freeTier.id });
 		const idempotenceKey = randomUUID();
 		const targetTier = await createTestSubscriptionTier(usersRepo, {
 			tier: 'premium',
@@ -343,6 +357,7 @@ describe('[E2E] Charge subscription usecase', () => {
 		const res = await paymentSdk.chargeSubscription({
 			params: {
 				current_tier_id: targetTier.id,
+				expectedAmountRubles: targetTier.price_rubles,
 			},
 			userMeta: {
 				userId: subscriber.id,
@@ -362,5 +377,72 @@ describe('[E2E] Charge subscription usecase', () => {
 			expect(res.body.confirmationUrl).to.be.a('string');
 		}
 		expect(fakeYookassaClient.getLastChargeParams()?.idempotenceKey).to.equal(idempotenceKey);
+	});
+	it('charges unused paid time and starts a new period on webhook', async () => {
+		const current = await createTestSubscriptionTier(usersRepo, { price_rubles: 1000 });
+		const target = await createTestSubscriptionTier(usersRepo, { price_rubles: 2000 });
+		const subscriber = await createTestSubscriber(usersRepo, {
+			current_tier_id: current.id,
+			active_until: new Date(Date.now() + 15 * 86400000),
+		});
+		await subscriptionRepo.update(subscriber.subscription.id, { price_on_purchase_rubles: 12 });
+		await subscriptionRepo.addActivePaymentMethod({ userId: subscriber.id, paymentMethodId: 'pm-discount' });
+		const idempotenceKey = randomUUID();
+		const request = {
+			params: { current_tier_id: target.id, expectedAmountRubles: 1502 },
+			userMeta: { userId: subscriber.id, isAuth: true, isWrongAccessJwt: false },
+			idempotenceKey,
+		};
+		const res = await paymentSdk.chargeSubscription(request);
+		expect(res.status).to.equal(HttpStatus.CREATED);
+		if (res.status !== HttpStatus.CREATED) throw new Error();
+		expect(res.body.amountRubles).to.equal(1502);
+		const charge = fakeYookassaClient.getLastChargeParams()!;
+		expect(charge.metadata.purchase_mode).to.equal('upgrade_discount');
+		await app.get(HandleYookassaWebhookUsecase).execute({
+			event: 'payment.succeeded',
+			object: {
+				id: res.body.paymentId,
+				status: 'succeeded',
+				paid: true,
+				created_at: res.body.createdAt,
+				amount: { value: String(res.body.amountRubles), currency: 'RUB' },
+				metadata: charge.metadata,
+			},
+		});
+		const updated = await subscriptionRepo.findById(subscriber.subscription.id);
+		expect(updated?.current_tier_id).to.equal(target.id);
+		expect(updated?.current_period_end?.getTime()).to.equal(new Date(res.body.createdAt).getTime() + 30 * 86400000);
+		expect(updated?.price_on_purchase_rubles).to.equal(res.body.amountRubles);
+	});
+
+	it('does not charge when the confirmed amount has changed', async () => {
+		const current = await createTestSubscriptionTier(usersRepo, { price_rubles: 1000 });
+		const target = await createTestSubscriptionTier(usersRepo, { price_rubles: 2000 });
+		const subscriber = await createTestSubscriber(usersRepo, { current_tier_id: current.id });
+		const res = await paymentSdk.chargeSubscription({
+			params: { current_tier_id: target.id, expectedAmountRubles: 0 },
+			userMeta: { userId: subscriber.id, isAuth: true, isWrongAccessJwt: false },
+		});
+		expect(res.status).to.equal(HttpStatus.CONFLICT);
+		expect(fakeYookassaClient.getLastChargeParams()).to.be.undefined;
+		expect((await subscriptionRepo.findById(subscriber.subscription.id))?.current_tier_id).to.equal(current.id);
+	});
+
+	it('rejects zero or negative charges without creating gifts', async () => {
+		const current = await createTestSubscriptionTier(usersRepo, { price_rubles: 1000 });
+		const target = await createTestSubscriptionTier(usersRepo, { price_rubles: 2000 });
+		const subscriber = await createTestSubscriber(usersRepo, {
+			current_tier_id: current.id,
+			active_until: new Date(Date.now() + 90.5 * 86400000),
+		});
+		const res = await paymentSdk.chargeSubscription({
+			params: { current_tier_id: target.id, expectedAmountRubles: -1015 },
+			userMeta: { userId: subscriber.id, isAuth: true, isWrongAccessJwt: false },
+		});
+		expect(res.status).to.equal(HttpStatus.BAD_REQUEST);
+		expect(fakeYookassaClient.getLastChargeParams()).to.be.undefined;
+		expect(await giftRepo.getByFields({ giftedBy: subscriber.id, giftedTo: subscriber.id, tierId: target.id })).to.be
+			.undefined;
 	});
 });
