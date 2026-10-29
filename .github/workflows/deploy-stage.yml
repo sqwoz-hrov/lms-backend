@@ -8,6 +8,10 @@ on:
         required: true
         default: 'main'
 
+concurrency:
+  group: deploy-stage
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Deploy to Stage

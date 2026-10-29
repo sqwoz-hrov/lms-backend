@@ -60,7 +60,7 @@ describe('[E2E] Open material for tiers usecase', () => {
 
 		const res = await materialTestSdk.openMaterialForTiers({
 			materialId: material.id,
-			params: { tier_ids: [tier.id] },
+			params: { minimal_tier_id: tier.id },
 			userMeta: { isAuth: false },
 		});
 
@@ -74,22 +74,27 @@ describe('[E2E] Open material for tiers usecase', () => {
 
 		const res = await materialTestSdk.openMaterialForTiers({
 			materialId: material.id,
-			params: { tier_ids: [tier.id] },
+			params: { minimal_tier_id: tier.id },
 			userMeta: { userId: user.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
 		expect(res.status).to.equal(HttpStatus.UNAUTHORIZED);
 	});
 
-	it('Admin links material to provided tiers', async () => {
+	it('Admin replaces existing tiers with one minimum tier', async () => {
 		const admin = await createTestAdmin(userUtilRepository);
 		const material = await prepareMaterial();
-		const tier1 = await createTestSubscriptionTier(userUtilRepository);
-		const tier2 = await createTestSubscriptionTier(userUtilRepository);
+		const oldTier = await createTestSubscriptionTier(userUtilRepository);
+		const minimumTier = await createTestSubscriptionTier(userUtilRepository);
+
+		await materialUtilRepository.connection
+			.insertInto('material_tier')
+			.values({ material_id: material.id, tier_id: oldTier.id })
+			.execute();
 
 		const res = await materialTestSdk.openMaterialForTiers({
 			materialId: material.id,
-			params: { tier_ids: [tier1.id, tier2.id] },
+			params: { minimal_tier_id: minimumTier.id },
 			userMeta: { userId: admin.id, isAuth: true, isWrongAccessJwt: false },
 		});
 
@@ -98,8 +103,6 @@ describe('[E2E] Open material for tiers usecase', () => {
 
 		const rows = await materialUtilRepository.connection.selectFrom('material_tier').selectAll().execute();
 
-		expect(rows).to.have.length(2);
-		expect(rows.map(row => row.tier_id)).to.have.members([tier1.id, tier2.id]);
-		expect(rows.every(row => row.material_id === material.id)).to.equal(true);
+		expect(rows).to.deep.equal([{ material_id: material.id, tier_id: minimumTier.id }]);
 	});
 });

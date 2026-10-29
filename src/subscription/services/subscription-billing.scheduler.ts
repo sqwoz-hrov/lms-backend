@@ -16,6 +16,7 @@ export class SubscriptionBillingScheduler implements OnModuleInit, OnModuleDestr
 	) {}
 
 	onModuleInit(): void {
+		this.logger.debug('Initializng SubscriptionBillingScheduler for processing subscriptions');
 		if (!this.config.enabled) {
 			this.logger.debug('Subscription billing scheduler disabled');
 			return;

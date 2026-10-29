@@ -18,7 +18,7 @@ export class ListPostsUsecase implements UsecaseInterface {
 		user: UserWithSubscriptionTier;
 		params: GetPostsDto;
 	}): Promise<PostListResponseDto> {
-		const { after, before, limit, subscription_tier_id: requestedSubscriptionTierId } = params;
+		const { after, before, limit, current_tier_id: requestedSubscriptionTierId } = params;
 
 		const pagination = {
 			after: after ? decodePostCursor(after) : undefined,
@@ -31,19 +31,20 @@ export class ListPostsUsecase implements UsecaseInterface {
 			subscriptionTierId: user.role === 'subscriber' ? undefined : requestedSubscriptionTierId,
 		});
 
-		const postTierMap = await this.postRepository.findTierIdsForPosts(posts.map(post => post.id));
+		const minimumTierMap = await this.postRepository.findMinimumTiersForPosts(posts.map(post => post.id));
 
 		const isSubscriber = user.role === 'subscriber';
-		const subscriberTierId = user.subscription?.subscription_tier_id;
+		const subscriberTierPower = user.subscription_tier?.power;
 
 		const items = posts.map(post => {
-			const allowedTierIds = postTierMap[post.id] ?? [];
+			const minimumTier = minimumTierMap[post.id];
 
 			const base: PostResponseDto = {
 				...post,
+				slug: post.slug ?? undefined,
 				video_id: post.video_id ?? undefined,
 				locked_preview: undefined,
-				subscription_tier_ids: allowedTierIds,
+				minimal_tier_id: minimumTier?.id,
 			};
 
 			if (!isSubscriber) {
@@ -54,8 +55,8 @@ export class ListPostsUsecase implements UsecaseInterface {
 				...base,
 				...(this.buildSubscriberView({
 					post,
-					allowedTierIds,
-					subscriberTierId,
+					minimumTierPower: minimumTier?.power,
+					subscriberTierPower,
 				}) as Record<string, unknown>),
 			};
 		});
@@ -83,16 +84,16 @@ export class ListPostsUsecase implements UsecaseInterface {
 
 	private buildSubscriberView({
 		post,
-		allowedTierIds,
-		subscriberTierId,
+		minimumTierPower,
+		subscriberTierPower,
 	}: {
 		post: PostWithContent;
-		allowedTierIds: string[];
-		subscriberTierId?: string;
+		minimumTierPower?: number;
+		subscriberTierPower?: number;
 	}): Partial<PostResponseDto> {
 		const hasVideo = Boolean(post.video_id);
-		const isPublic = allowedTierIds.length === 0;
-		const hasAccess = isPublic || (!!subscriberTierId && allowedTierIds.includes(subscriberTierId));
+		const isPublic = minimumTierPower === undefined;
+		const hasAccess = isPublic || (typeof subscriberTierPower === 'number' && subscriberTierPower >= minimumTierPower);
 
 		if (hasAccess) {
 			return {

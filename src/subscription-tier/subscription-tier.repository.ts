@@ -2,11 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Kysely } from 'kysely';
 import { DatabaseProvider } from '../infra/db/db.provider';
 import {
-	NewSubscriptionTier,
-	SubscriptionTier,
 	SubscriptionTierTable,
+	SubscriptionTier,
+	NewSubscriptionTier,
 	SubscriptionTierUpdate,
-} from '../user/user.entity';
+} from './subscription-tier.entity';
 
 type SubscriptionTierDb = {
 	subscription_tier: SubscriptionTierTable;
@@ -24,8 +24,22 @@ export class SubscriptionTierRepository {
 		return await this.db.selectFrom('subscription_tier').selectAll().execute();
 	}
 
+	async findAllActive(): Promise<SubscriptionTier[]> {
+		return await this.db.selectFrom('subscription_tier').selectAll().where('is_archived', '=', false).execute();
+	}
+
 	async findById(id: string): Promise<SubscriptionTier | undefined> {
 		return await this.db.selectFrom('subscription_tier').selectAll().where('id', '=', id).limit(1).executeTakeFirst();
+	}
+
+	async findActiveById(id: string): Promise<SubscriptionTier | undefined> {
+		return await this.db
+			.selectFrom('subscription_tier')
+			.selectAll()
+			.where('id', '=', id)
+			.where('is_archived', '=', false)
+			.limit(1)
+			.executeTakeFirst();
 	}
 
 	async create(data: NewSubscriptionTier): Promise<SubscriptionTier> {
@@ -42,6 +56,11 @@ export class SubscriptionTierRepository {
 	}
 
 	async delete(id: string): Promise<SubscriptionTier> {
-		return await this.db.deleteFrom('subscription_tier').where('id', '=', id).returningAll().executeTakeFirstOrThrow();
+		return await this.db
+			.updateTable('subscription_tier')
+			.set({ is_archived: true })
+			.where('id', '=', id)
+			.returningAll()
+			.executeTakeFirstOrThrow();
 	}
 }

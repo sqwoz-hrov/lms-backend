@@ -1,11 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { UsecaseInterface } from '../../../common/interface/usecase.interface';
-import { SubscriptionManagerFactory } from '../../domain/subscription-manager.factory';
 import { DowngradeSubscriptionDto } from '../../dto/downgrade-subscription.dto';
 import { SubscriptionResponseDto } from '../../dto/subscription-response.dto';
 import { SubscriptionTierRepository } from '../../../subscription-tier/subscription-tier.repository';
 import { SubscriptionRepository } from '../../subscription.repository';
-import { SubscriptionActionExecutor } from '../../services/subscription-action.executor';
 import { UserWithSubscriptionTier } from '../../../user/user.entity';
 
 @Injectable()
@@ -13,8 +11,6 @@ export class DowngradeSubscriptionUsecase implements UsecaseInterface {
 	constructor(
 		private readonly subscriptionRepository: SubscriptionRepository,
 		private readonly subscriptionTierRepository: SubscriptionTierRepository,
-		private readonly subscriptionManagerFactory: SubscriptionManagerFactory,
-		private readonly subscriptionActionExecutor: SubscriptionActionExecutor,
 	) {}
 
 	async execute(params: {
@@ -27,8 +23,6 @@ export class DowngradeSubscriptionUsecase implements UsecaseInterface {
 		if (!targetTier) {
 			throw new NotFoundException('Subscription tier not found');
 		}
-
-		const manager = await this.subscriptionManagerFactory.create();
 
 		return await this.subscriptionRepository.transaction(async trx => {
 			const lockedUser = await trx
@@ -43,23 +37,28 @@ export class DowngradeSubscriptionUsecase implements UsecaseInterface {
 				throw new NotFoundException('User not found');
 			}
 
-			const lockedSubscription = await this.subscriptionRepository.lockByUserId(lockedUser.id, trx);
+			const lockedSubscription = await this.subscriptionRepository.lockSubscriptionByUserId(lockedUser.id, trx);
 			if (!lockedSubscription) {
 				throw new NotFoundException('Subscription not found');
 			}
 
-			const { action } = manager.handleDowngrade({
-				subscription: lockedSubscription,
-				targetTier,
-			});
+			const { currentPaidSubscription } = lockedSubscription;
 
-			const persisted = await this.subscriptionActionExecutor.execute({
-				action,
+			if (targetTier.power >= currentPaidSubscription.currentTier.power) {
+				throw new HttpException(
+					`Cannot downgrade subscription tier from "${currentPaidSubscription.currentTier.tier}" to "${targetTier.tier}"`,
+					HttpStatus.CONFLICT,
+				);
+			}
+
+			const persisted = await this.subscriptionRepository.update(
+				currentPaidSubscription.subscription.id,
+				{ next_tier_id: targetTier.id },
 				trx,
-			});
+			);
 
 			if (!persisted) {
-				throw new NotFoundException('Subscription not found');
+				throw new NotFoundException('Failed to update subscription');
 			}
 
 			return SubscriptionResponseDto.fromEntity(persisted);

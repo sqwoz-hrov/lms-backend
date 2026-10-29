@@ -6,13 +6,13 @@ import { SubjectRepository } from '../../subject.repository';
 export class OpenSubjectForTiersUsecase implements UsecaseInterface {
 	constructor(private readonly subjectRepository: SubjectRepository) {}
 
-	async execute({ subjectId, tierIds }: { subjectId: string; tierIds: string[] }): Promise<void> {
+	async execute({ subjectId, minimalTierId }: { subjectId: string; minimalTierId: string }): Promise<void> {
 		const subject = await this.subjectRepository.findById(subjectId);
 
 		if (!subject) {
 			throw new NotFoundException('Предмет не найден');
 		}
 
-		await this.subjectRepository.openForTiers(subjectId, tierIds);
+		await this.subjectRepository.setMinimumTier(subjectId, minimalTierId);
 	}
 }

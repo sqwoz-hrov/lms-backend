@@ -1,5 +1,15 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+	BadRequestException,
+	Body,
+	Controller,
+	Headers,
+	HttpCode,
+	HttpStatus,
+	ParseUUIDPipe,
+	Post,
+	Req,
+} from '@nestjs/common';
+import { ApiHeader, ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from '../../../common/interface/request-with-user.interface';
 import { Roles } from '../../../common/nest/decorators/roles.decorator';
 import { Route } from '../../../common/nest/decorators/route.decorator';
@@ -18,16 +28,31 @@ export class ChargeSubscriptionController {
 		responseType: ChargeSubscriptionResponseDto,
 	})
 	@Post('charge')
+	@ApiHeader({
+		name: 'Idempotence-Key',
+		description: 'UUID v4 that identifies this purchase attempt',
+		required: true,
+		schema: { type: 'string', format: 'uuid' },
+	})
 	@HttpCode(HttpStatus.CREATED)
 	async charge(
 		@Body() dto: ChargeSubscriptionDto,
 		@Req() req: RequestWithUser,
+		// TODO: refactor so that the validation is inside of the thing
+		@Headers('idempotence-key') idempotenceKey: string | undefined,
 	): Promise<ChargeSubscriptionResponseDto> {
 		const user = req.user;
+		if (!idempotenceKey) {
+			throw new BadRequestException('Idempotence-Key header is required');
+		}
+		const validatedIdempotenceKey = await new ParseUUIDPipe({ version: '4' }).transform(idempotenceKey, {
+			type: 'custom',
+		});
 
 		return await this.chargeSubscriptionUsecase.execute({
 			user,
-			subscription_tier_id: dto.subscription_tier_id,
+			current_tier_id: dto.current_tier_id,
+			idempotenceKey: validatedIdempotenceKey,
 		});
 	}
 }

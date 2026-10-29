@@ -5,11 +5,13 @@ import { SubscriptionRepository } from '../../../subscription/subscription.repos
 import { PaymentMethodResponseDto } from '../../dto/payment-method-response.dto';
 import { YookassaClientPaymentMethodPort } from '../../../yookassa/services/yookassa-client.interface';
 import { YOOKASSA_CLIENT } from '../../../yookassa/constants';
+import { PaymentHistoryRepository } from '../../payment-history.repository';
 
 @Injectable()
 export class GetActivePaymentMethodUsecase implements UsecaseInterface {
 	constructor(
 		private readonly subscriptionRepository: SubscriptionRepository,
+		private readonly paymentHistoryRepository: PaymentHistoryRepository,
 		@Inject(YOOKASSA_CLIENT)
 		private readonly yookassaPaymentMethodClient: YookassaClientPaymentMethodPort,
 	) {}
@@ -23,12 +25,23 @@ export class GetActivePaymentMethodUsecase implements UsecaseInterface {
 			throw new NotFoundException('Payment method not found');
 		}
 
+		const subscription = await this.subscriptionRepository.findByUserIdWithTiers(user.id);
+		const problemsWithPaymentMethod = await this.paymentHistoryRepository.hasProblemsWithPaymentMethod(
+			user.id,
+			paymentMethod.payment_method_id,
+		);
+
 		try {
 			const remotePaymentMethod = await this.yookassaPaymentMethodClient.getPaymentMethod({
 				paymentMethodId: paymentMethod.payment_method_id,
 			});
 
-			return PaymentMethodResponseDto.fromSources(paymentMethod, remotePaymentMethod);
+			return PaymentMethodResponseDto.fromSources(
+				paymentMethod,
+				remotePaymentMethod,
+				subscription,
+				problemsWithPaymentMethod,
+			);
 		} catch {
 			throw new NotFoundException('Payment method not found');
 		}
